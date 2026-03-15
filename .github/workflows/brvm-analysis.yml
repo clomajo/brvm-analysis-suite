@@ -1,4 +1,4 @@
-name: BRVM Analysis Suite V25.0 - Mistral AI
+∑name: BRVM Analysis Suite V25.0 - Mistral AI
 
 on:
   schedule:
@@ -134,7 +134,7 @@ jobs:
           python news_collector.py
           echo "✅ News pipeline terminé"
   
-      - name: 📤 Upload Rapports
+      - name: 📤 ≈Upload Rapports
         uses: actions/upload-artifact@v4
         with:
           name: rapports-brvm-${{ github.run_number }}
