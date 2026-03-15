@@ -121,8 +121,8 @@ jobs:
           echo "🚀 Génération rapports avec Mistral AI..."
           python report_generator.py
           echo "✅ Rapports générés"
-      
-     - name: 📰 ÉTAPE 6 - Collecte News & Scoring IA
+          
+- name: 📰 ÉTAPE 6 - Collecte News & Scoring IA
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -133,8 +133,9 @@ jobs:
         run: |
           echo "📰 Collecte des news BRVM..."
           python news_collector.py
-          echo "✅ News pipeline terminé" - name: 📤 Upload Rapports
-        uses: actions/upload-artifact@v4
+          echo "✅ News pipeline terminé"
+
+      - name: 📤 Upload Rapports        uses: actions/upload-artifact@v4
         with:
           name: rapports-brvm-${{ github.run_number }}
           path: Rapport_*.docx
