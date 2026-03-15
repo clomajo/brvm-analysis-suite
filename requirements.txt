@@ -94,3 +94,5 @@ pyOpenSSL==24.0.0
 #   TF 2.16+ bundle Keras 3 comme backend par défaut, ce qui changerait
 #   le comportement de tf.keras et casserait le chargement des modèles.
 # ==============================================================================
+anthropic
+feedparser
