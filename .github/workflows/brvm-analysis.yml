@@ -120,9 +120,21 @@ jobs:
         run: |
           echo "🚀 Génération rapports avec Mistral AI..."
           python report_generator.py
-          echo "✅ Rapports générés"
-          
-- name: 📰 ÉTAPE 6 - Collecte News & Scoring IA
+          echo "✅ Rapports générés"          
+      - name: 📰 ÉTAPE 6 - Collecte News & Scoring IA
+        env:
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "📰 Collecte des news BRVM..."
+          python news_collector.py
+          echo "✅ News pipeline terminé"
+
+      - name: 📤 Upload Rapports📰 ÉTAPE 6 - Collecte News & Scoring IA
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
