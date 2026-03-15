@@ -147,7 +147,8 @@ jobs:
           python news_collector.py
           echo "✅ News pipeline terminé"
 
-      - name: 📤 Upload Rapports        uses: actions/upload-artifact@v4
+      - name: 📤 Upload Rapports        uses: - name: 📤 Upload Rapports
+        uses: actions/upload-artifact@v4
         with:
           name: rapports-brvm-${{ github.run_number }}
           path: Rapport_*.docx
