@@ -134,6 +134,24 @@ jobs:
           python news_collector.py
           echo "✅ News pipeline terminé"
   
+
+      - name: 🎯 ÉTAPE 7 - Opportunity Scoring
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🎯 Calcul des scores d opportunites..."
+          python opportunity_scorer.py
+          echo "✅ Opportunity scoring termine"
+
+      - name: 🎯 ÉTAPE 7 - Opportunity Scoring
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🎯 Calcul des scores d opportunites..."
+          python opportunity_scorer.py
+          echo "✅ Opportunity scoring termine"
       - name: 📤 ≈Upload Rapports
         uses: actions/upload-artifact@v4
         with:
