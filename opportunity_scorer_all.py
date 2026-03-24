@@ -120,22 +120,22 @@ def get_technical_score(company_id):
         return 50.0
 
 def get_fundamental_score(company_id):
-    """Get fundamental score from analysis_text"""
+    """Get fundamental score from analysis_summary"""
     try:
         res = supabase.table('fundamental_analysis') \
-            .select('analysis_text') \
+            .select('analysis_summary') \
             .eq('company_id', company_id) \
             .order('analysis_timestamp', desc=True) \
             .limit(1) \
             .execute()
         
         if res.data:
-            text = res.data[0].get('analysis_text', '')
-            if 'ACHAT' in text or 'BUY' in text:
+            text = res.data[0].get('analysis_summary', '')
+            if 'ACHAT' in text or 'achat' in text:
                 return 80.0
-            elif 'CONSERVER' in text or 'HOLD' in text:
+            elif 'CONSERVER' in text or 'conserver' in text:
                 return 60.0
-            elif 'VENDRE' in text or 'SELL' in text:
+            elif 'VENDRE' in text or 'vendre' in text:
                 return 30.0
             return 50.0
         return 50.0
