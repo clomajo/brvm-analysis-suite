@@ -53,31 +53,34 @@ jobs:
           echo "✅ Chrome: $(google-chrome --version)"
           echo "✅ Chromedriver: $(chromedriver --version)"
       
-      - name: 📊 ÉTAPE 1 - Collecte Données
+      - name: 📊 ÉTAPE 1 - Collecte Données (Supabase)
         env:
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           echo "🚀 Collecte données BRVM..."
-          python data_collector.py
+          python data_collector_replace.py
           echo "✅ Collecte terminée"
       
-      - name: 📈 ÉTAPE 2 - Analyse Technique
+      - name: 📈 ÉTAPE 2 - Analyse Technique (Supabase)
         env:
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           echo "🚀 Analyse technique..."
-          python technical_analyzer.py
+          python technical_analyzer_all.py
           echo "✅ Analyse technique terminée"
       
-      - name: 🔮 ÉTAPE 3 - Prédictions
+      - name: 🏆 ÉTAPE 3 - Opportunity Scorer
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🚀 Calcul des scores d'opportunités..."
+          python opportunity_scorer_all.py
+          echo "✅ Scores mis à jour"
+      
+      - name: 🔮 ÉTAPE 4 - Prédictions
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -89,7 +92,7 @@ jobs:
           python prediction_analyzer.py
           echo "✅ Prédictions terminées"
       
-      - name: 📄 ÉTAPE 4 - Analyse Fondamentale (Mistral AI)
+      - name: 📄 ÉTAPE 5 - Analyse Fondamentale (Mistral AI)
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -100,16 +103,10 @@ jobs:
         run: |
           echo "🚀 Analyse fondamentale avec Mistral AI..."
           echo "🤖 Modèle: mistral-large-latest"
-          echo "🔑 API: Mistral AI"
-          echo "📄 Support: PDF natif avec OCR"
-          echo "⚡ Capacité: Pas de rate limit strict"
-          echo "🛡️  Limite: 3 tentatives max par document"
-          echo "💎 Qualité: Excellente analyse financière"
-          echo "🇫🇷 Origine: IA française"
           python fundamental_analyzer.py
           echo "✅ Analyse fondamentale terminée"
       
-      - name: 📝 ÉTAPE 5 - Génération Rapports (Mistral AI)
+      - name: 📝 ÉTAPE 6 - Génération Rapports (Mistral AI)
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -120,8 +117,9 @@ jobs:
         run: |
           echo "🚀 Génération rapports avec Mistral AI..."
           python report_generator.py
-          echo "✅ Rapports générés"          
-      - name: 📰 ÉTAPE 6 - Collecte News & Scoring IA
+          echo "✅ Rapports générés"
+      
+      - name: 📰 ÉTAPE 7 - Collecte News & Scoring IA
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -134,25 +132,7 @@ jobs:
           python news_collector.py
           echo "✅ News pipeline terminé"
   
-
-      - name: 🎯 ÉTAPE 7 - Opportunity Scoring
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          echo "🎯 Calcul des scores d opportunites..."
-          python opportunity_scorer.py
-          echo "✅ Opportunity scoring termine"
-
-      - name: 🎯 ÉTAPE 7 - Opportunity Scoring
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: |
-          echo "🎯 Calcul des scores d opportunites..."
-          python opportunity_scorer.py
-          echo "✅ Opportunity scoring termine"
-      - name: 📤 ≈Upload Rapports
+      - name: 📤 Upload Rapports
         uses: actions/upload-artifact@v4
         with:
           name: rapports-brvm-${{ github.run_number }}
@@ -168,32 +148,5 @@ jobs:
           echo "Date: $(date '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Run: ${{ github.run_number }}"
           echo ""
-          echo "⚙️  Configuration:"
-          echo "  - IA: Mistral AI (🇫🇷 France)"
-          echo "  - Modèle: mistral-large-latest"
-          echo "  - API: Mistral AI (stable)"
-          echo "  - Support: PDF natif avec OCR intégré"
-          echo "  - Rate limit: Flexible"
-          echo "  - Qualité: ⭐⭐⭐⭐⭐ (Excellente)"
-          echo "  - Fallback: Analyse automatique"
-          echo ""
-          echo "💰 Coût estimé:"
-          echo "  - Analyse fondamentale: ~$0.92 (46 PDFs)"
-          echo "  - Recommandations: ~$0.46 (46 sociétés)"
-          echo "  - Total: ~$1.00 par exécution"
-          echo "  - Crédit disponible: 5€ gratuit"
-          echo ""
-          echo "📋 Étapes:" 
-          echo "  ✅ Collecte données"
-          echo "  ✅ Analyse technique"
-          echo "  ✅ Prédictions"
-          echo "  ✅ Analyse fondamentale (Mistral AI)"
-          echo "  ✅ Génération rapports (Mistral AI)"
-          echo ""
-          if [ -f "Rapport_"*.docx ]; then
-            echo "✅ Rapports générés:"
-            ls -lh Rapport_*.docx
-          else
-            echo "⚠️  Aucun rapport trouvé"
-          fi
+          echo "✅ Pipeline terminé"
           echo "═══════════════════════════════════════════════════════════"
