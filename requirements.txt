@@ -96,3 +96,9 @@ pyOpenSSL==24.0.0
 # ==============================================================================
 anthropic
 feedparser
+supabase
+python-dotenv
+requests
+beautifulsoup4
+pandas
+numpy
