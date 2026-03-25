@@ -59,7 +59,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           echo "🚀 Collecte données BRVM..."
-          python data_collector_replace.py
+          python data_collector_simple.py
           echo "✅ Collecte terminée"
       
       - name: 📈 ÉTAPE 2 - Analyse Technique (Supabase)
