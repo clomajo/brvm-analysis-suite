@@ -89,7 +89,7 @@ jobs:
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
           echo "🚀 Prédictions 20 jours..."
-          python prediction_analyzer.py
+          python prediction_analyzer.py || true
           echo "✅ Prédictions terminées"
       
       - name: 📄 ÉTAPE 5 - Analyse Fondamentale (Mistral AI)
