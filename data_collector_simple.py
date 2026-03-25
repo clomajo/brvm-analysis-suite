@@ -8,9 +8,13 @@ import sys
 import re
 import logging
 import requests
+import urllib3
 from bs4 import BeautifulSoup
 from datetime import datetime
 from dotenv import load_dotenv
+
+# Disable SSL warnings for BRVM (they have certificate issues)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 load_dotenv()
 
@@ -50,7 +54,8 @@ def get_company_mapping():
 def scrape_all_data():
     logger.info(f"Fetching data from {BULLETIN_URL}")
     
-    response = requests.get(BULLETIN_URL, timeout=30)
+    # Disable SSL verification for BRVM (they have certificate issues)
+    response = requests.get(BULLETIN_URL, timeout=30, verify=False)
     response.raise_for_status()
     
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -149,7 +154,7 @@ def insert_data(data, session_date, company_map):
 
 def main():
     logger.info("=" * 60)
-    logger.info("BRVM Data Collector - Simple HTTP Version")
+    logger.info("BRVM Data Collector - Simple HTTP Version (SSL disabled)")
     logger.info("=" * 60)
     
     if not SUPABASE_URL or not SUPABASE_KEY:
