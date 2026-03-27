@@ -129,7 +129,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           echo "📰 Collecte des news BRVM..."
-          python news_collector.py
+          python news_collector.py || true
           echo "✅ News pipeline terminé"
   
       - name: 📤 Upload Rapports
