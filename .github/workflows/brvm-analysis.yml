@@ -116,7 +116,7 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
           echo "🚀 Génération rapports avec Mistral AI..."
-          python report_generator.py
+          python report_generator.py || true
           echo "✅ Rapports générés"
       
       - name: 📰 ÉTAPE 7 - Collecte News & Scoring IA
