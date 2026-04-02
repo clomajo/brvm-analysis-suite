@@ -98,3 +98,11 @@ sync_data_manager.py
 export_to_gsheet.py
 test_synchronization.py
 test_batch_optimization.py
+
+# Backtest artifacts
+*.pkl
+backtest_step*.py
+backtest_step*.py
+load_scorecard.py
+patch_workflow.py
+.env.save
