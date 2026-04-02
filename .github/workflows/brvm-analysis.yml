@@ -53,6 +53,16 @@ jobs:
           echo "✅ Chrome: $(google-chrome --version)"
           echo "✅ Chromedriver: $(chromedriver --version)"
       
+
+      - name: 📈 ÉTAPE 0 - Update Index Values
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🚀 Updating BRVMC and BRVM30 index values..."
+          python update_index.py
+          echo "✅ Index updated"
+
       - name: 📊 ÉTAPE 1 - Collecte Données (Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
