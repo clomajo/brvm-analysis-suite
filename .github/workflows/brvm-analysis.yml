@@ -80,6 +80,26 @@ jobs:
           python opportunity_scorer_simple.py
           echo "✅ Scores mis à jour"
       
+
+      - name: 🎯 ÉTAPE 3b - Generate Decisions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🚀 Generating daily decisions..."
+          python generate_decisions.py
+          echo "✅ Decisions generated"
+
+      - name: ✅ ÉTAPE 3c - Verify Decisions (90-day lookback)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        run: |
+          echo "🚀 Verifying signals from 90 days ago..."
+          python verify_decisions.py
+          echo "✅ Verification complete"
+
       - name: 🔮 ÉTAPE 4 - Prédictions
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
