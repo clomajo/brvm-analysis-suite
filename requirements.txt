@@ -1,6 +1,5 @@
 supabase==2.6.0
 gotrue==2.5.0
-postgrest==0.13.2
 realtime==1.0.0
 storage3==0.7.0
 python-dotenv==1.0.0
