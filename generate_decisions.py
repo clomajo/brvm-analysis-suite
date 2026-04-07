@@ -81,8 +81,12 @@ for symbol, group in df.groupby('symbol'):
     if len(g_clean) == 0:
         print(f"  Skipping {symbol} — no valid data after cleaning")
         continue
-    
-    row = g_clean.iloc[-1]
+
+    try:
+        row = g_clean.iloc[-1]
+    except IndexError:
+        print(f"  Skipping {symbol} — iloc[-1] failed (empty after dropna)")
+        continue
 
     tier = classifier.get_tier(symbol, date_jour)
     seuil_achat = classifier.get_seuil_achat(symbol, date_jour)
