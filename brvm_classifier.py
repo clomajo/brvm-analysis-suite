@@ -64,6 +64,23 @@ CLASSIFICATIONS = {
             'SLBC', 'SNTS', 'SCRC', 'TTLC', 'UNXC', 'SHEC',
         ],
     },
+
+    # ── Avr 2026 — Avis N°081-2026/BRVM/DG — en vigueur depuis 01 Avr 2026 ──
+    # Entrants: CBIBF, NEIC, SEMC, STAC
+    # Sortants: PALC, SAFC, SLBC, SOGC
+    # Note: SIVC renommee ERIUM CI (ticker inchange)
+    '2026-04-01': {
+        'prestige': [
+            'ECOC', 'NTLC', 'ONTBF', 'ORAC', 'PALC', 'SGBC',
+            'SIBC', 'SMBC', 'SNTS', 'SPHC', 'TTLC', 'TTLS',
+        ],
+        'brvm30': [
+            'SDSC', 'SIVC', 'BOABF', 'BOAB', 'BOAC', 'BOAM', 'BOAN', 'BOAS',
+            'BICB', 'CFAC', 'CIEC', 'CBIBF', 'ECOC', 'ETIT', 'FTSC', 'NEIC',
+            'ONTBF', 'ORGT', 'ORAC', 'SPHC', 'SGBC', 'STAC', 'STBC', 'SIBC',
+            'SEMC', 'SNTS', 'SCRC', 'TTLC', 'UNXC', 'SHEC',
+        ],
+    },
 }
 
 SEUILS = {
