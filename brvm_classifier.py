@@ -1,15 +1,57 @@
 """
 Classification officielle des societes BRVM
 Source: Avis officiels BRVM/DG
-Mise a jour: janvier 2026
+Mise a jour: avril 2026
 """
 
-# ── Compositions officielles ──────────────────────────────────────────────────
-
-# Format: 'YYYY-MM-DD': {'prestige': [...], 'brvm30': [...]}
-# Date = date d'entree en vigueur
-
 CLASSIFICATIONS = {
+
+    # ── Jan 2023 — Creation des indices BRVM 30 et Prestige ──────────────────
+    '2023-01-02': {
+        'prestige': [
+            'ETIT', 'NTLC', 'ONTBF', 'PALC', 'SGBC',
+            'SMBC', 'SNTS', 'SPHC', 'TTLC', 'TTLS',
+        ],
+        'brvm30': [
+            'BOAB', 'BOABF', 'BOAC', 'BOAN', 'BOAS', 'SDSC', 'CBIBF',
+            'CFAC', 'CIEC', 'ECOC', 'ETIT', 'FTSC', 'NEIC', 'NTLC',
+            'NSBC', 'ONTBF', 'ORGT', 'PALC', 'SPHC', 'SIBC', 'CABC',
+            'SGBC', 'SDCC', 'SOGC', 'SNTS', 'SCRC', 'TTLC', 'TTLS',
+            'UNXC', 'SHEC',
+        ],
+    },
+
+    # ── Jan 2024 ──────────────────────────────────────────────────────────────
+    '2024-01-02': {
+        'prestige': [
+            'NTLC', 'ONTBF', 'ORGT', 'PALC', 'SPHC',
+            'SMBC', 'SGBC', 'SNTS', 'TTLC', 'TTLS',
+        ],
+        'brvm30': [
+            'SIVC', 'BOABF', 'BOAB', 'BOAC', 'BOAM', 'BOAN', 'BOAS',
+            'SDSC', 'CFAC', 'CIEC', 'CBIBF', 'SEMC', 'ECOC', 'ETIT',
+            'FTSC', 'NTLC', 'NSBC', 'ONTBF', 'ORGT', 'ORAC', 'PALC',
+            'SAFC', 'SIBC', 'SMBC', 'SGBC', 'SOGC', 'SNTS', 'SCRC',
+            'TTLC', 'UNXC',
+        ],
+    },
+
+    # ── Jan 2025 ──────────────────────────────────────────────────────────────
+    '2025-01-02': {
+        'prestige': [
+            'ECOC', 'NTLC', 'NSBC', 'ONTBF', 'ORAC',
+            'PALC', 'SGBC', 'SNTS', 'TTLC', 'TTLS',
+        ],
+        'brvm30': [
+            'SDSC', 'BOABF', 'BOAB', 'BOAC', 'BOAM', 'BOAS', 'BICC',
+            'CFAC', 'CIEC', 'CBIBF', 'ECOC', 'ETIT', 'FTSC', 'NTLC',
+            'ONTBF', 'ORGT', 'ORAC', 'PALC', 'SPHC', 'STBC', 'SIBC',
+            'SGBC', 'SOGC', 'SLBC', 'SNTS', 'SCRC', 'TTLC', 'UNXC',
+            'SHEC',
+        ],
+    },
+
+    # ── Jan 2026 ──────────────────────────────────────────────────────────────
     '2026-01-02': {
         'prestige': [
             'ECOC', 'NTLC', 'ONTBF', 'ORAC', 'PALC', 'SGBC',
@@ -22,17 +64,12 @@ CLASSIFICATIONS = {
             'SLBC', 'SNTS', 'SCRC', 'TTLC', 'UNXC', 'SHEC',
         ],
     },
-    # A completer avec les compositions historiques
-    # '2025-01-02': { 'prestige': [...], 'brvm30': [...] },
-    # '2024-01-02': { 'prestige': [...], 'brvm30': [...] },
-    # '2023-01-02': { 'prestige': [...], 'brvm30': [...] },
 }
 
-# Seuils ACHAT par tier
 SEUILS = {
-    'prestige':  60,
-    'liquid':    65,
-    'illiquid':  72,
+    'prestige': 60,
+    'liquid':   65,
+    'illiquid': 72,
 }
 
 
@@ -45,12 +82,10 @@ class BRVMClassifier:
         self.dates_disponibles = sorted(self.classifications.keys())
 
     def get_tier(self, ticker, date=None):
-        """Retourne le tier d'un ticker a une date donnee."""
         if date is None:
             date = '9999-12-31'
         date_str = str(date)[:10]
 
-        # Trouver la classification la plus recente <= date
         date_classe = None
         for d in self.dates_disponibles:
             if d <= date_str:
@@ -59,7 +94,6 @@ class BRVMClassifier:
                 break
 
         if date_classe is None:
-            # Avant toute classification officielle — utiliser la plus ancienne
             date_classe = self.dates_disponibles[0]
 
         c = self.classifications[date_classe]
@@ -71,28 +105,32 @@ class BRVMClassifier:
             return 'illiquid'
 
     def get_seuil_achat(self, ticker, date=None):
-        """Retourne le seuil d'ACHAT pour un ticker."""
-        tier = self.get_tier(ticker, date)
-        return self.seuils[tier]
+        return self.seuils[self.get_tier(ticker, date)]
 
     def is_liquid(self, ticker, date=None):
-        """Compatibilite avec l'ancien systeme is_liquid."""
         return self.get_tier(ticker, date) != 'illiquid'
 
 
-# ── Test rapide ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     c = BRVMClassifier()
+    print("=== TEST PAR DATE ===")
     tests = [
+        ('SGBC',  '2023-06-01'),
+        ('SGBC',  '2024-06-01'),
+        ('SGBC',  '2025-06-01'),
         ('SGBC',  '2026-04-06'),
-        ('SIVC',  '2026-04-06'),
+        ('ETIT',  '2023-06-01'),
+        ('ETIT',  '2024-06-01'),
+        ('ORGT',  '2023-06-01'),
+        ('ORGT',  '2024-06-01'),
+        ('ECOC',  '2024-06-01'),
+        ('ECOC',  '2025-06-01'),
         ('BICC',  '2026-04-06'),
-        ('NTLC',  '2026-04-06'),
-        ('BOAC',  '2026-04-06'),
+        ('BNBC',  '2026-04-06'),
     ]
-    print(f"{'Ticker':<8} {'Tier':<10} {'Seuil ACHAT':>12}")
-    print('-' * 32)
+    print(f"{'Ticker':<8} {'Date':<12} {'Tier':<10} {'Seuil':>6}")
+    print('-'*38)
     for ticker, date in tests:
         tier  = c.get_tier(ticker, date)
         seuil = c.get_seuil_achat(ticker, date)
-        print(f"{ticker:<8} {tier:<10} {seuil:>12}")
+        print(f"{ticker:<8} {date:<12} {tier:<10} {seuil:>6}")
