@@ -16,17 +16,13 @@ CLASSIFICATION_VERSION = 'v1_officielle_20260406'
 res = supabase.table('companies').select('id, symbol').execute()
 companies = {row['id']: row['symbol'] for row in res.data}
 
-print("Loading recent historical data...")
+print("Loading recent historical data (200 rows per ticker)...")
 all_rows = []
-offset = 0
-while True:
-    res = supabase.table('historical_data').select('company_id, trade_date, price, volume').order('trade_date', desc=True).range(offset, offset + 999).execute()
-    if not res.data:
-        break
-    all_rows.extend(res.data)
-    offset += 1000
-    if offset >= 6000:
-        break
+company_ids = list(companies.keys())
+for cid in company_ids:
+    res = supabase.table('historical_data').select('company_id, trade_date, price, volume').eq('company_id', cid).order('trade_date', desc=True).limit(200).execute()
+    if res.data:
+        all_rows.extend(res.data)
 
 df = pd.DataFrame(all_rows)
 df['symbol'] = df['company_id'].map(companies)
@@ -35,7 +31,26 @@ df['price'] = pd.to_numeric(df['price'], errors='coerce')
 df['volume'] = pd.to_numeric(df['volume'], errors='coerce')
 df = df.dropna(subset=['price', 'symbol'])
 df = df.sort_values(['symbol', 'trade_date']).reset_index(drop=True)
-print(f"Loaded {len(df)} rows")
+print(f"Loaded {len(df)} rows for {df['symbol'].nunique()} tickers")
+
+# ── Calcul du regime de marche (BULL/BEAR) ────────────────────────────────────
+def compute_market_regime(df, brvmc_id):
+    brvmc = df[df['company_id'] == brvmc_id].copy().sort_values('trade_date').reset_index(drop=True)
+    if len(brvmc) < 50:
+        return 'UNKNOWN'
+    prices = brvmc['price'].values
+    sma50  = prices[-50:].mean()
+    sma200 = prices[-200:].mean() if len(prices) >= 200 else prices.mean()
+    current = prices[-1]
+    if current > sma50 and current > sma200:
+        return 'BULL'
+    else:
+        return 'BEAR'
+
+brvmc_company = [cid for cid, sym in companies.items() if sym == 'BRVMC']
+brvmc_id = brvmc_company[0] if brvmc_company else None
+market_regime = compute_market_regime(df, brvmc_id) if brvmc_id else 'UNKNOWN'
+print(f"Market regime: {market_regime}")
 
 def calc_rsi(series, period=14):
     delta = series.diff()
@@ -153,7 +168,8 @@ for symbol, group in df.groupby('symbol'):
         'risk_reward': risk_reward,
         'data_completeness': 'High',
         'seuil_applique': seuil_achat if is_eligible else None,
-        'classification_version': CLASSIFICATION_VERSION
+        'classification_version': CLASSIFICATION_VERSION,
+        'market_regime': market_regime
     })
 
 print(f"{len(decisions)} decisions generated")
