@@ -122,7 +122,7 @@ for symbol, group in df.groupby('symbol'):
     score = int(np.clip(round(score), 0, 100))
 
     if is_eligible:
-        if score >= seuil_achat:
+        if score >= seuil_achat and market_regime != "BEAR":
             signal = 'ACHAT'
         elif score >= 40:
             signal = 'SURVEILLER'
