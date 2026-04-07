@@ -11,7 +11,7 @@ supabase = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVIC
 
 classifier = BRVMClassifier()
 date_jour = date.today().isoformat()
-CLASSIFICATION_VERSION = 'v1_officielle_20260406'
+CLASSIFICATION_VERSION = 'v1_officielle_20260401'
 
 res = supabase.table('companies').select('id, symbol').execute()
 companies = {row['id']: row['symbol'] for row in res.data}
