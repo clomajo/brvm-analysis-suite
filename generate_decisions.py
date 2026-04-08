@@ -74,9 +74,12 @@ def calc_macd_bull(series):
 print("Generating decisions...")
 decisions = []
 
+EXCLUDE = {'BRVM30', 'BRVMC', 'BRVM_CI'}
 for symbol, group in df.groupby('symbol'):
+    if symbol in EXCLUDE:
+        continue
     g = group.copy().reset_index(drop=True)
-    if len(g) < 55:
+    if len(g) < 30:
         print(f"  Skipping {symbol} — insufficient data ({len(g)} rows)")
         continue
 
@@ -90,7 +93,7 @@ for symbol, group in df.groupby('symbol'):
     g['macd_bull'] = calc_macd_bull(g['price'])
 
     # Supprimer les lignes avec des valeurs manquantes
-    g_clean = g.dropna(subset=['rsi', 'sma20', 'sma50', 'atr', 'vol_ratio'])
+    g_clean = g.dropna(subset=['rsi', 'sma20', 'atr', 'vol_ratio'])
     
     # Vérifier qu'il reste des lignes après nettoyage
     if len(g_clean) == 0:
@@ -103,13 +106,15 @@ for symbol, group in df.groupby('symbol'):
         print(f"  Skipping {symbol} — iloc[-1] failed (empty after dropna)")
         continue
 
+    data_completeness = 'High' if len(g_clean) >= 55 else 'Medium' if len(g_clean) >= 30 else 'Low'
     tier = classifier.get_tier(symbol, date_jour)
     seuil_achat = classifier.get_seuil_achat(symbol, date_jour)
     is_eligible = (tier != 'illiquid')
 
     rsi_score = float(row['rsi'])
     trend_sma20 = (row['price'] - row['sma20']) / row['sma20'] * 100
-    trend_sma50 = (row['price'] - row['sma50']) / row['sma50'] * 100
+    _sma50 = row['sma50'] if ('sma50' in row.index and row['sma50'] == row['sma50']) else None
+    trend_sma50 = (row['price'] - _sma50) / _sma50 * 100 if _sma50 else trend_sma20
     trend_raw = (trend_sma20 * 0.6) + (trend_sma50 * 0.4)
     trend_score = float(np.clip(50 + trend_raw * 5, 0, 100))
     vol_score = float(np.clip(row['vol_ratio'] * 50, 0, 100))
@@ -158,6 +163,7 @@ for symbol, group in df.groupby('symbol'):
         'date': date_jour,
         'score': score,
         'signal': signal,
+            'data_completeness': data_completeness,
         'liquidity_tier': tier,
         'confidence': confidence,
         'confidence_label': conf_label,
