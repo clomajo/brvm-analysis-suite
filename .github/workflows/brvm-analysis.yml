@@ -110,6 +110,15 @@ jobs:
           python verify_decisions.py
           echo "✅ Verification complete"
 
+      - name: 🧪 ÉTAPE 3d - Tests Qualité Pipeline
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🔍 Tests qualité pipeline..."
+          python test_pipeline.py
+          echo "✅ Tests qualité validés"
+
       - name: 🔮 ÉTAPE 4 - Prédictions
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
@@ -119,8 +128,11 @@ jobs:
           DB_PORT: ${{ secrets.DB_PORT }}
         run: |
           echo "🚀 Prédictions 20 jours..."
-          python prediction_analyzer.py || true
-          echo "✅ Prédictions terminées"
+          if python prediction_analyzer.py; then
+            echo "✅ Prédictions générées"
+          else
+            echo "⚠️ Échec prédictions — non bloquant"
+          fi
       
       - name: 📄 ÉTAPE 5 - Analyse Fondamentale (Mistral AI)
         env:
@@ -146,8 +158,11 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
           echo "🚀 Génération rapports avec Mistral AI..."
-          python report_generator.py || true
-          echo "✅ Rapports générés"
+          if python report_generator.py; then
+            echo "✅ Rapports générés"
+          else
+            echo "⚠️ Échec génération rapports — non bloquant"
+          fi
       
       - name: 📰 ÉTAPE 7 - Collecte News & Scoring IA
         env:
@@ -159,8 +174,11 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           echo "📰 Collecte des news BRVM..."
-          python news_collector.py || true
-          echo "✅ News pipeline terminé"
+          if python news_collector.py; then
+            echo "✅ News collectées"
+          else
+            echo "⚠️ Échec collecte news — non bloquant"
+          fi
   
       - name: 📤 Upload Rapports
         uses: actions/upload-artifact@v4
