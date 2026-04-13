@@ -1,0 +1,172 @@
+# Runbook — BRVM Analytics
+
+Procédures opérationnelles pour diagnostiquer et résoudre les problèmes courants.
+
+---
+
+## 1. Pipeline GitHub Actions
+
+### Vérifier le statut du pipeline
+```
+https://github.com/clomajo/brvm-analysis-suite/actions
+```
+Le pipeline tourne automatiquement chaque jour de bourse (lundi-vendredi).
+
+### Lancer manuellement
+```bash
+# Via GitHub UI : Actions → brvm-analysis → Run workflow
+# Ou via CLI (si gh installé) :
+gh workflow run brvm-analysis.yml
+```
+
+### Interpréter les codes de sortie
+| Code | Signification |
+|---|---|
+| 0 | Succès ou avertissements non bloquants |
+| 2 | Erreur critique — pipeline arrêté |
+| Autre | Erreur inattendue |
+
+---
+
+## 2. Diagnostics courants
+
+### Moins de 47 tickers fetchés aujourd'hui (T1)
+```bash
+# Vérifier dans Supabase
+SELECT COUNT(DISTINCT company_id)
+FROM historical_data
+WHERE trade_date = CURRENT_DATE;
+
+# Si < 47, vérifier les logs GitHub Actions ÉTAPE 1
+# Cause probable : brvm.org down ou structure HTML changée
+```
+
+### Anomalie de prix >40% détectée (T4)
+```bash
+# Identifier le ticker et la date
+SELECT c.symbol, h.trade_date, prev.price as prev_price, h.price,
+    ROUND(((h.price - prev.price) / prev.price) * 100, 2) as pct_change
+FROM historical_data h
+JOIN companies c ON h.company_id = c.id
+JOIN LATERAL (
+    SELECT price FROM historical_data
+    WHERE company_id = h.company_id AND trade_date < h.trade_date
+    ORDER BY trade_date DESC LIMIT 1
+) prev ON true
+WHERE ABS((h.price - prev.price) / prev.price) > 0.40
+  AND h.trade_date >= CURRENT_DATE - INTERVAL '7 days';
+
+# Vérifier sur brvm.org si c'est un vrai split ou une erreur
+# Si erreur : corriger manuellement dans historical_data
+# Si split : documenter dans CHANGELOG.md et créer ticket DATA-0X
+```
+
+### Signal ACHAT en régime BEAR (T6 — règle métier violée)
+```bash
+# Ne devrait jamais arriver — vérifier generate_decisions.py
+SELECT ticker, date, signal, market_regime, score
+FROM brvm_decisions
+WHERE signal = 'ACHAT' AND market_regime = 'BEAR'
+ORDER BY date DESC;
+
+# Corriger immédiatement — supprimer les décisions incorrectes
+DELETE FROM brvm_decisions
+WHERE signal = 'ACHAT' AND market_regime = 'BEAR';
+```
+
+### Données stales (T8) — ticker non mis à jour depuis >3 jours
+```bash
+SELECT c.symbol, MAX(h.trade_date) as derniere_date,
+    CURRENT_DATE - MAX(h.trade_date) as jours_retard
+FROM historical_data h
+JOIN companies c ON h.company_id = c.id
+GROUP BY c.symbol
+HAVING MAX(h.trade_date) < CURRENT_DATE - INTERVAL '3 days'
+ORDER BY jours_retard DESC;
+
+# Cause probable : ticker absent de brvm.org ce jour-là (pas de transaction)
+# ou changement de symbole BRVM
+```
+
+### Dérive du modèle détectée (T11b)
+```bash
+# Comparer distribution des scores sur 30 jours
+SELECT date,
+    AVG(score) as avg_score,
+    MIN(score) as min_score,
+    MAX(score) as max_score,
+    COUNT(*) as nb_decisions
+FROM brvm_decisions
+WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+GROUP BY date
+ORDER BY date DESC;
+
+# Si dérive > 15 points sur moyenne → investiguer generate_decisions.py
+```
+
+---
+
+## 3. Procédures de maintenance
+
+### Déployer un fix frontend (brvm-analytics)
+```bash
+cd ~/Desktop/brvm-analytics
+# Faire les modifications via Python patch (JAMAIS télécharger App.jsx)
+npm run build          # Vérifier que le build passe
+git add src/App.jsx
+git commit -m "fix: description du fix"
+git push               # Vercel déploie automatiquement en ~60 secondes
+# Vérifier sur brvm-analytics.vercel.app après hard refresh (Cmd+Shift+R)
+```
+
+### Déployer un fix pipeline (brvm-analysis-suite)
+```bash
+cd ~/Desktop/brvm-analysis-suite
+source brvm_env/bin/activate
+# Tester localement d'abord
+python data_collector_simple.py  # ou le script concerné
+python test_pipeline.py          # Vérifier que tous les tests passent
+git add fichier_modifie.py
+git commit -m "fix: description du fix"
+git push
+```
+
+### Corriger une anomalie de prix dans historical_data
+```sql
+-- Identifier l'entrée incorrecte
+SELECT id, trade_date, price, volume
+FROM historical_data
+WHERE company_id = (SELECT id FROM companies WHERE symbol = 'TICKER')
+  AND trade_date = '2026-XX-XX';
+
+-- Corriger
+UPDATE historical_data
+SET price = PRIX_CORRECT
+WHERE id = ID_ENREGISTREMENT;
+
+-- Documenter dans CHANGELOG.md
+```
+
+---
+
+## 4. Calendrier BRVM
+
+| Événement | Date | Action |
+|---|---|---|
+| Première vérification live | 01/07/2026 | Analyser brvm_decisions_results |
+| Dégel du modèle | 01/07/2026 | Activer chantiers FUND-01, DATA-05/06 |
+| AG BOAC | 15/04/2026 | Surveiller annonce dividende FY2025 |
+| AG ONTBF | 29/04/2026 | Surveiller résultats |
+| Dividende BOABF | 23/04/2026 | 397 FCFA net/action |
+
+---
+
+## 5. Contacts et ressources
+
+| Ressource | URL |
+|---|---|
+| App production | https://brvm-analytics.vercel.app |
+| Supabase dashboard | https://supabase.com/dashboard/project/lynevvhmstpcffobwudr |
+| GitHub Actions | https://github.com/clomajo/brvm-analysis-suite/actions |
+| BRVM officiel | https://www.brvm.org |
+| Sikafinance (validation) | https://www.sikafinance.com |
