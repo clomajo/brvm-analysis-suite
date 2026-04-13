@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
 
-BULLETIN_URL = "https://www.brvm.org/en/cours-actions/0"
+BULLETIN_URLS = [f"https://www.brvm.org/en/cours-actions/{i}" for i in range(7)]
 
 def parse_number(value):
     if not value:
@@ -52,62 +52,65 @@ def get_company_mapping():
     return {}
 
 def scrape_all_data():
-    logger.info(f"Fetching data from {BULLETIN_URL}")
+    all_data = []
+    from datetime import datetime as _dt
+    session_date = _dt.now().date().isoformat()
     
-    # Disable SSL verification for BRVM (they have certificate issues)
-    response = requests.get(BULLETIN_URL, timeout=30, verify=False)
-    response.raise_for_status()
+    for url in BULLETIN_URLS:
+        logger.info(f"Fetching data from {url}")
+        try:
+            response = requests.get(url, timeout=30, verify=False)
+            response.raise_for_status()
+        except Exception as e:
+            logger.warning(f"Failed to fetch {url}: {e}")
+            continue
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Get session date from first successful fetch
+        if not session_date:
+            date_match_url = re.search(r'(\d{1,2})\s+(\w+)\s+(\d{4})', response.text)
+            if date_match_url:
+                day, month, year = date_match_url.groups()
+                months = {'January': '01', 'February': '02', 'March': '03', 'April': '04',
+                          'May': '05', 'June': '06', 'July': '07', 'August': '08',
+                          'September': '09', 'October': '10', 'November': '11', 'December': '12'}
+                month_num = months.get(month, '03')
+                session_date = f"{year}-{month_num}-{int(day):02d}"
+        
+        # Find the largest table (main data table)
+        tables = soup.find_all('table')
+        target_table = max(tables, key=lambda t: len(t.find_all('tr'))) if tables else None
+        
+        if not target_table:
+            logger.warning(f"No table found at {url}")
+            continue
     
-    soup = BeautifulSoup(response.text, 'html.parser')
+        # Parse rows for this sector
+        rows = target_table.find_all('tr')
+        
+        for row in rows[1:]:
+            cells = row.find_all('td')
+            if len(cells) >= 7:
+                symbol = cells[0].get_text(strip=True)
+                volume_text = cells[2].get_text(strip=True) if len(cells) > 2 else None
+                close_price_text = cells[5].get_text(strip=True) if len(cells) > 5 else None
+                
+                volume = parse_number(volume_text)
+                close_price = parse_number(close_price_text)
+                if symbol and close_price:
+                    all_data.append({
+                        'symbol': symbol,
+                        'price': close_price,
+                        'volume': int(volume) if volume else 0,
+                        'trade_date': session_date
+                    })
     
-    # Find the full data table
-    tables = soup.find_all('table')
-    target_table = None
-    for table in tables:
-        rows = table.find_all('tr')
-        if len(rows) > 40:
-            target_table = table
-            break
+    if not session_date:
+        session_date = __import__('datetime').datetime.now().date().isoformat()
     
-    if not target_table:
-        logger.error("Could not find the full data table")
-        return None, None
-    
-    # Get session date
-    session_date = datetime.now().date().isoformat()
-    date_match = re.search(r'(\d{1,2})\s+(\w+)\s+(\d{4})', response.text)
-    if date_match:
-        day, month, year = date_match.groups()
-        months = {'January': '01', 'February': '02', 'March': '03', 'April': '04',
-                  'May': '05', 'June': '06', 'July': '07', 'August': '08',
-                  'September': '09', 'October': '10', 'November': '11', 'December': '12'}
-        month_num = months.get(month, '03')
-        session_date = f"{year}-{month_num}-{int(day):02d}"
-    
-    # Parse rows
-    rows = target_table.find_all('tr')
-    data = []
-    
-    for row in rows[1:]:
-        cells = row.find_all('td')
-        if len(cells) >= 7:
-            symbol = cells[0].get_text(strip=True)
-            volume_text = cells[2].get_text(strip=True) if len(cells) > 2 else None
-            close_price_text = cells[5].get_text(strip=True) if len(cells) > 5 else None
-            
-            volume = parse_number(volume_text)
-            close_price = parse_number(close_price_text)
-            
-            if symbol and close_price:
-                data.append({
-                    'symbol': symbol,
-                    'price': close_price,
-                    'volume': int(volume) if volume else 0,
-                    'trade_date': session_date
-                })
-    
-    logger.info(f"Scraped {len(data)} symbols")
-    return data, session_date
+    logger.info(f"Scraped {len(all_data)} symbols across all sectors")
+    return all_data, session_date
 
 def insert_data(data, session_date, company_map):
     if not data:
@@ -118,7 +121,8 @@ def insert_data(data, session_date, company_map):
     url = f"{SUPABASE_URL}/rest/v1/historical_data?trade_date=eq.{session_date}"
     headers = {
         "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}"
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json"
     }
     requests.delete(url, headers=headers)
     
