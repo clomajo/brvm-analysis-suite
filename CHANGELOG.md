@@ -7,6 +7,38 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-04-18
+
+### FEAT — Scraper fondamentaux 5 ans depuis stockanalysis.com
+- **Commit:** 60568df — scrape_all_v4.py
+- **Tables:** company_fundamentals (178 lignes), company_management (46 lignes)
+- **Couverture:** 43/47 tickers financiers, 46/46 management
+- **Données:** Revenue/NI/EPS/Marges 5 ans + CEO/CFO/Employés + EarningsDate + ExDivDate
+
+### FEAT — Score V2 fondamentaux + géopolitique
+- **Commit:** c21ab75 — generate_decisions.py
+- **Formule:** (Tech x ratio_tech + Fund x ratio_fund) x geo_multiplier
+- **Géopolitique:** CI 1.00, SN/BJ 0.95, TG 0.90, BF 0.75, ML 0.70, NE 0.65
+- **Mode:** Informatif uniquement — score V1 intact jusqu au 01/07/2026
+
+### FEAT — Badge Score V2 dans DecisionCard
+- **Commit:** bf23251 — App.jsx
+- **Affichage:** Score V2 + delta + badge Geo x0.XX pour pays AES
+
+### FEAT — Management tab vraies données Supabase
+- **Commit:** c724287 — App.jsx
+- **Impact:** CEO/CFO réels pour 46 tickers (ex: SNTS → Brelotte Ba)
+
+### FIX — IndexPanel valeur réelle BRVMC/BRVM30
+- **Commit:** a2b68ca — App.jsx
+
+### INFRA — Pipeline hebdomadaire scraper fondamentaux
+- **Commit:** 60568df — brvm-analysis.yml ETAPE 1b chaque lundi
+
+### ADR — ADR-009 à ADR-012 ajoutés dans DECISIONS.md
+
+---
+
 ## 2026-04-13
 
 ### FEAT — Tests qualité pipeline automatiques (12 tests)

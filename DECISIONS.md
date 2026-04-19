@@ -74,3 +74,26 @@ Format : Contexte → Décision → Raison → Conséquences
 **Décision :** Cibler BOA Capital Securities en priorité.
 **Raison :** Double rôle — SGI (broker) et émetteur d'analyses hebdomadaires. Permet de mesurer la performance de BRVM Analytics vs BOA Capital sur les mêmes titres. Argument commercial fort.
 **Conséquences :** Construire la base de données des recommandations BOA Capital (backlog P6-01) pour préparer la démonstration comparative.
+
+## ADR-009 — Score V2 en mode informatif parallèle
+**Date:** 18/04/2026
+**Décision:** Score V2 calculé quotidiennement et affiché comme badge Expérimental sans remplacer V1.
+**Raison:** Respecte le gel ADR-001 tout en mesurant l impact des fondamentaux en temps réel.
+**Conséquences:** Basculement officiel vers V2 le 01/07/2026 après analyse des performances.
+
+## ADR-010 — Pondération dynamique V2 par secteur
+**Date:** 18/04/2026
+**Décision:** Finance 60/40, Agro 80/20, Autres 70/30, Partielle 80/20, Aucune 100/0.
+**Raison:** Les banques ont des fondamentaux riches. Les agro sont pilotées par les matières premières.
+
+## ADR-011 — Score géopolitique multiplicateur statique mensuel
+**Date:** 18/04/2026
+**Décision:** CI 1.00, SN/BJ 0.95, TG 0.90, BF 0.75, ML 0.70, NE 0.65.
+**Raison:** Régimes militaires BF/ML/NE = risque systémique non capturé par technique.
+**Conséquences:** CBIBF 77→55.9, BOAN 96→46.3. Migration vers table Supabase country_risk prévue.
+
+## ADR-012 — stockanalysis.com source données fondamentales
+**Date:** 18/04/2026
+**Décision:** Scraper stockanalysis.com — Income Statement, Balance Sheet, Ratios, Management sur 5 ans.
+**Raison:** Seule source gratuite couvrant la BRVM. GuruFocus 200$/mois. API BRVM inexistante.
+**Conséquences:** Scraper hebdomadaire GitHub Actions. 3 tickers non couverts (ETIT, SEMC, SICC).
