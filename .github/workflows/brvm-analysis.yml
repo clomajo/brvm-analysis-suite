@@ -72,6 +72,22 @@ jobs:
           python data_collector_simple.py
           echo "✅ Collecte terminée"
       
+
+      - name: 📊 ÉTAPE 1b - Scrape Fondamentaux (hebdomadaire)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🚀 Scraping fondamentaux depuis stockanalysis.com..."
+          # Tourne seulement le lundi (jour 1)
+          DAY=$(date +%u)
+          if [ "$DAY" = "1" ]; then
+            python scrape_all_v4.py --full
+            echo "✅ Fondamentaux mis à jour"
+          else
+            echo "⏭️ Skipped — tourne seulement le lundi"
+          fi
+
       - name: 📈 ÉTAPE 2 - Analyse Technique (Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
