@@ -71,6 +71,161 @@ def calc_macd_bull(series):
     signal = macd.ewm(span=9, adjust=False).mean()
     return macd > signal
 
+# ── Mapping pays par ticker ──────────────────────────────────────────────────
+TICKER_COUNTRY = {
+    # Côte d'Ivoire
+    'ABJC':'CI','BICC':'CI','BNBC':'CI','BOAC':'CI','CABC':'CI','CFAC':'CI',
+    'CIEC':'CI','ECOC':'CI','ETIT':'TG','FTSC':'CI','LNBB':'BJ','NEIC':'CI',
+    'NSBC':'CI','NTLC':'CI','ORAC':'CI','ORGT':'TG','PALC':'CI','PRSC':'CI',
+    'SAFC':'CI','SCRC':'CI','SDCC':'CI','SDSC':'CI','SEMC':'CI','SGBC':'CI',
+    'SHEC':'CI','SIBC':'CI','SICC':'CI','SIVC':'CI','SLBC':'CI','SMBC':'CI',
+    'SOGC':'CI','SPHC':'CI','STAC':'CI','STBC':'CI','TTLC':'CI','UNLC':'CI',
+    'UNXC':'CI',
+    # Sénégal
+    'SNTS':'SN','TTLS':'SN',
+    # Bénin
+    'BOAB':'BJ',
+    # Burkina Faso
+    'BOABF':'BF','CBIBF':'BF','ONTBF':'BF',
+    # Mali
+    'BOAM':'ML',
+    # Niger
+    'BOAN':'NE',
+    # Sénégal
+    'BOAS':'SN',
+}
+
+GEO_MULTIPLIER = {
+    'CI': 1.00, 'SN': 0.95, 'BJ': 0.95,
+    'TG': 0.90, 'BF': 0.75, 'ML': 0.70, 'NE': 0.65
+}
+
+SECTOR_MAP = {
+    # Finance
+    'BICC':'FINANCE','BOAB':'FINANCE','BOABF':'FINANCE','BOAC':'FINANCE',
+    'BOAM':'FINANCE','BOAN':'FINANCE','BOAS':'FINANCE','CBIBF':'FINANCE',
+    'ECOC':'FINANCE','LNBB':'FINANCE','NSBC':'FINANCE','ORGT':'FINANCE',
+    'SAFC':'FINANCE','SGBC':'FINANCE','SIBC':'FINANCE',
+    # Agro
+    'PALC':'AGRO','SPHC':'AGRO','SICC':'AGRO','SOGC':'AGRO','SCRC':'AGRO',
+}
+
+# Charger les fondamentaux depuis Supabase
+print("Loading fundamentals for score_v2...")
+fund_data = {}
+try:
+    fund_rows = supabase.table('company_fundamentals').select(
+        'ticker,fiscal_year,pe_ratio,roe,revenue_growth,operating_margin,dividend_yield'
+    ).eq('fiscal_year', 'FY2025').execute()
+    for row in fund_rows.data:
+        fund_data[row['ticker']] = row
+    # Fallback to FY2024 for missing FY2025
+    fund_rows_2024 = supabase.table('company_fundamentals').select(
+        'ticker,fiscal_year,pe_ratio,roe,revenue_growth,operating_margin,dividend_yield'
+    ).eq('fiscal_year', 'FY2024').execute()
+    for row in fund_rows_2024.data:
+        if row['ticker'] not in fund_data:
+            fund_data[row['ticker']] = row
+    print(f"  Loaded fundamentals for {len(fund_data)} tickers")
+except Exception as e:
+    print(f"  Warning: Could not load fundamentals: {e}")
+
+def calc_fundamental_score(ticker):
+    """
+    Score fondamental 0-100 basé sur PE, ROE, croissance, marge, dividende.
+    Retourne (score, mode) où mode = 'FULL'/'PARTIAL'/'NONE'
+    """
+    f = fund_data.get(ticker, {})
+    if not f:
+        return 50.0, 'NONE'
+
+    scores = []
+    weights = []
+
+    # PE Ratio (25pts) — plus bas = mieux pour value
+    pe = f.get('pe_ratio')
+    if pe and pe > 0:
+        if pe < 8:      pe_s = 100
+        elif pe < 12:   pe_s = 80
+        elif pe < 18:   pe_s = 60
+        elif pe < 25:   pe_s = 40
+        else:           pe_s = 20
+        scores.append(pe_s); weights.append(25)
+
+    # ROE (25pts)
+    roe = f.get('roe')
+    if roe:
+        if roe > 25:    roe_s = 100
+        elif roe > 15:  roe_s = 80
+        elif roe > 10:  roe_s = 60
+        elif roe > 5:   roe_s = 40
+        else:           roe_s = 20
+        scores.append(roe_s); weights.append(25)
+
+    # Croissance revenue (20pts)
+    rev_g = f.get('revenue_growth')
+    if rev_g is not None:
+        if rev_g > 15:   rev_s = 100
+        elif rev_g > 8:  rev_s = 80
+        elif rev_g > 3:  rev_s = 60
+        elif rev_g > 0:  rev_s = 40
+        else:            rev_s = 20
+        scores.append(rev_s); weights.append(20)
+
+    # Marge opérationnelle (15pts)
+    margin = f.get('operating_margin')
+    if margin:
+        if margin > 30:    m_s = 100
+        elif margin > 20:  m_s = 80
+        elif margin > 10:  m_s = 60
+        elif margin > 5:   m_s = 40
+        else:              m_s = 20
+        scores.append(m_s); weights.append(15)
+
+    # Dividende yield (15pts)
+    div = f.get('dividend_yield')
+    if div:
+        if div > 6:    div_s = 100
+        elif div > 4:  div_s = 80
+        elif div > 2:  div_s = 60
+        elif div > 0:  div_s = 40
+        else:          div_s = 20
+        scores.append(div_s); weights.append(15)
+
+    if not scores:
+        return 50.0, 'NONE'
+
+    total_weight = sum(weights)
+    fund_score = sum(s * w for s, w in zip(scores, weights)) / total_weight
+    mode = 'FULL' if total_weight >= 70 else 'PARTIAL'
+    return round(fund_score, 1), mode
+
+def calc_score_v2(symbol, tech_score):
+    """
+    Score v2 = (tech × ratio_tech + fund × ratio_fund) × geo_multiplier
+    """
+    fund_score, fund_mode = calc_fundamental_score(symbol)
+    sector = SECTOR_MAP.get(symbol, 'OTHER')
+    country = TICKER_COUNTRY.get(symbol, 'CI')
+    geo = GEO_MULTIPLIER.get(country, 1.00)
+
+    # Pondération selon disponibilité et secteur
+    if fund_mode == 'NONE':
+        ratio_tech, ratio_fund = 1.00, 0.00
+    elif fund_mode == 'PARTIAL':
+        ratio_tech, ratio_fund = 0.80, 0.20
+    elif sector == 'FINANCE':
+        ratio_tech, ratio_fund = 0.60, 0.40
+    elif sector == 'AGRO':
+        ratio_tech, ratio_fund = 0.80, 0.20
+    else:
+        ratio_tech, ratio_fund = 0.70, 0.30
+
+    raw = (tech_score * ratio_tech + fund_score * ratio_fund) * geo
+
+    # Malus liquidité déjà dans score technique — pas de double comptage
+    return round(raw, 1), fund_score, fund_mode, geo, ratio_tech, ratio_fund
+
 print("Generating decisions...")
 decisions = []
 
@@ -177,6 +332,15 @@ for symbol, group in df.groupby('symbol'):
         'classification_version': CLASSIFICATION_VERSION,
         'market_regime': market_regime
     })
+
+    # ── Score v2 (fondamental + géopolitique) ──────────────────────────────
+    s_v2, f_score, f_mode, geo, r_tech, r_fund = calc_score_v2(symbol, score)
+    decisions[-1]['score_v2'] = s_v2
+    decisions[-1]['fundamental_score_v2'] = f_score
+    decisions[-1]['fund_mode'] = f_mode
+    decisions[-1]['geo_multiplier'] = geo
+    decisions[-1]['ratio_tech'] = r_tech
+    decisions[-1]['ratio_fund'] = r_fund
 
 print(f"{len(decisions)} decisions generated")
 
