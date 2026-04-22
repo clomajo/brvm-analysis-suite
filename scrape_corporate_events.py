@@ -232,3 +232,145 @@ CREATE TABLE IF NOT EXISTS corporate_events (
         print(f"✅ {ok}/{len(events)} events insérés")
     else:
         print("Créer la table d'abord puis relancer.")
+
+
+# ─────────────────────────────────────────────────────────────
+# RICHBOURSE CALENDAR SCRAPER
+# ─────────────────────────────────────────────────────────────
+
+TITLE_TO_TICKER = {
+    'BOA BURKINA': 'BOABF',
+    'BOA SENEGAL': 'BOAS',
+    'BOA MALI': 'BOAM',
+    'BOA NIGER': 'BOAN',
+    'BOA CI': 'BOAC',
+    'BOA BENIN': 'BOAB',
+    'SONATEL': 'SNTS',
+    'ORANGE CI': 'ORAC',
+    'CORIS BANK': 'CBIBF',
+    'ONATEL': 'ONTBF',
+    'ECOBANK CI': 'ECOC',
+    'ECOBANK GROUP': 'ETIT',
+    'SOCIETE GENERALE': 'SGBC',
+    'PALM CI': 'PALC',
+    'SAPH': 'SPHC',
+    'TOTAL CI': 'TTLC',
+    'TOTAL SENEGAL': 'TTLS',
+    'NESTLE': 'NTLC',
+    'SOLIBRA': 'SLBC',
+    'UNILEVER': 'UNLC',
+    'SOGB': 'SOGC',
+    'SUCRIVOIRE': 'SCRC',
+    'SICOR': 'SICC',
+    'FILTISAC': 'FTSC',
+    'NEI': 'NEIC',
+    'SICABLE': 'CABC',
+    'CFAO': 'CFAC',
+    'TRACTAFRIC': 'PRSC',
+    'VIVO ENERGY': 'SHEC',
+    'CIE': 'CIEC',
+    'SODECI': 'SDCC',
+    'BOLLORE': 'SDSC',
+    'SETAO': 'STAC',
+    'SITAB': 'STBC',
+    'BERNABE': 'BNBC',
+    'SMB': 'SMBC',
+    'BICI': 'BICC',
+    'NSIA': 'NSBC',
+    'SIB': 'SIBC',
+    'ORAGROUP': 'ORGT',
+    'LOTERIE': 'LNBB',
+    'AIR LIQUIDE': 'SIVC',
+}
+
+def find_ticker_from_title(title):
+    title_upper = title.upper()
+    for key, ticker in TITLE_TO_TICKER.items():
+        if key in title_upper:
+            return ticker
+    return None
+
+def scrape_richbourse_calendar():
+    """Scrape le calendrier JSON depuis RichBourse."""
+    print("\nScraping calendrier depuis RichBourse API...")
+    url = 'https://www.richbourse.com/outils/calendrier/events'
+    r = SESSION.get(url, timeout=15, verify=False)
+    if r.status_code != 200:
+        print(f"  Erreur: {r.status_code}")
+        return []
+
+    data = r.json()
+    events = []
+    today = date.today()
+    current_year = str(today.year)
+
+    for item in data:
+        title = item.get('title', '')
+        start = item.get('start', '')
+        color = item.get('color', '')
+        if not start:
+            continue
+
+        event_date = start[:10]  # YYYY-MM-DD
+
+        # Ignorer les jours fériés
+        if 'férié' in title.lower() or 'rappel' in title.lower():
+            continue
+
+        # Déterminer le type
+        title_lower = title.lower()
+        if 'assemblée générale' in title_lower:
+            event_type = 'AG'
+            company = title.replace('Assemblée Générale', '').strip()
+        elif 'cotation ex-dividende' in title_lower:
+            event_type = 'EX_DIVIDEND'
+            company = title.replace('Cotation ex-dividende', '').strip()
+        elif 'paiement des dividendes' in title_lower:
+            event_type = 'DIVIDEND_PAYMENT'
+            company = title.replace('Paiement des dividendes', '').strip()
+        else:
+            continue
+
+        ticker = find_ticker_from_title(company)
+        fiscal_year = str(int(event_date[:4]) - 1)
+
+        events.append({
+            'ticker': ticker,
+            'company_name': company.strip(),
+            'event_type': event_type,
+            'event_date': event_date,
+            'fiscal_year': fiscal_year,
+            'source': 'richbourse_calendar',
+            'scraped_at': today.isoformat()
+        })
+
+    ag = len([e for e in events if e['event_type'] == 'AG'])
+    div = len([e for e in events if 'DIVIDEND' in e['event_type']])
+    print(f"  📊 {ag} AG + {div} événements dividendes ({len(events)} total)")
+    return events
+
+
+def run_full_scrape():
+    """Scraper complet — dividendes Sikafinance + calendrier RichBourse."""
+    company_ids = get_company_ids()
+    print(f"✅ {len(company_ids)} companies in Supabase\n")
+
+    # Dividendes depuis Sikafinance
+    div_events = scrape_dividends()
+
+    # Calendrier AG + dividendes depuis RichBourse
+    cal_events = scrape_richbourse_calendar()
+
+    all_events = div_events + cal_events
+    print(f"\nTotal: {len(all_events)} events à insérer")
+
+    ok = upsert_events(all_events, company_ids)
+    print(f"✅ {ok}/{len(all_events)} events insérés/mis à jour")
+
+
+if __name__ == '__main__':
+    import sys
+    print("="*60)
+    print(f"Corporate Events Scraper v2 — {date.today()}")
+    print("="*60)
+    run_full_scrape()
