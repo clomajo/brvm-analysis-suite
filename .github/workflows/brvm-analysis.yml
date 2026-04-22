@@ -88,6 +88,20 @@ jobs:
             echo "⏭️ Skipped — tourne seulement le lundi"
           fi
 
+      - name: 📅 ÉTAPE 1c - Scrape Corporate Events (hebdomadaire)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🚀 Scraping corporate events depuis Sikafinance..."
+          DAY=$(date +%u)
+          if [ "$DAY" = "1" ]; then
+            echo "o" | python scrape_corporate_events.py
+            echo "✅ Corporate events mis à jour"
+          else
+            echo "⏭️ Skipped — tourne seulement le lundi"
+          fi
+
       - name: 📈 ÉTAPE 2 - Analyse Technique (Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
