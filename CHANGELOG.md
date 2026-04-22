@@ -7,6 +7,37 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-04-21
+
+### FEAT — Table corporate_events + scraper dividendes Sikafinance
+- **Commit:** 455bc33 — scrape_corporate_events.py
+- **Données:** 6 dividendes 2026 + 119 historiques 2022-2025
+- **Table:** corporate_events (ticker, event_type, event_date, amount, yield_pct)
+
+### FEAT — Scraper calendrier RichBourse API JSON
+- **Commit:** 61f709a — scrape_corporate_events.py v2
+- **URL:** richbourse.com/outils/calendrier/events (API JSON FullCalendar)
+- **Données:** 226 AG + 142 EX_DIVIDEND + 142 DIVIDEND_PAYMENT = 674 events total
+- **Mise à jour:** Automatique chaque lundi (ETAPE 1c GitHub Actions)
+- **Impact:** Calendrier corporate events complet et auto-actualisé chaque année
+
+### FEAT — Badge dividende imminent dans DecisionCard
+- **Commits:** 70b98ed, eda5a42, 4410c4b — App.jsx
+- **Description:** Badge 💰 sur chaque carte avec ex-dividend dans 60 jours
+- **Affichage:** Aujourd'hui / Demain / Dans Xj + date exacte
+- **Fix:** Calcul timezone UTC corrigé, offset -1 jour pour éviter exclusion
+
+### FIX — Doublons SDCC/SDSC dans TICKER_TO_SYMBOL
+- **Commits:** 8b78590, 10bcc71 — App.jsx
+- **Description:** Clé SDCC dupliquée remplacée par SDSC (Bolloré),
+  puis doublon SDSC supprimé. Build propre sans warnings.
+
+### DATA — AG avril-juin 2026 insérées
+- **Source:** RichBourse calendrier + stockanalysis.com earnings dates
+- **Total:** 22 AG pour avril-juin 2026 dans corporate_events
+
+---
+
 ## 2026-04-18
 
 ### FEAT — Scraper fondamentaux 5 ans depuis stockanalysis.com
