@@ -586,6 +586,9 @@ sur les indicateurs techniques et les prédictions."""
 - RSI: Valeur={data_dict.get('rsi_value', 'N/A')}, Décision={data_dict.get('rsi_decision', 'N/A')}
 - Stochastique: %K={data_dict.get('stochastic_k', 'N/A')}, %D={data_dict.get('stochastic_d', 'N/A')}, Décision={data_dict.get('stochastic_decision', 'N/A')}
 
+**DONNÉES FINANCIÈRES STRUCTURÉES (stockanalysis.com — 5 ans):**
+{data_dict.get('company_fundamentals_table', 'Non disponible')}
+
 **ANALYSES FONDAMENTALES DISPONIBLES (RAPPORTS FINANCIERS OFFICIELS):**
 {fundamental_text if has_fundamental else "Aucun rapport financier enregistré en base pour cette société."}
 
@@ -596,54 +599,107 @@ sur les indicateurs techniques et les prédictions."""
 
 ═══════════════════════════════════════════════════════════════
 
-GÉNÈRE UN RAPPORT STRUCTURÉ EN FRANÇAIS AVEC CES 4 PARTIES:
+GÉNÈRE UN RAPPORT D'ANALYSE INSTITUTIONNELLE EN FRANÇAIS AVEC CETTE STRUCTURE EXACTE:
 
-**PARTIE 1 : ANALYSE DE L'ÉVOLUTION DU COURS (100 derniers jours)**
+---
 
-Rédige un paragraphe de 5-7 lignes analysant:
-- Le pourcentage d'évolution total sur la période
-- Le cours le plus haut et le plus bas atteints
-- La tendance générale (haussière, baissière, stable)
-- Les variations significatives observées
-- Le contexte de volatilité
+## INVESTMENT THESIS
 
-**PARTIE 2 : ANALYSE TECHNIQUE DÉTAILLÉE**
+Rédige 3 bullet points résumant la thèse d'investissement:
+- Position concurrentielle ou croissance
+- Valorisation ou rendement
+- Principal risque ou catalyseur
 
-Pour CHAQUE indicateur, rédige un paragraphe de 2-3 lignes:
-- **Moyennes Mobiles**: Interprète MM20 et MM50, leur position relative au cours actuel, justifie la décision
-- **Bandes de Bollinger**: Explique la position du cours par rapport aux bornes, la volatilité, justifie la décision
-- **MACD**: Analyse la divergence MACD-Signal, le momentum, justifie la décision
-- **RSI**: Interprète la valeur (suracheté >70, survente <30, neutre 30-70), justifie la décision
-- **Stochastique**: Analyse %K et %D, leur croisement éventuel, justifie la décision
+---
 
-Puis rédige une **conclusion technique** de 3-4 lignes synthétisant tous les indicateurs.
+## RECOMMANDATION
 
-**PARTIE 3 : ANALYSE FONDAMENTALE (SECTION CRITIQUE)**
+**Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
+**Objectif de cours:** [EPS moyen 3 ans × P/E sectoriel ~10x. Si données absentes: N/D]
+**Cours actuel:** {data_dict.get('price', 'N/D')} FCFA
+**Upside/Downside estimé:** [% entre cours actuel et objectif]
+**Niveau de confiance:** [Élevé / Moyen / Faible]
+**Horizon:** [Court terme <3 mois / Moyen terme 3-12 mois / Long terme >12 mois]
 
-Rédige un paragraphe détaillé de 8-10 lignes:
-- UTILISE OBLIGATOIREMENT les analyses fondamentales fournies ci-dessus si elles existent
-- Pour CHAQUE rapport disponible, mentionne sa date et résume ses points clés (CA, résultat net, dividendes)
-- Si plusieurs rapports, montre l'évolution temporelle des chiffres
-- Donne une recommandation fondamentale basée sur CES données
-- NE DIS PAS que les données sont absentes si elles sont fournies ci-dessus
+Justification en 3-4 lignes synthétisant technique + fondamental + contexte BRVM.
 
-**PARTIE 4 : CONCLUSION D'INVESTISSEMENT**
+---
 
-Rédige un paragraphe de 5-6 lignes:
-- Synthétise les 3 analyses précédentes (cours, technique, fondamental)
-- Donne une recommandation finale claire: **ACHAT FORT**, **ACHAT**, **CONSERVER**, **VENTE**, ou **VENTE FORTE**
-- Justifie par la convergence ou divergence des signaux
-- Indique le niveau de confiance: Élevé, Moyen, ou Faible
-- Mentionne le niveau de risque: Faible, Moyen, ou Élevé
-- Suggère un horizon d'investissement (court, moyen, long terme)
+## 1. CHIFFRE D'AFFAIRES & CROISSANCE
+
+Paragraphe de 4-5 lignes:
+- CA des années disponibles avec taux de croissance YoY exacts depuis le tableau ci-dessus
+- Moteurs de croissance (segments, géographies, produits)
+- Comparaison au contexte sectoriel UEMOA
+- Guidance management si disponible
+
+---
+
+## 2. RENTABILITÉ & MARGES
+
+Paragraphe de 4-5 lignes:
+- Résultat net, marge nette, EBITDA sur les années disponibles
+- Évolution du ROE et efficacité opérationnelle
+- Points de pression ou d'amélioration identifiés
+- Comparaison vs peers sectoriels BRVM si possible
+
+---
+
+## 3. DIVIDENDE & CASH FLOW
+
+Paragraphe de 3-4 lignes:
+- DPA historique et taux de distribution
+- Rendement du dividende sur cours actuel
+- Qualité du cash flow (FCF vs résultat net)
+- Soutenabilité du dividende
+
+---
+
+## 4. ANALYSE TECHNIQUE
+
+Une ligne par indicateur:
+- **Tendance (MM20/MM50):** signal + interprétation courte
+- **Momentum (MACD):** signal + interprétation courte
+- **RSI:** suracheté/survente/neutre + implication
+- **Bollinger:** position du cours + volatilité
+- **Conclusion technique:** signal global [haussier/neutre/baissier] avec conviction
+
+---
+
+## 5. RISQUES & OPPORTUNITÉS
+
+**Risques:**
+1. [Élevé] description courte
+2. [Moyen] description courte
+3. [Faible] description courte
+
+**Catalyseurs:**
+1. Court terme — description + impact
+2. Moyen terme — description + impact
+
+**Trigger de révision:** Condition chiffrée qui changerait la recommandation
+
+---
+
+## 6. CONTEXTE SECTORIEL BRVM
+
+Paragraphe de 3-4 lignes:
+- Position dans le secteur sur la BRVM
+- Comparaison qualitative vs peers
+- Impact macro UEMOA (BCEAO, taux, cycle)
+- Risque pays si applicable
+
+---
 
 ═══════════════════════════════════════════════════════════════
 
 RAPPELS IMPÉRATIFS:
-- Rédige en français professionnel avec des paragraphes fluides (pas de bullet points)
-- Sois précis avec les chiffres — cite les valeurs exactes des données fournies
-- Si des analyses fondamentales sont fournies, TU DOIS LES UTILISER — instruction OBLIGATOIRE
-- Mentionne TOUJOURS la date des rapports fondamentaux utilisés
+- Structure OBLIGATOIRE — respecte exactement les 6 sections avec titres markdown
+- Utilise OBLIGATOIREMENT le tableau de données financières structurées fourni
+- Cite les chiffres exacts — ne jamais inventer de données
+- Si une donnée est absente, écris N/D
+- Mentionne la date des rapports utilisés
+- Français professionnel, ton institutionnel
 - Reste factuel et objectif"""
         
         # ── Rotation Multi-AI: DeepSeek → Gemini → Mistral ──────────────────────────
@@ -2121,6 +2177,40 @@ RAPPELS IMPÉRATIFS:
                 else:
                     logging.info(f"   ℹ️ {symbol}: Aucune analyse fondamentale en base")
 
+            # ── Fetch company_fundamentals depuis Supabase ──────────────────
+            cf_data = []
+            try:
+                import urllib.request, json as _json
+                supabase_url = os.environ.get('SUPABASE_URL', '')
+                supabase_key = os.environ.get('SUPABASE_SERVICE_KEY', os.environ.get('SUPABASE_ANON_KEY', ''))
+                if supabase_url and supabase_key:
+                    url_cf = f"{supabase_url}/rest/v1/company_fundamentals?ticker=eq.{symbol}&order=fiscal_year.asc&select=fiscal_year,revenue,net_income,ebitda,eps,dividend_per_share,profit_margin,roe,pe_ratio,forward_pe,free_cash_flow,ebitda_margin"
+                    req = urllib.request.Request(url_cf, headers={'apikey': supabase_key, 'Authorization': f'Bearer {supabase_key}'})
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        cf_data = _json.loads(resp.read())
+            except Exception as e:
+                logging.warning(f"   ⚠️ {symbol}: Fetch company_fundamentals échoué: {e}")
+
+            # Formater les données fundamentals pour le prompt
+            cf_text = ""
+            if cf_data:
+                cf_lines = ["Année | CA (Mds) | RN (Mds) | EBITDA (Mds) | Marge nette | ROE | EPS | DPA | P/E | FCF (Mds)"]
+                cf_lines.append("------|----------|----------|--------------|-------------|-----|-----|-----|-----|----------")
+                for r in cf_data:
+                    ca = f"{round(r['revenue']/1000):,}" if r.get('revenue') else 'N/D'
+                    rn = f"{round(r['net_income']/1000):,}" if r.get('net_income') else 'N/D'
+                    eb = f"{round(r['ebitda']/1000):,}" if r.get('ebitda') else 'N/D'
+                    mg = f"{r['profit_margin']:.1f}%" if r.get('profit_margin') else 'N/D'
+                    roe = f"{r['roe']:.1f}%" if r.get('roe') else 'N/D'
+                    eps = f"{round(r['eps']):,}" if r.get('eps') else 'N/D'
+                    dpa = f"{round(r['dividend_per_share']):,}" if r.get('dividend_per_share') else 'N/D'
+                    pe = f"{r['pe_ratio']:.1f}x" if r.get('pe_ratio') else 'N/D'
+                    fcf = f"{round(r['free_cash_flow']/1000):,}" if r.get('free_cash_flow') else 'N/D'
+                    fy = r.get('fiscal_year', 'N/D')
+                    cf_lines.append(f"{fy} | {ca} | {rn} | {eb} | {mg} | {roe} | {eps} | {dpa} | {pe} | {fcf}")
+                cf_text = "\n".join(cf_lines)
+                logging.info(f"   📊 {symbol}: {len(cf_data)} années de données company_fundamentals chargées")
+
             data_dict = {
                 'price': row.get('price'),
                 'volume': row.get('volume'),
@@ -2140,6 +2230,7 @@ RAPPELS IMPÉRATIFS:
                 'stochastic_d': row.get('stochastic_d'),
                 'stochastic_decision': row.get('stochastic_decision'),
                 'fundamental_analyses': fundamental_text if fundamental_text else "Aucun rapport financier enregistré en base pour cette société.",
+                'company_fundamentals_table': cf_text if cf_text else "Données financières structurées non disponibles pour ce ticker.",
                 'predictions': []
             }
             
