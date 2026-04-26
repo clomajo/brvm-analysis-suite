@@ -7,6 +7,59 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-04-26
+
+### FEAT — Composant FinancialAnalysis.jsx — 8 onglets complets
+- **Commits:** multiples — FinancialAnalysis.jsx
+- **Onglets:** Vue d'ensemble · P&L · Cash Flow · Valorisation · Dividende · Peers · Fair Value · Prévisions
+- **Fair Value:** EPS moyen 3 ans × P/E 10x — cours historique 3 ans vs Fair Value (graphique)
+- **Prévisions:** CAGR historique 5 ans → projection 3 ans CA/RN/EPS/DPA avec graphique
+- **Peers:** comparaison sectorielle automatique depuis company_management.industry
+- **Note Morningstar:** divergence technique vs fondamental expliquée
+
+### FEAT — Prompt NYSE-style dans fundamental_analyzer.py (bon fichier)
+- **Commit:** d5285fe + patches — fundamental_analyzer.py
+- **Sections:** Investment Thesis · Recommandation + price target · CA&Croissance · Rentabilité · Dividende&FCF · Moat Rating · Contexte sectoriel BRVM
+- **Peer comparison:** tableau sectoriel FY2025 injecté automatiquement dans le prompt
+- **Moat Rating:** WIDE/NARROW/NONE dans les 3 modèles (DeepSeek, Gemini, Mistral)
+- **Données:** company_fundamentals 5 ans injectées dans le prompt
+
+### FEAT — scrape_indices.py — BRVMC + BRVM30 quotidiens
+- **Commit:** c4c6fda — scrape_indices.py + workflow
+- **Source:** brvm.org/en/marche/bulletin-officiel-de-la-cote
+- **Fix:** indices bloqués au 18 avril → mis à jour quotidiennement dès demain 6h UTC
+
+### FEAT — scrape_commodities.py — Prix réels Yahoo Finance
+- **Commit:** dec2aa8 — scrape_commodities.py + workflow
+- **Commodités:** cocoa (CC=F), cotton (CT=F), gold (GC=F), crude (CL=F), USD/XOF (EUR/USD × 655.957)
+- **Table:** commodity_prices — 1263 prix insérés
+- **Frontend:** CommoditiesView lit depuis Supabase avec fallback PRNG
+
+### FEAT — Badge détresse relative dans DecisionCards
+- **Commit:** c931d23 — App.jsx
+- **Seuil:** YTD ticker < YTD BRVMC - 25pts
+- **Vue SQL:** v_ytd_performance (avec filtre aberrations > ±50%)
+- **Affichage:** ⚠️ Relative Distress · YTD X% · -Xpts vs BRVMC
+
+### FIX — Portfolio — vrais prix depuis fetchLiveData
+- **Commit:** 04a73eb — App.jsx
+- **Avant:** generateDemoData (PRNG) pour tous les tickers portfolio
+- **Après:** fetchLiveData depuis Supabase avec fallback demo
+
+### FIX — Contraste texte — #7d8590 → #1A202C
+- **Commit:** e87f2c1 — App.jsx
+- **Description:** 216 remplacements + 29 textes secondaires pour meilleur contraste
+
+### DATA — Vue v_ytd_performance créée
+- **Source:** historical_data JOIN companies — prix début 2026 vs prix actuel
+- **Filtre:** exclut variations > ±50% (aberrations ONTBF, SICC)
+
+### DATA — Vue v_historical_prices créée
+- **Source:** historical_data JOIN companies — expose colonne ticker
+- **Usage:** FinancialAnalysis Fair Value chart
+
+---
+
 ## 2026-04-25 / 2026-04-26
 
 ### FEAT — Composant FinancialAnalysis.jsx — graphiques et tableaux depuis Supabase
