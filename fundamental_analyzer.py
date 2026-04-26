@@ -172,7 +172,9 @@ class BRVMAnalyzer:
                         (company_id, report_url, report_title, report_date,
                          analysis_summary, analysis_timestamp)
                     VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                    ON CONFLICT (report_url) DO NOTHING
+                    ON CONFLICT (report_url) DO UPDATE SET
+                        analysis_summary = EXCLUDED.analysis_summary,
+                        analysis_timestamp = CURRENT_TIMESTAMP
                     RETURNING id;
                 """, (
                     company_id,
@@ -883,7 +885,7 @@ IMPORTANT:
         logging.info("="*80)
         logging.info("📄 ÉTAPE 4: ANALYSE FONDAMENTALE (V30.0 - Multi-AI historisée)")
         logging.info("🤖 Rotation: DeepSeek → Gemini → Mistral")
-        logging.info("📦 Mode: INSERT pur — historisation complète, aucune mise à jour")
+        logging.info("📦 Mode: UPSERT — régénération avec nouveau prompt NYC-style")
         logging.info("="*80)
         
         conn = None
