@@ -392,6 +392,69 @@ class BRVMAnalyzer:
             logging.error(f"      ❌ Erreur extraction PDF: {e}")
             return None
 
+
+    def _fetch_peers_data(self, symbol):
+        """Fetche les données peers depuis Supabase pour le peer comparison"""
+        try:
+            supabase_url = os.environ.get('SUPABASE_URL', '')
+            supabase_key = os.environ.get('SUPABASE_SERVICE_KEY', os.environ.get('SUPABASE_ANON_KEY', ''))
+            if not supabase_url or not supabase_key:
+                return ""
+            
+            headers = {'apikey': supabase_key, 'Authorization': f'Bearer {supabase_key}'}
+            
+            # 1. Trouver l'industry du ticker
+            url_industry = f"{supabase_url}/rest/v1/company_management?ticker=eq.{symbol}&select=industry"
+            r = requests.get(url_industry, headers=headers, timeout=10)
+            if r.status_code != 200 or not r.json():
+                return ""
+            industry = r.json()[0].get('industry')
+            if not industry:
+                return ""
+            
+            # 2. Trouver tous les tickers du même secteur
+            url_peers = f"{supabase_url}/rest/v1/company_management?industry=eq.{requests.utils.quote(industry)}&select=ticker"
+            r = requests.get(url_peers, headers=headers, timeout=10)
+            if r.status_code != 200:
+                return ""
+            peer_tickers = [p['ticker'] for p in r.json()]
+            if len(peer_tickers) <= 1:
+                return ""
+            
+            # 3. Fetcher les fondamentaux FY2025 pour tous les peers
+            tickers_filter = ','.join(peer_tickers)
+            url_fund = f"{supabase_url}/rest/v1/company_fundamentals?ticker=in.({tickers_filter})&fiscal_year=eq.FY2025&select=ticker,revenue,net_income,profit_margin,roe,pe_ratio,pb_ratio,dividend_yield,ebitda_margin"
+            r = requests.get(url_fund, headers=headers, timeout=10)
+            if r.status_code != 200 or not r.json():
+                return ""
+            
+            peers = r.json()
+            if not peers:
+                return ""
+            
+            # 4. Formater le tableau
+            lines = [f"PEER COMPARISON — Secteur: {industry} ({len(peers)} sociétés)"]
+            lines.append("Ticker | CA (Mds) | RN (Mds) | Marge nette | ROE | P/E | P/B | Div. yield")
+            lines.append("-------|----------|----------|-------------|-----|-----|-----|----------")
+            
+            for p in sorted(peers, key=lambda x: x.get('revenue') or 0, reverse=True):
+                ticker = p.get('ticker', 'N/D')
+                ca = f"{round(p['revenue']/1000):,}" if p.get('revenue') else 'N/D'
+                rn = f"{round(p['net_income']/1000):,}" if p.get('net_income') else 'N/D'
+                mg = f"{p['profit_margin']:.1f}%" if p.get('profit_margin') else 'N/D'
+                roe = f"{p['roe']:.1f}%" if p.get('roe') else 'N/D'
+                pe = f"{p['pe_ratio']:.1f}x" if p.get('pe_ratio') else 'N/D'
+                pb = f"{p['pb_ratio']:.1f}x" if p.get('pb_ratio') else 'N/D'
+                dy = f"{p['dividend_yield']:.1f}%" if p.get('dividend_yield') else 'N/D'
+                marker = " ← CE TITRE" if ticker == symbol else ""
+                lines.append(f"{ticker}{marker} | {ca} | {rn} | {mg} | {roe} | {pe} | {pb} | {dy}")
+            
+            return "\n".join(lines)
+            
+        except Exception as e:
+            logging.warning(f"   ⚠️ Fetch peers échoué pour {symbol}: {e}")
+            return ""
+
     def _analyze_with_deepseek(self, text_content, symbol, report_title):
         """Analyse avec DeepSeek API"""
         if not DEEPSEEK_API_KEY:
@@ -728,6 +791,12 @@ IMPORTANT:
             return False
         
         logging.info(f"    📝 {len(text_content)} caractères extraits, envoi à l'IA...")
+        
+        # Fetch peers data pour peer comparison
+        peers_text = self._fetch_peers_data(symbol)
+        if peers_text:
+            logging.info(f"    📊 Données peers ajoutées ({len(peers_text)} caractères)")
+            text_content = text_content + "\n\n" + "="*60 + "\n" + peers_text + "\n" + "="*60
         
         # ROTATION DES API: DeepSeek → Gemini → Mistral
         analysis = None
