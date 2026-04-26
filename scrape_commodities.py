@@ -91,8 +91,8 @@ def upsert_prices(commodity_id, rows):
     for i in range(0, len(data), 100):
         batch = data[i:i+100]
         r = requests.post(
-            f"{SUPABASE_URL}/rest/v1/commodity_prices",
-            headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=minimal"},
+            f"{SUPABASE_URL}/rest/v1/commodity_prices?on_conflict=commodity_id,trade_date",
+            headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"},
             json=batch
         )
         if r.status_code in [200, 201]:
