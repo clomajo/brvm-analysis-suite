@@ -7,6 +7,56 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-04-25 / 2026-04-26
+
+### FEAT — Composant FinancialAnalysis.jsx — graphiques et tableaux depuis Supabase
+- **Commits:** 5988e3e, 1cb3cf1, 4747996, aaed5ae, e44a6c4 — FinancialAnalysis.jsx
+- **Données:** company_fundamentals — 43 tickers, 5 ans (FY2021–FY2025), 52 colonnes
+- **Onglets:** Vue d'ensemble · P&L · Cash Flow · Valorisation · Dividende · Peers
+- **Graphiques:** Chart.js — CA/RN, marges, FCF, P/E historique/forward, dividende+rendement
+- **Source:** stockanalysis.com via scraper existant
+
+### FEAT — Onglet Peers — comparaison sectorielle automatique
+- **Commit:** 9ca09e1 — FinancialAnalysis.jsx
+- **Source:** company_management.industry + company_fundamentals FY2025
+- **Couverture:** 43 tickers, 14 secteurs
+- **Affichage:** Tableau comparatif CA, RN, marge, ROE, P/E, P/B, dividende
+
+### FEAT — Thème corporatif gris clair + bleu finance
+- **Commit:** bc52c42 — App.jsx
+- **Description:** Remplacement de 500+ couleurs inline (fonds sombres → gris clair, textes blancs → sombres)
+- **Palette:** Fond #F8F9FA, cards #FFFFFF, accent #2B6CB0, texte #1A202C
+
+### FEAT — Prompt Mistral NYSE-style 6 sections
+- **Commit:** f83a893 — report_generator.py
+- **Sections:** Investment Thesis · Recommandation + price target · CA&Croissance · Rentabilité · Dividende&FCF · Risques&Opportunités · Contexte sectoriel
+- **Nouveau:** Objectif de cours (EPS × P/E ~10x), trigger de révision, scénarios
+
+### FEAT — Données company_fundamentals injectées dans prompt Mistral
+- **Commit:** f83a893 — report_generator.py
+- **Description:** Tableau 5 ans (CA, RN, EBITDA, marges, ROE, EPS, DPA, P/E, FCF) injecté dans le prompt avant génération
+- **Impact:** Mistral interprète maintenant les vraies données financières structurées
+
+### FIX — Texte brut Mistral masqué + rapport unique (le plus récent)
+- **Commits:** 4747996, eb488b8 — App.jsx
+- **Avant:** Markdown brut illisible, plusieurs rapports affichés
+- **Après:** Une ligne sobre + composant FinancialAnalysis unique (rapport le plus récent)
+
+### FIX — Industry mappée pour ETIT, SICC, STBC
+- **Source:** Supabase SQL UPDATE company_management
+- **ETIT:** Commercial Banks · **SICC:** Agriculture · **STBC:** Food and Kindred Products
+
+### INFRA — chart.js ajouté comme dépendance npm
+- **Commit:** 1cb3cf1 — package.json
+
+### BACKLOG — Nouveaux items identifiés
+- react-markdown pour rendre le texte Mistral structuré
+- Price vs Fair Value chart (Fair Value = EPS moyen 3 ans × P/E ~10x)
+- Filtre détresse relative vs BRVM Composite (badge ⚠️)
+- Déduplication sectorielle BOA (alerte si 3+ titres même groupe en BUY)
+
+---
+
 ## 2026-04-21
 
 ### FEAT — Table corporate_events + scraper dividendes Sikafinance
