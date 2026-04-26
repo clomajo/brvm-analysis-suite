@@ -402,34 +402,92 @@ class BRVMAnalyzer:
 RAPPORT:
 {text_content}
 
-CONSIGNES:
-Fournis une analyse structurée en français couvrant:
+GÉNÈRE UN RAPPORT D'ANALYSE INSTITUTIONNELLE EN FRANÇAIS AVEC CETTE STRUCTURE EXACTE:
 
-1. CHIFFRE D'AFFAIRES ET ÉVOLUTION
-- Montant du chiffre d'affaires
-- Évolution par rapport à l'année précédente (en valeur et en pourcentage)
-- Analyse des tendances
+---
 
-2. RÉSULTAT NET ET RENTABILITÉ
-- Résultat net de l'exercice
-- Marge nette (résultat net / CA)
-- Évolution de la rentabilité
+## INVESTMENT THESIS
 
-3. POLITIQUE DE DIVIDENDE
-- Dividende par action proposé
-- Taux de distribution
-- Évolution dans le temps
+Rédige 3 bullet points résumant la thèse d'investissement:
+- Position concurrentielle ou croissance principale
+- Valorisation ou rendement attractif
+- Principal risque ou catalyseur
 
-4. PERSPECTIVES ET RECOMMANDATIONS
-- Principaux risques identifiés
-- Opportunités de développement
-- Recommandation finale (ACHAT, CONSERVER, VENTE) avec justification
+---
+
+## RECOMMANDATION
+
+**Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
+**Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si données absentes: N/D]
+**Upside/Downside estimé:** [% entre cours actuel et objectif si disponible]
+**Niveau de confiance:** [Élevé / Moyen / Faible]
+**Horizon:** [Court terme <3 mois / Moyen terme 3-12 mois / Long terme >12 mois]
+
+Justification en 3-4 lignes synthétisant les points clés du rapport.
+
+---
+
+## 1. CHIFFRE D'AFFAIRES & CROISSANCE
+
+Paragraphe de 4-5 lignes:
+- Montant exact du CA avec comparaison YoY
+- Taux de croissance en valeur et pourcentage
+- Moteurs de croissance identifiés (segments, géographies, produits)
+- Tendance sur les années disponibles dans le rapport
+
+---
+
+## 2. RENTABILITÉ & MARGES
+
+Paragraphe de 4-5 lignes:
+- Résultat net exact et marge nette calculée
+- EBITDA si disponible
+- ROE et coefficient d'exploitation si disponibles
+- Points de pression ou d'amélioration identifiés
+
+---
+
+## 3. DIVIDENDE & CASH FLOW
+
+Paragraphe de 3-4 lignes:
+- DPA proposé et taux de distribution
+- Rendement estimé sur cours actuel si disponible
+- Qualité du cash flow si mentionné
+- Soutenabilité du dividende
+
+---
+
+## 4. RISQUES & OPPORTUNITÉS
+
+**Risques classés par impact:**
+1. [Élevé] description courte
+2. [Moyen] description courte
+3. [Faible] description courte
+
+**Catalyseurs haussiers:**
+1. Court terme — description
+2. Moyen terme — description
+
+**Trigger de révision:** Condition chiffrée qui changerait la recommandation
+
+---
+
+## 5. CONTEXTE SECTORIEL BRVM
+
+Paragraphe de 3-4 lignes:
+- Position de la société dans son secteur sur la BRVM
+- Comparaison qualitative vs peers si possible
+- Impact du contexte macro UEMOA (BCEAO, taux, cycle économique)
+
+---
 
 IMPORTANT:
-- Sois précis avec les chiffres (utilise les montants exacts du rapport)
-- Mentionne les dates et périodes concernées
-- Si une information manque, indique-le clairement
-- Rédige en français professionnel et concis (max 800 mots)"""
+- Structure OBLIGATOIRE — respecte exactement les 5 sections avec titres markdown
+- Cite les chiffres exacts du rapport — ne jamais inventer de données
+- Si une donnée est absente, écris N/D
+- Mentionne la date et la période du rapport analysé
+- Rédige en français professionnel, ton institutionnel
+- Reste factuel et objectif"""
 
         headers = {
             "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
@@ -480,25 +538,52 @@ Fournis une analyse structurée en français couvrant:
 - Évolution par rapport à l'année précédente
 - Analyse des tendances
 
-2. RÉSULTAT NET ET RENTABILITÉ
-- Résultat net de l'exercice
-- Marge nette
-- Évolution de la rentabilité
+## RECOMMANDATION
 
-3. POLITIQUE DE DIVIDENDE
-- Dividende par action proposé
-- Taux de distribution
-- Évolution dans le temps
+**Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
+**Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si absent: N/D]
+**Niveau de confiance:** [Élevé / Moyen / Faible]
+**Horizon:** [Court terme / Moyen terme / Long terme]
 
-4. PERSPECTIVES ET RECOMMANDATIONS
-- Principaux risques identifiés
-- Opportunités de développement
-- Recommandation finale (ACHAT, CONSERVER, VENTE) avec justification
+Justification en 3-4 lignes synthétisant les points clés.
+
+---
+
+## 1. CHIFFRE D'AFFAIRES & CROISSANCE
+
+Paragraphe 4-5 lignes: CA exact, croissance YoY, moteurs, tendance.
+
+---
+
+## 2. RENTABILITÉ & MARGES
+
+Paragraphe 4-5 lignes: résultat net, marge nette, EBITDA, ROE si disponibles.
+
+---
+
+## 3. DIVIDENDE & CASH FLOW
+
+Paragraphe 3-4 lignes: DPA, taux distribution, rendement, soutenabilité.
+
+---
+
+## 4. RISQUES & OPPORTUNITÉS
+
+Risques (Élevé/Moyen/Faible) + Catalyseurs (court/moyen terme) + Trigger de révision.
+
+---
+
+## 5. CONTEXTE SECTORIEL BRVM
+
+Paragraphe 3-4 lignes: position sectorielle, peers, macro UEMOA.
+
+---
 
 IMPORTANT:
-- Sois précis avec les chiffres
-- Mentionne les dates
-- Rédige en français professionnel (max 800 mots)"""
+- Structure OBLIGATOIRE — 5 sections avec titres markdown
+- Chiffres exacts du rapport uniquement — jamais inventer
+- Si donnée absente: N/D
+- Français professionnel, ton institutionnel"""
 
         url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
         
@@ -547,25 +632,52 @@ Fournis une analyse structurée en français couvrant:
 - Évolution par rapport à l'année précédente
 - Analyse des tendances
 
-2. RÉSULTAT NET ET RENTABILITÉ
-- Résultat net de l'exercice
-- Marge nette
-- Évolution de la rentabilité
+## RECOMMANDATION
 
-3. POLITIQUE DE DIVIDENDE
-- Dividende par action proposé
-- Taux de distribution
-- Évolution dans le temps
+**Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
+**Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si absent: N/D]
+**Niveau de confiance:** [Élevé / Moyen / Faible]
+**Horizon:** [Court terme / Moyen terme / Long terme]
 
-4. PERSPECTIVES ET RECOMMANDATIONS
-- Principaux risques identifiés
-- Opportunités de développement
-- Recommandation finale (ACHAT, CONSERVER, VENTE) avec justification
+Justification en 3-4 lignes synthétisant les points clés.
+
+---
+
+## 1. CHIFFRE D'AFFAIRES & CROISSANCE
+
+Paragraphe 4-5 lignes: CA exact, croissance YoY, moteurs, tendance.
+
+---
+
+## 2. RENTABILITÉ & MARGES
+
+Paragraphe 4-5 lignes: résultat net, marge nette, EBITDA, ROE si disponibles.
+
+---
+
+## 3. DIVIDENDE & CASH FLOW
+
+Paragraphe 3-4 lignes: DPA, taux distribution, rendement, soutenabilité.
+
+---
+
+## 4. RISQUES & OPPORTUNITÉS
+
+Risques (Élevé/Moyen/Faible) + Catalyseurs (court/moyen terme) + Trigger de révision.
+
+---
+
+## 5. CONTEXTE SECTORIEL BRVM
+
+Paragraphe 3-4 lignes: position sectorielle, peers, macro UEMOA.
+
+---
 
 IMPORTANT:
-- Sois précis avec les chiffres
-- Mentionne les dates
-- Rédige en français professionnel (max 800 mots)"""
+- Structure OBLIGATOIRE — 5 sections avec titres markdown
+- Chiffres exacts du rapport uniquement — jamais inventer
+- Si donnée absente: N/D
+- Français professionnel, ton institutionnel"""
 
         headers = {
             "Authorization": f"Bearer {MISTRAL_API_KEY}",
