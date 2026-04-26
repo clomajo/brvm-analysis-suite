@@ -141,9 +141,9 @@ class BRVMAnalyzer:
             with conn.cursor() as cur:
                 cur.execute("SELECT report_url FROM fundamental_analysis;")
                 rows = cur.fetchall()
-                self.analysis_memory = {row[0] for row in rows}
-
-            logging.info(f"   ✅ {len(self.analysis_memory)} PDF(s) déjà analysé(s) en base (skip définitif)")
+                # Mode UPSERT: vider la mémoire pour forcer régénération avec nouveau prompt
+                self.analysis_memory = set()
+                logging.info(f"   🔄 {len(rows)} PDF(s) en base — Mode UPSERT: tous seront régénérés")
 
         except Exception as e:
             logging.error(f"❌ Erreur chargement mémoire: {e}")
