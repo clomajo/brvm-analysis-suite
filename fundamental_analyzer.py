@@ -535,7 +535,18 @@ Paragraphe de 3-4 lignes:
 
 ---
 
-## 5. CONTEXTE SECTORIEL BRVM
+## 5. MOAT RATING — AVANTAGE CONCURRENTIEL
+
+**Rating:** [WIDE / NARROW / NONE]
+- **WIDE** = avantage durable >20 ans (monopole, réseau, coûts de switching élevés)
+- **NARROW** = avantage limité 10-20 ans (marque forte, efficacité opérationnelle)
+- **NONE** = pas d'avantage structurel identifiable
+
+**Justification en 2-3 lignes:** Source de l'avantage concurrentiel identifié dans le rapport.
+
+---
+
+## 6. CONTEXTE SECTORIEL BRVM
 
 Paragraphe de 3-4 lignes:
 - Position de la société dans son secteur sur la BRVM
@@ -636,14 +647,25 @@ Risques (Élevé/Moyen/Faible) + Catalyseurs (court/moyen terme) + Trigger de r�
 
 ---
 
-## 5. CONTEXTE SECTORIEL BRVM
+## 5. MOAT RATING — AVANTAGE CONCURRENTIEL
+
+**Rating:** [WIDE / NARROW / NONE]
+- WIDE = avantage durable >20 ans
+- NARROW = avantage limité 10-20 ans
+- NONE = pas d'avantage structurel
+
+Justification en 2-3 lignes depuis le rapport.
+
+---
+
+## 6. CONTEXTE SECTORIEL BRVM
 
 Paragraphe 3-4 lignes: position sectorielle, peers, macro UEMOA.
 
 ---
 
 IMPORTANT:
-- Structure OBLIGATOIRE — 5 sections avec titres markdown
+- Structure OBLIGATOIRE — 6 sections avec titres markdown
 - Chiffres exacts du rapport uniquement — jamais inventer
 - Si donnée absente: N/D
 - Français professionnel, ton institutionnel"""
@@ -730,14 +752,25 @@ Risques (Élevé/Moyen/Faible) + Catalyseurs (court/moyen terme) + Trigger de r�
 
 ---
 
-## 5. CONTEXTE SECTORIEL BRVM
+## 5. MOAT RATING — AVANTAGE CONCURRENTIEL
+
+**Rating:** [WIDE / NARROW / NONE]
+- WIDE = avantage durable >20 ans
+- NARROW = avantage limité 10-20 ans
+- NONE = pas d'avantage structurel
+
+Justification en 2-3 lignes depuis le rapport.
+
+---
+
+## 6. CONTEXTE SECTORIEL BRVM
 
 Paragraphe 3-4 lignes: position sectorielle, peers, macro UEMOA.
 
 ---
 
 IMPORTANT:
-- Structure OBLIGATOIRE — 5 sections avec titres markdown
+- Structure OBLIGATOIRE — 6 sections avec titres markdown
 - Chiffres exacts du rapport uniquement — jamais inventer
 - Si donnée absente: N/D
 - Français professionnel, ton institutionnel"""
