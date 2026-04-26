@@ -72,6 +72,8 @@ jobs:
           python data_collector_simple.py
           echo "📈 Mise à jour indices BRVMC + BRVM30..."
           python scrape_indices.py
+          echo "📦 Mise à jour commodités..."
+          python scrape_commodities.py
           echo "✅ Collecte terminée"
       
 
