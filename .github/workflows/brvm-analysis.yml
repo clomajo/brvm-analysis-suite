@@ -144,6 +144,18 @@ jobs:
           python verify_decisions.py
           echo "✅ Verification complete"
 
+      - name: 🔍 ÉTAPE 3e - Verify GRU Predictions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🚀 Verifying GRU predictions vs actual prices..."
+          if python verify_predictions.py; then
+            echo "✅ Prediction verification complete"
+          else
+            echo "⚠️ Échec verification — non bloquant"
+          fi
+
       - name: 🧪 ÉTAPE 3d - Tests Qualité Pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
