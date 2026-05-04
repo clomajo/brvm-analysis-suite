@@ -281,3 +281,49 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - Onglets : Aperçu, Marché, Opportunités, Scorecard, Risque,
   Législatif, Direction, Prévisions, Backtest, Portefeuille, Obligations, Macro
 - Pricing B2B : 150$/mois broker, 500$/mois trading floor, 5 000$/an asset manager
+
+---
+
+## 2026-05-03
+
+### FEAT — Signal fondamental Mistral intégré dans brvm_decisions
+- **Script:** extract_fundamental_signals.py
+- **Description:** Analyse les 158 résumés Mistral via API — extrait signal_fondamental (positif/neutre/négatif), croissance_ca_pct, resume_fondamental
+- **Colonne:** signal_combine = combinaison signal technique + fondamental
+- **Règles:** ACHAT + positif = CONVICTION FORTE · ACHAT + neutre = ACHAT MODÉRÉ · ACHAT + négatif = PRUDENCE · SURVEILLER + positif = À SURVEILLER +
+- **Coverage:** 41/47 tickers analysés (BOAC, BOAS, CBIBF sans analyse au départ)
+
+### DATA — Analyses fondamentales BOAB, BOABF, BOAC insérées manuellement
+- **Source:** États financiers certifiés + rapports d'activité officiels BRVM
+- **BOAB:** Série 2021-2025 — PNB +10,2% en 2025, ROE 17,1%, dividende 585 FCFA mai 2026 → signal positif
+- **BOABF:** Série 2022-Q1 2026 — PNB -10,75% au Q1 2026, coût du risque x25 vs 2023 → signal négatif
+- **BOAC:** Série 2021-Q3 2025 — PNB +19,6% en 2024, ROE ~28,5%, ralentissement 2025 → signal neutre
+- **Impact:** BOAC passe de null à ACHAT MODÉRÉ (technique ACHAT + fondamental neutre)
+
+### FEAT — Badge signal_combine + data_completeness dans DecisionCard
+- **Commit:** 0564e52 — App.jsx
+- **Description:** Badge bleu signal_combine affiché quand différent du signal technique · Badge orange/gris data_completeness pour Medium/Low uniquement
+- **Script:** patch_decision_badge.py
+
+### FEAT — prediction_analyzer_v2.py — GRU via Supabase REST
+- **Commit:** 30602ad — prediction_analyzer_v2.py
+- **Description:** Migration complète de psycopg2 vers requests REST · Charge modèles .keras depuis /modeles/ · Insère 10 prédictions/ticker dans table predictions
+- **Fix:** brvm_data → historical_data · close_price → price
+- **Résultat:** 410 prédictions insérées (41/49 tickers) · run_date 2026-05-04
+- **Workflow:** ÉTAPE 4 mise à jour — utilise v2 avec SUPABASE_URL/KEY au lieu de DB_*
+
+### FEAT — Tab Forecast — GRU (IA) réel depuis Supabase
+- **Commit:** 58ff732 — App.jsx
+- **Description:** useEffect fetch prédictions GRU depuis Supabase pour ticker actif · Fallback vers lstmForecast si pas de données · Renommage LSTM-like → GRU (IA) partout
+- **Ensemble:** recalculé avec gruVals au lieu de lstmVals
+
+### FEAT — verify_predictions.py — tracking record GRU
+- **Commit:** e4c502e — verify_predictions.py
+- **Description:** Compare predicted_price vs prix réel pour prediction_date = today · Calcule error_pct, direction_correct, MAPE moyen · Upsert dans predictions_results
+- **Table:** predictions_results créée (company_id, run_date, prediction_date, predicted_price, actual_price, error_pct, direction_correct)
+- **Workflow:** ÉTAPE 3e ajoutée · Premier tracking record disponible : 14 mai 2026
+- **Objectif:** Comparer taux de réussite GRU vs MAPE théorique des modèles entraînés
+
+### INFRA — Repo nettoyé + .gitignore
+- **Commit:** 00000a8
+- **Description:** 38 fichiers temporaires supprimés (backups, scripts de test, patches) · .gitignore ajouté pour éviter récurrence
