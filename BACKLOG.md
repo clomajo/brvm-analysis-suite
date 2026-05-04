@@ -84,3 +84,16 @@ extract_governance.py · Re-parser 158 analyses Mistral → company_governance
 
 ### FUND-09 — Fundamentals comme 5e facteur de scoring
 extract_fundamentals.py · Intégrer P/E, dividende, croissance dans generate_decisions.py
+
+### PRED-04 — GRU multi-features (prix + RSI + volume)
+- **Priorité:** Basse — post juillet 2026
+- **Référence:** arxiv.org/html/2501.17366v1 — "GRU/LSTM for Financial Time Series Prediction"
+- **Description:** Le papier démontre que les modèles GRU hybrides avec features supplémentaires surpassent GRU prix seul. Actuellement prediction_analyzer_v2.py utilise uniquement close_price comme feature d'entrée.
+- **Améliorations proposées:**
+  - Ajouter RSI(14) comme feature d'entrée
+  - Ajouter volume normalisé
+  - Considérer mécanisme d'attention (GRU + Attention layer)
+  - Gérer les gaps de liquidité BRVM (jours sans transaction)
+- **Prérequis:** Tracking record 14 mai 2026 — vérifier MAPE réel vs théorique avant de modifier les modèles
+- **Impact attendu:** Réduction MAPE sur tickers liquides (SGBC, SNTS, ECOC) · Moins d'impact sur tickers illiquides
+- **Note:** Marché frontier BRVM = moins efficient → patterns GRU persistent plus longtemps qu'en marché développé. Avantage structurel à exploiter.
