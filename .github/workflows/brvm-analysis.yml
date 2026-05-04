@@ -153,16 +153,13 @@ jobs:
           python test_pipeline.py
           echo "✅ Tests qualité validés"
 
-      - name: 🔮 ÉTAPE 4 - Prédictions
+      - name: 🔮 ÉTAPE 4 - Prédictions GRU (Supabase REST)
         env:
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          echo "🚀 Prédictions 20 jours..."
-          if python prediction_analyzer.py; then
+          echo "🚀 Prédictions GRU 10 jours..."
+          if python prediction_analyzer_v2.py; then
             echo "✅ Prédictions générées"
           else
             echo "⚠️ Échec prédictions — non bloquant"

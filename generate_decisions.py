@@ -8,6 +8,18 @@ from brvm_classifier import BRVMClassifier
 
 load_dotenv()
 supabase = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY'])
+# ── Chargement signaux fondamentaux Mistral ───────────────────────────────────
+print("Loading fundamental signals...")
+fund_res = supabase.table('company_fundamentals')    .select('ticker, signal_fondamental, croissance_ca_pct, resume_fondamental')    .not_.is_('signal_fondamental', 'null')    .execute()
+fund_signals = {row['ticker']: row for row in fund_res.data}
+print(f"  {len(fund_signals)} fundamental signals loaded")
+
+# ── Chargement signaux fondamentaux Mistral ───────────────────────────────────
+print("Loading fundamental signals...")
+fund_res = supabase.table('company_fundamentals')    .select('ticker, signal_fondamental, croissance_ca_pct, resume_fondamental')    .not_.is_('signal_fondamental', 'null')    .execute()
+fund_signals = {row['ticker']: row for row in fund_res.data}
+print(f"  {len(fund_signals)} fundamental signals loaded")
+
 
 classifier = BRVMClassifier()
 date_jour = date.today().isoformat()
@@ -313,6 +325,45 @@ for symbol, group in df.groupby('symbol'):
     downside_pct = round((close - downside) / close * 100, 1)
     risk_reward = round(upside_pct / downside_pct, 2) if downside_pct > 0 else None
 
+
+    # ── Signal fondamental Mistral ─────────────────────────────────────────
+    fund = fund_signals.get(symbol, {})
+    signal_fond = fund.get('signal_fondamental')
+    croissance = fund.get('croissance_ca_pct')
+    resume = fund.get('resume_fondamental')
+
+    # Signal combiné
+    if signal == 'ACHAT' and signal_fond == 'positif':
+        signal_combine = 'CONVICTION FORTE'
+    elif signal == 'ACHAT' and signal_fond == 'négatif':
+        signal_combine = 'PRUDENCE'
+    elif signal == 'ACHAT' and signal_fond == 'neutre':
+        signal_combine = 'ACHAT MODÉRÉ'
+    elif signal == 'SURVEILLER' and signal_fond == 'positif':
+        signal_combine = 'À SURVEILLER +'
+    elif signal == 'EVITER' and signal_fond == 'négatif':
+        signal_combine = 'ÉVITER FORT'
+    else:
+        signal_combine = signal
+
+    # ── Signal fondamental Mistral ─────────────────────────────────────────
+    fund = fund_signals.get(symbol, {})
+    signal_fond = fund.get('signal_fondamental')
+    croissance = fund.get('croissance_ca_pct')
+    resume = fund.get('resume_fondamental')
+
+    if signal == 'ACHAT' and signal_fond == 'positif':
+        signal_combine = 'CONVICTION FORTE'
+    elif signal == 'ACHAT' and signal_fond in ['negatif', 'négatif']:
+        signal_combine = 'PRUDENCE'
+    elif signal == 'ACHAT' and signal_fond == 'neutre':
+        signal_combine = 'ACHAT MODERE'
+    elif signal == 'SURVEILLER' and signal_fond == 'positif':
+        signal_combine = 'A SURVEILLER +'
+    elif signal == 'EVITER' and signal_fond in ['negatif', 'négatif']:
+        signal_combine = 'EVITER FORT'
+    else:
+        signal_combine = signal
     decisions.append({
         'ticker': symbol,
         'date': date_jour,
@@ -330,7 +381,15 @@ for symbol, group in df.groupby('symbol'):
         'data_completeness': 'High',
         'seuil_applique': seuil_achat if is_eligible else None,
         'classification_version': CLASSIFICATION_VERSION,
-        'market_regime': market_regime
+        'market_regime': market_regime,
+        'signal_fondamental': signal_fond,
+        'croissance_ca_pct': croissance,
+        'resume_fondamental': resume,
+        'signal_combine': signal_combine,
+        'signal_fondamental': signal_fond,
+        'croissance_ca_pct': croissance,
+        'resume_fondamental': resume,
+        'signal_combine': signal_combine
     })
 
     # ── Score v2 (fondamental + géopolitique) ──────────────────────────────
