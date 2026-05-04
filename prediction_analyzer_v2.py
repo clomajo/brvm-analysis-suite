@@ -240,17 +240,17 @@ def predire_10_jours(prices, dates, symbol):
 # SUPABASE REST — LECTURE DONNÉES HISTORIQUES
 # ==============================================================================
 def get_company_prices(company_id, limit=100):
-    url = f"{SUPABASE_URL}/rest/v1/brvm_data"
+    url = f"{SUPABASE_URL}/rest/v1/historical_data"
     params = {
         "company_id": f"eq.{company_id}",
-        "close_price": "not.is.null",
+        "price": "not.is.null",
         "order": "trade_date.desc",
         "limit": limit,
-        "select": "trade_date,close_price"
+        "select": "trade_date,price"
     }
     r = requests.get(url, headers=HEADERS(), params=params)
     if r.status_code != 200:
-        logging.error(f"❌ brvm_data fetch error: {r.text}")
+        logging.error(f"❌ historical_data fetch error: {r.text}")
         return None
     data = r.json()
     if not data:
@@ -305,7 +305,7 @@ def process_company(company_id, symbol):
         logging.warning(f"⚠️  {symbol} : données insuffisantes")
         return False
 
-    result = predire_10_jours(df["close_price"], df["trade_date"], symbol)
+    result = predire_10_jours(df["price"], df["trade_date"], symbol)
     if result is None:
         return False
 
