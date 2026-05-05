@@ -44,6 +44,17 @@ Compléter `corporate_events` avec type AG en plus des dividendes.
 
 ---
 
+## 🟢 COMPLÉTÉS — 2026-05-05
+
+### ✅ DATA-10 — SICC/ONTBF données corrompues (identifié 05/05)
+Prix SICC = 25 555 FCFA le 03/04 (réel ~4 290) → exclure du hit rate · Corriger historical_data
+
+### ✅ PRED-01 — GRU via Supabase REST — COMPLÉTÉ 03/05
+### ✅ PRED-02 — Tracking record prédictions — COMPLÉTÉ 03/05
+### ✅ SCORE-07 — verify_decisions.py Scorecard live — COMPLÉTÉ 05/05
+35 signaux vérifiés · 62.9% hit rate · ÉTAPE 3c pipeline active
+
+
 ## 🟢 COMPLÉTÉS — 2026-05-03
 
 ### ✅ FUND-07 — Signal fondamental dans brvm_decisions
@@ -61,6 +72,14 @@ DecisionCard enrichie · Badge bleu signal_combine · Badge données partielles/
 ---
 
 ## 🔴 BACKLOG ACTIF — À FAIRE
+
+
+### DATA-10 — Corriger prix corrompus SICC et ONTBF
+- **Priorité:** Haute
+- **SICC:** Prix 25 555 FCFA le 03/04 (réel ~4 290) — inflation ~10x détectée précédemment
+- **ONTBF:** Négociation suspendue — données à vérifier
+- **Impact:** Fausse le hit rate ACHAT (SICC exclu manuellement du calcul actuel)
+- **Source:** Sikafinance fichiers historiques
 
 ### UI-02 — Supprimer tab "BOA vs BRVM"
 Trop peu d'utilité · Réduire le nombre de tabs
