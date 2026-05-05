@@ -138,9 +138,10 @@ def main():
         verified += 1
 
     if results:
+        upsert_headers = {**headers(), "Prefer": "resolution=merge-duplicates"}
         r = requests.post(
             f"{SUPABASE_URL}/rest/v1/predictions_results",
-            headers=headers(),
+            headers=upsert_headers,
             json=results
         )
         if r.status_code in (200, 201):
