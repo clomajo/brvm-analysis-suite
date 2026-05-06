@@ -80,12 +80,12 @@ def run_verification():
             "ticker": ticker,
             "signal": signal,
             "score": d["score"],
-            "signal_date": signal_date,
+            "signal_date": str(signal_date),
             "verification_date": str(today),
-            "prix_signal": prix_signal,
-            "prix_verification": prix_actuel,
-            "variation_pct": variation_pct,
-            "signal_correct": signal_correct
+            "prix_signal": float(prix_signal),
+            "prix_verification": float(prix_actuel),
+            "variation_pct": float(variation_pct),
+            "signal_correct": bool(signal_correct)
         }
 
         supabase.table("brvm_decisions_results").upsert(row, on_conflict="decision_id").execute()
