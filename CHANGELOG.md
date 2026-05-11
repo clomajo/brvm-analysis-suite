@@ -327,3 +327,16 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 ### INFRA — Repo nettoyé + .gitignore
 - **Commit:** 00000a8
 - **Description:** 38 fichiers temporaires supprimés (backups, scripts de test, patches) · .gitignore ajouté pour éviter récurrence
+
+---
+
+## 2026-05-11
+
+### ARCH — Réorganisation complète de l'architecture UI
+- **Navbar globale:** [Recherche ticker] · Marché · Opportunités · Portefeuille · Obligations
+- **Page par défaut:** Marché
+- **Fiche ticker:** Aperçu · Prévisions · Backtest
+- **Dans Marché:** Breadth · Heatmap · Top Gainers/Losers · Scorecard résumé 3 KPIs (expandable)
+- **Tabs archivés (masqués, non supprimés):** BOA vs BRVM · Risque · Législatif · Direction · Macro · Matières 1ères · Scorecard détaillé
+- **Raison:** Tabs sans données réelles = décoration. Corrélation macro/matières/gouvernance/législatif avec cours = chantier futur dédié.
+- **Référence:** ADR-013

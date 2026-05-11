@@ -97,3 +97,10 @@ Format : Contexte → Décision → Raison → Conséquences
 **Décision:** Scraper stockanalysis.com — Income Statement, Balance Sheet, Ratios, Management sur 5 ans.
 **Raison:** Seule source gratuite couvrant la BRVM. GuruFocus 200$/mois. API BRVM inexistante.
 **Conséquences:** Scraper hebdomadaire GitHub Actions. 3 tickers non couverts (ETIT, SEMC, SICC).
+
+## ADR-013 — Archivage des tabs décoratifs + nouvelle architecture navbar
+**Date:** 11/05/2026
+**Contexte:** Tabs Risque, Législatif, Direction, Macro, Matières 1ères et BOA vs BRVM présents dans l'UI sans données réelles structurées derrière. Navigation ticker par boutons individuels peu scalable.
+**Décision:** (1) Archiver ces tabs — code masqué mais non supprimé. (2) Nouvelle navbar: [Recherche] + Marché · Opportunités · Portefeuille · Obligations. (3) Fiche ticker: Aperçu · Prévisions · Backtest. (4) Scorecard intégré dans Marché comme section résumé expandable.
+**Raison:** L'idée de corrélation entre ces facteurs et le cours est valide mais nécessite des données historiques structurées (BCEAO, matières premières, gouvernance) avant de pouvoir être utile. En l'état c'est de la décoration qui nuit à la clarté de l'interface.
+**Conséquences:** UI plus claire. Chantier data dédié à planifier pour réintégration future. Aucun code supprimé — réversible.
