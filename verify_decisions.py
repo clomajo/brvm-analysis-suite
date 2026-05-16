@@ -1,102 +1,184 @@
+"""
+verify_decisions.py
+-------------------
+Vérifie les signaux BRVM à 90 jours et upsert dans brvm_decisions_results.
+À lancer quotidiennement via GitHub Actions (après generate_decisions.py).
+
+Variables d'environnement requises :
+  SUPABASE_URL
+  SUPABASE_KEY (service_role)
+"""
+
 import os
-import logging
 from datetime import date, timedelta
 from supabase import create_client
-from dotenv import load_dotenv
 
-load_dotenv()
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"]
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_SERVICE_ROLE_KEY"])
-LOOKBACK_DAYS = 30
+VERIFICATION_WINDOW = 90  # jours
 
-def run_verification():
-    today = date.today()
-    signal_date = today - timedelta(days=LOOKBACK_DAYS)
-    logging.info(f"🔍 Vérification des signaux du {signal_date} (J-{LOOKBACK_DAYS})")
 
-    # 1. Décisions à vérifier
-    res = supabase.table("brvm_decisions").select("id,ticker,signal,score,date,upside_target,downside_target").eq("date", str(signal_date)).in_("signal", ["ACHAT","SURVEILLER","EVITER"]).execute()
-    decisions = res.data
+def get_price_at_date(company_id: int, target_date: date):
+    """
+    Récupère le prix le plus proche de target_date pour un company_id.
+    Fenêtre ±5 jours pour couvrir weekends et jours fériés BRVM.
+    """
+    date_from = (target_date - timedelta(days=5)).isoformat()
+    date_to   = (target_date + timedelta(days=5)).isoformat()
+
+    resp = (
+        supabase.table("historical_data")
+        .select("trade_date, price")
+        .eq("company_id", company_id)
+        .gte("trade_date", date_from)
+        .lte("trade_date", date_to)
+        .order("trade_date", desc=False)
+        .execute()
+    )
+    if not resp.data:
+        return None
+
+    closest = min(
+        resp.data,
+        key=lambda x: abs((date.fromisoformat(x["trade_date"]) - target_date).days)
+    )
+    return closest["price"]
+
+
+def resolve_company_id(ticker: str):
+    """Résout company_id depuis le symbole (table companies.symbol)."""
+    co = supabase.table("companies").select("id").eq("symbol", ticker).execute()
+    if not co.data:
+        return None
+    return co.data[0]["id"]
+
+
+def verify_decisions():
+    today  = date.today()
+    cutoff = today - timedelta(days=VERIFICATION_WINDOW)
+
+    print(f"📅 Vérification des décisions du {cutoff} (J-{VERIFICATION_WINDOW})")
+    print(f"   Date de vérification : {today}")
+    print("=" * 55)
+
+    # 1. Récupérer les décisions à vérifier
+    resp = (
+        supabase.table("brvm_decisions")
+        .select("id, ticker, signal, score, date, upside_target, downside_target")
+        .eq("date", cutoff.isoformat())
+        .execute()
+    )
+    decisions = resp.data
 
     if not decisions:
-        # Date la plus proche
-        res2 = supabase.table("brvm_decisions").select("date").lte("date", str(signal_date)).order("date", desc=True).limit(1).execute()
-        if not res2.data:
-            logging.info("Aucune décision disponible.")
-            return
-        signal_date = res2.data[0]["date"]
-        logging.info(f"📅 Date ajustée : {signal_date}")
-        res = supabase.table("brvm_decisions").select("id,ticker,signal,score,date,upside_target,downside_target").eq("date", signal_date).in_("signal", ["ACHAT","SURVEILLER","EVITER"]).execute()
-        decisions = res.data
+        print(f"  ⚠️  Aucune décision trouvée pour le {cutoff}")
+        print("  → Essai sur les 5 jours précédents...")
+        # Fallback : chercher la date la plus proche avec des décisions
+        for delta in range(1, 6):
+            fallback_date = cutoff - timedelta(days=delta)
+            resp2 = (
+                supabase.table("brvm_decisions")
+                .select("id, ticker, signal, score, date, upside_target, downside_target")
+                .eq("date", fallback_date.isoformat())
+                .execute()
+            )
+            if resp2.data:
+                decisions = resp2.data
+                print(f"  → Décisions trouvées pour le {fallback_date}")
+                break
 
-    logging.info(f"📋 {len(decisions)} décision(s) trouvée(s)")
+    if not decisions:
+        print("  ❌ Aucune décision à vérifier. Script terminé.")
+        return
 
-    # 2. Company map
-    comp_res = supabase.table("companies").select("id,symbol").execute()
-    sym_to_id = {c["symbol"]: c["id"] for c in comp_res.data}
+    print(f"  {len(decisions)} décisions à vérifier\n")
 
-    inserted = skipped = correct = total = 0
+    # Cache company_id pour éviter les requêtes répétées
+    company_cache = {}
+    results = []
 
     for d in decisions:
-        ticker = d["ticker"]
-        company_id = sym_to_id.get(ticker)
+        ticker      = d["ticker"]
+        signal      = d["signal"]
+        signal_date = date.fromisoformat(d["date"])
+        decision_id = d["id"]
+
+        # Résoudre company_id
+        if ticker not in company_cache:
+            company_cache[ticker] = resolve_company_id(ticker)
+        company_id = company_cache[ticker]
+
         if not company_id:
+            print(f"  ⚠️  {ticker} : company_id introuvable — ignoré")
             continue
 
-        # Prix signal
-        p1 = supabase.table("historical_data").select("price").eq("company_id", company_id).lte("trade_date", signal_date).order("trade_date", desc=True).limit(1).execute()
-        if not p1.data:
-            continue
-        prix_signal = float(p1.data[0]["price"])
-
-        # Prix actuel
-        p2 = supabase.table("historical_data").select("price").eq("company_id", company_id).lte("trade_date", str(today)).order("trade_date", desc=True).limit(1).execute()
-        if not p2.data:
-            continue
-        prix_actuel = float(p2.data[0]["price"])
-
-        # Filtre données corrompues
-        if abs((prix_actuel - prix_signal) / prix_signal * 100) > 50:
-            logging.warning(f"⚠️  {ticker} : données suspectes ({prix_signal} -> {prix_actuel}), ignoré")
+        # 2. Prix au moment du signal
+        prix_signal = get_price_at_date(company_id, signal_date)
+        if not prix_signal:
+            print(f"  ⚠️  {ticker} : prix signal ({signal_date}) introuvable — ignoré")
             continue
 
-        variation_pct = round((prix_actuel - prix_signal) / prix_signal * 100, 2)
-        signal = d["signal"]
+        # 3. Prix à la date de vérification
+        prix_verification = get_price_at_date(company_id, today)
+        if not prix_verification:
+            print(f"  ⚠️  {ticker} : prix vérification ({today}) introuvable — ignoré")
+            continue
 
-        if signal == "ACHAT":
+        # 4. Variation
+        variation_pct = round(
+            (prix_verification - prix_signal) / prix_signal * 100, 2
+        )
+
+        # 5. Signal correct ?
+        if signal in ("BUY", "ACHAT", "ACHETER"):
             signal_correct = variation_pct > 0
-        elif signal == "EVITER":
+        elif signal in ("SELL", "VENTE", "VENDRE", "ÉVITER"):
             signal_correct = variation_pct < 0
-        else:
+        else:  # HOLD / CONSERVER / NEUTRE
             signal_correct = abs(variation_pct) < 5
 
-        if signal_correct:
-            correct += 1
-        total += 1
+        results.append({
+            "decision_id"      : decision_id,
+            "ticker"           : ticker,
+            "signal"           : signal,
+            "score"            : d["score"],
+            "signal_date"      : signal_date.isoformat(),
+            "verification_date": today.isoformat(),
+            "prix_signal"      : float(prix_signal),
+            "prix_verification": float(prix_verification),
+            "variation_pct"    : variation_pct,
+            "signal_correct"   : signal_correct,
+        })
 
-        row = {
-            "decision_id": d["id"],
-            "ticker": ticker,
-            "signal": signal,
-            "score": d["score"],
-            "signal_date": str(signal_date),
-            "verification_date": str(today),
-            "prix_signal": float(prix_signal),
-            "prix_verification": float(prix_actuel),
-            "variation_pct": float(variation_pct),
-            "signal_correct": bool(signal_correct)
-        }
-
-        supabase.table("brvm_decisions_results").upsert(row, on_conflict="decision_id").execute()
-        inserted += 1
         status = "✅" if signal_correct else "❌"
-        logging.info(f"{status} {ticker} | {signal} | {variation_pct:+.2f}%")
+        print(f"  {status} {ticker:<8} | {signal:<10} | {variation_pct:+6.1f}% "
+              f"| {prix_signal:.0f} → {prix_verification:.0f} FCFA")
 
-    hit_rate = round(correct / total * 100, 1) if total > 0 else 0
-    logging.info(f"")
-    logging.info(f"📊 RÉSULTATS : {correct}/{total} = {hit_rate}% hit rate")
-    logging.info(f"✅ {inserted} insérés/mis à jour")
+    # 6. Upsert dans brvm_decisions_results
+    if results:
+        supabase.table("brvm_decisions_results").upsert(
+            results,
+            on_conflict="decision_id"
+        ).execute()
+        print(f"\n✅ {len(results)} résultats upsertés dans brvm_decisions_results")
+    else:
+        print("\n⚠️  Aucun résultat à upserter.")
+        return
+
+    # 7. Résumé hit rate du jour
+    correct = sum(1 for r in results if r["signal_correct"])
+    total   = len(results)
+    print(f"\n📊 Hit rate J-{VERIFICATION_WINDOW} : {correct}/{total} = {correct/total*100:.1f}%")
+
+    # 8. Résumé global cumulé
+    all_results = supabase.table("brvm_decisions_results").select("signal_correct").execute()
+    if all_results.data:
+        total_global   = len(all_results.data)
+        correct_global = sum(1 for r in all_results.data if r["signal_correct"])
+        print(f"📈 Hit rate global cumulé : {correct_global}/{total_global} = {correct_global/total_global*100:.1f}%")
+
 
 if __name__ == "__main__":
-    run_verification()
+    verify_decisions()
