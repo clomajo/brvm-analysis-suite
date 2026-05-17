@@ -116,3 +116,29 @@ extract_fundamentals.py · Intégrer P/E, dividende, croissance dans generate_de
 - **Prérequis:** Tracking record 14 mai 2026 — vérifier MAPE réel vs théorique avant de modifier les modèles
 - **Impact attendu:** Réduction MAPE sur tickers liquides (SGBC, SNTS, ECOC) · Moins d'impact sur tickers illiquides
 - **Note:** Marché frontier BRVM = moins efficient → patterns GRU persistent plus longtemps qu'en marché développé. Avantage structurel à exploiter.
+
+---
+
+## 2026-05-16 — Mises à jour
+
+### ✅ PRED-02 — verify_predictions.py opérationnel
+Dir.Acc J+2=56.1%, J+5+=43.9%. GRU utile J+1/J+2 uniquement.
+
+### ✅ SCORE-03 — verify_decisions.py opérationnel
+Hit rate 52.2% sur 550 signaux. Tourne quotidiennement ÉTAPE 3c.
+
+### ✅ DATA-11 — 47/47 tickers signal Mistral FY2025
+Couverture complète. CBIBF/FTSC/BOAS/SIVC/PRSC complétés.
+
+### ✅ UI-04 — Badge "vs clôture J-1" déployé
+Note discrète sous les variations de prix. Commit 3326f4c.
+
+### ❌ PRED-05 — GRU + features Mistral (signal + CA%)
+Testé sur Colab — Dir.Acc 35.4% vs baseline 50.1%. Rejeté.
+Features statiques Mistral nuisent aux séries temporelles.
+Valeur Mistral = Opportunités uniquement.
+
+### PRED-04 — GRU multi-features (prix + RSI + volume)
+Mise à jour priorité : tester RSI/volume avant features fondamentales.
+Features statiques (signal Mistral) prouvées nuisibles. Features
+dynamiques (RSI, volume) à tester en priorité post juillet 2026.
