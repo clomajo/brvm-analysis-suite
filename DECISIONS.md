@@ -104,3 +104,19 @@ Format : Contexte → Décision → Raison → Conséquences
 **Décision:** (1) Archiver ces tabs — code masqué mais non supprimé. (2) Nouvelle navbar: [Recherche] + Marché · Opportunités · Portefeuille · Obligations. (3) Fiche ticker: Aperçu · Prévisions · Backtest. (4) Scorecard intégré dans Marché comme section résumé expandable.
 **Raison:** L'idée de corrélation entre ces facteurs et le cours est valide mais nécessite des données historiques structurées (BCEAO, matières premières, gouvernance) avant de pouvoir être utile. En l'état c'est de la décoration qui nuit à la clarté de l'interface.
 **Conséquences:** UI plus claire. Chantier data dédié à planifier pour réintégration future. Aucun code supprimé — réversible.
+
+## ADR-014 — GRU utile uniquement à J+1/J+2 sur le BRVM
+**Date:** 16/05/2026
+**Contexte:** verify_predictions.py a vérifié 1845 prévisions GRU sur les horizons J+2 à J+10.
+**Résultats:** Dir.Acc J+2=56.1% · J+5=43.9% · J+7=43.9% · J+10=43.9% · Global=50.1%
+**Décision:** Afficher uniquement les prévisions J+1 et J+2 dans l'app comme prévisions fiables. Les horizons J+5 à J+10 sont affichés à titre indicatif uniquement avec mention explicite de faible fiabilité.
+**Raison:** À partir de J+5, le GRU performe moins bien qu'un tirage au sort. Sur un marché peu liquide comme le BRVM, les chocs de liquidité dominent le signal technique au-delà de 2 jours.
+**Conséquences:** Tab Prévisions à revoir pour mettre J+1/J+2 en avant. Horizons longs = informatifs uniquement.
+
+## ADR-015 — Features Mistral incompatibles avec modèles GRU de séries temporelles
+**Date:** 16/05/2026
+**Contexte:** Test réentraînement GRU avec 3 features (prix + signal_fondamental + croissance_ca_pct) sur 47 tickers via Google Colab T4 GPU.
+**Résultats:** Dir.Acc moyenne 35.4% vs baseline GRU prix seul 50.1% → -14.7 pts.
+**Décision:** Conserver les modèles GRU actuels (prix seul). Ne pas intégrer les features Mistral dans les modèles de prévision de prix.
+**Raison:** Les features Mistral sont statiques (même valeur sur toute la séquence de 20 jours). Le GRU interprète cette constante comme du bruit qui perturbe l'apprentissage des patterns de prix. Conclusion identique à Pilla & Mekonen (S&P 500, 2025) : features additionnelles nuisent au LSTM/GRU sur données financières.
+**Conséquences:** Valeur des signaux Mistral = tab Opportunités (generate_decisions.py) uniquement. Pour améliorer les prédictions : tester features dynamiques (RSI, volume) post juillet 2026.
