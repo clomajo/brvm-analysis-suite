@@ -340,3 +340,44 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - **Tabs archivés (masqués, non supprimés):** BOA vs BRVM · Risque · Législatif · Direction · Macro · Matières 1ères · Scorecard détaillé
 - **Raison:** Tabs sans données réelles = décoration. Corrélation macro/matières/gouvernance/législatif avec cours = chantier futur dédié.
 - **Référence:** ADR-013
+
+---
+
+## 2026-05-16
+
+### FEAT — verify_decisions.py — vérification automatique signaux J-90
+- **Commit:** 7dfd294 — verify_decisions.py
+- **Description:** Vérifie les signaux brvm_decisions à J-90, compare prix signal vs prix réel, upsert dans brvm_decisions_results. Fallback automatique ±5 jours (weekends/fériés). Cache company_id pour optimisation.
+- **Résultats:** Hit rate 52.2% sur 550 signaux cumulés · 50.0% sur J-43 (36 signaux)
+- **Workflow:** ÉTAPE 3c — tourne après generate_decisions.py
+
+### FEAT — verify_predictions.py — vérification prévisions GRU vs réel
+- **Commit:** a8145ec — verify_predictions.py
+- **Description:** Compare predicted_price vs prix réel pour toutes les prévisions dont prediction_date ≤ today. Calcule error_pct, direction_correct, MAE% par horizon.
+- **Résultats:** 1845 prévisions vérifiées · Dir.Acc J+2=56.1% · J+5+=43.9% · Global=50.1%
+- **Conclusion:** GRU utile uniquement à J+1/J+2. Afficher uniquement ces horizons dans l'app.
+- **Table:** predictions_results — colonne prediction_id ajoutée + contrainte UNIQUE
+- **Workflow:** ÉTAPE 3e
+
+### FIX — Badge "vs clôture J-1" sous les variations de prix
+- **Commit:** 3326f4c — App.jsx (brvm-analytics)
+- **Description:** Note discrète grise sous chaque variation de prix pour clarifier qu'il s'agit de la variation vs la clôture précédente (et non intraday comme brvm.org)
+
+### DATA — 47/47 tickers avec signal Mistral FY2025
+- **Commits:** bf0d97b, b8e5770 — fundamental_analyzer.py, extract_fundamental_signals.py
+- **CBIBF:** slug coris-bank-international ajouté · signal positif (PNB +9.7%)
+- **FTSC:** slug filtisac-ci ajouté · signal négatif (CA -19.7%)
+- **BOAS:** inséré manuellement depuis PDFs 2021-2026 · signal positif (PNB +4.5% FY2025)
+- **SIVC:** rebrandée Erium CI · inséré manuellement · signal positif (CA +13% T3 2025)
+- **PRSC:** inséré manuellement depuis états financiers 2018-2025 · signal positif (CA +9% FY2025)
+- **Fix:** fiscal_year corrigé de "2025" → "FY2025" dans extract_fundamental_signals.py
+- **Coverage:** 47/47 tickers — couverture complète pour la première fois
+
+### TEST — Réentraînement GRU avec features Mistral (Colab)
+- **Résultat:** Dir.Acc 35.4% vs baseline 50.1% → -14.7 pts
+- **Conclusion:** Features statiques Mistral (signal + CA%) nuisent aux modèles de séries temporelles — même conclusion que Pilla & Mekonen (S&P 500, 2025). GRU actuels conservés.
+- **Valeur Mistral:** Tab Opportunités uniquement (generate_decisions.py), pas prédictions de prix.
+
+### INFRA — venv311/ et .env_temp retirés du repo
+- **Commit:** b8e5770
+- **Description:** .gitignore mis à jour pour exclure l'environnement virtuel et les fichiers temporaires de credentials
