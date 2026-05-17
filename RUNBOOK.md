@@ -157,6 +157,8 @@ WHERE id = ID_ENREGISTREMENT;
 | Dégel du modèle | 01/07/2026 | Activer chantiers FUND-01, DATA-05/06 |
 | AG BOAC | 15/04/2026 | Surveiller annonce dividende FY2025 |
 | AG ONTBF | 29/04/2026 | Surveiller résultats |
+| Checkpoint validation GRU | 16/05/2026 | Dir.Acc J+2=56.1% — baseline établie |
+| Checkpoint validation signaux | 16/05/2026 | Hit rate 52.2%/550 signaux — baseline établie |
 | Dividende BOABF | 23/04/2026 | 397 FCFA net/action |
 
 ---
