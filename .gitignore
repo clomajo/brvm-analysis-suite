@@ -130,3 +130,5 @@ update_all_fundamentals.py
 update_scorecard_honest.py
 fundamentals_brvm.xlsx
 compositions_brvm_officielles.csv
+venv311/
+.env_temp
