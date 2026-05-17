@@ -1,0 +1,50 @@
+name: Parse BOA Capital Letter
+
+on:
+  schedule:
+    # 18h00 UTC = après clôture BRVM (16h00 Abidjan)
+    # Lundi à vendredi uniquement
+    - cron: '0 18 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date à traiter (YYYY-MM-DD), laisser vide pour aujourd hui'
+        required: false
+        default: ''
+
+jobs:
+  parse-boa-letter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pdfplumber requests supabase
+
+      - name: Run parser
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            python parse_boa_letter.py ${{ github.event.inputs.date }}
+          else
+            python parse_boa_letter.py
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ parse_boa_letter.py a échoué pour $(date +%Y-%m-%d)"
+          echo "Vérifier: PDF disponible sur CDN? Supabase accessible?"
