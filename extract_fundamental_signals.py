@@ -92,7 +92,7 @@ def main():
             "croissance_ca_pct": result.get("croissance_ca_pct"),
             "tendance_fondamentale": result.get("tendance"),
             "signal_date": "2026-04-30",
-            "fiscal_year": "2025"
+            "fiscal_year": "FY2025"
         }, on_conflict="company_id,fiscal_year").execute()
 
         print(f"{result.get('signal')} — {result.get('resume')}")

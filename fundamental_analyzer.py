@@ -46,6 +46,8 @@ class BRVMAnalyzer:
     def __init__(self):
         # Mapping complet des symboles vers les slugs d'URL (basé sur les URLs fournies)
         self.symbol_to_slug = {
+            'CBIBF': 'coris-bank-international',
+            'FTSC': 'filtisac-ci',
             'SIVC': 'air-liquide-ci',
             'BOABF': 'bank-africa-bf',
             'BOAB': 'bank-africa-bn',
