@@ -45,7 +45,13 @@ r = requests.get(
     f"{SUPABASE_URL}/rest/v1/companies?symbol=in.(BRVMC,BRVM30)&select=id,symbol",
     headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 )
-companies = {c['symbol']: c['id'] for c in r.json()}
+r_data = r.json()
+print(f"  DEBUG - Response status: {r.status_code}")
+print(f"  DEBUG - Response data: {r_data}")
+if isinstance(r_data, list) and len(r_data) > 0:
+    companies = {c['symbol']: c['id'] for c in r_data}
+else:
+    companies = {}
 print(f"  Company IDs: {companies}")
 
 records = []
