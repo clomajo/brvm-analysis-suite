@@ -130,10 +130,12 @@ historical_data (Supabase)
 | Contrainte | Impact | Statut |
 |---|---|---|
 | Node v16.20.2 (macOS Catalina) | Impossible de upgrader | Contourné |
-| Python 3.14 local incompatible TF 2.15 | Modèles ML non testés | Backlog TECH-02 |
+| Python 3.14 local incompatible TF 2.15 | Entraînement local impossible | Résolu via Google Colab T4 GPU |
 | App.jsx monolithique (~3500 lignes) | Maintenance difficile | Dette technique |
 | Données historiques pré-split non ajustées | Backtest BOA non fiable | Backlog DATA-05/06 |
 | Variation journalière sur données non consécutives | Top Gainers parfois incorrect | Backlog DATA-07 |
+| GRU fiable J+1/J+2 uniquement | Horizons J+5-J+10 = indicatifs | ADR-014 — 16/05/2026 |
+| Features Mistral statiques incompatibles GRU | Ne pas intégrer dans prédictions prix | ADR-015 — 16/05/2026 |
 
 ---
 
