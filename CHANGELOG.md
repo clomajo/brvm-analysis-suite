@@ -381,3 +381,20 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 ### INFRA — venv311/ et .env_temp retirés du repo
 - **Commit:** b8e5770
 - **Description:** .gitignore mis à jour pour exclure l'environnement virtuel et les fichiers temporaires de credentials
+
+---
+
+## 2026-05-17
+
+### FIX — Labels et dates section Analyse Mistral
+- **Commits:** ad72d1b, 7cae8d0, 74757ff, 65294a0, 05b03ae — App.jsx
+- **Badge heatmap:** supprimé (était permanent sans condition réelle)
+- **Section fondamentaux:** renommée "Fondamentaux clés" · badge ⚠️ Données estimées en orange
+- **Titre Mistral:** doublon "Données FY2025" retiré du titre → gardé uniquement dans le sous-titre
+- **Date analyse:** corrigée — affiche maintenant updated_at (date réelle de la dernière analyse Mistral quotidienne) au lieu de report_date (fin d'exercice fiscal FY2025)
+- **limit=1 + order=updated_at.desc:** toujours la dernière analyse, bug de duplication neutralisé
+
+### DATA — fundamental_analysis : comportement clarifié
+- **Mise à jour:** quotidienne via UPDATE (pas INSERT) — updated_at reflète la dernière analyse
+- **Doublons détectés:** company_id=42 a 3 entrées — neutralisé par limit=1
+- **report_date:** = fin d'exercice fiscal (2025-12-31) — ne pas confondre avec date de génération

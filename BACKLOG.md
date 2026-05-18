@@ -142,3 +142,20 @@ Valeur Mistral = Opportunités uniquement.
 Mise à jour priorité : tester RSI/volume avant features fondamentales.
 Features statiques (signal Mistral) prouvées nuisibles. Features
 dynamiques (RSI, volume) à tester en priorité post juillet 2026.
+
+---
+
+## 2026-05-17 — Nouveaux items
+
+### DATA-11 — Nettoyer doublons fundamental_analysis
+- **Priorité:** Basse — post dégel 01/07/2026
+- **Description:** company_id=42 a 3 entrées en double dans fundamental_analysis
+- **Fix:** DELETE doublons, garder updated_at le plus récent par company_id
+- **Puis:** ALTER TABLE fundamental_analysis ADD CONSTRAINT unique_company UNIQUE(company_id)
+- **Impact actuel:** Neutralisé par order=updated_at.desc&limit=1 dans le frontend
+
+### DATA-12 — Fondamentaux clés — connecter à Supabase
+- **Priorité:** Basse — post dégel 01/07/2026
+- **Description:** Section "Fondamentaux clés" utilise un objet JS hardcodé (~lignes 3493-3504) pour ~15 tickers seulement
+- **Fix:** Lire depuis company_fundamentals (Supabase) — colonnes pe_ratio, pb_ratio, div_yield, shares_outstanding
+- **Impact:** Badge ⚠️ Données estimées disparaît · couverture 43/47 tickers
