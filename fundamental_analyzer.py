@@ -459,7 +459,7 @@ class BRVMAnalyzer:
             logging.warning(f"   ⚠️ Fetch peers échoué pour {symbol}: {e}")
             return ""
 
-    def _analyze_with_deepseek(self, text_content, symbol, report_title):
+    def _analyze_with_deepseek(self, text_content, symbol, report_title, current_price="N/D"):
         """Analyse avec DeepSeek API"""
         if not DEEPSEEK_API_KEY:
             return None
@@ -486,7 +486,8 @@ Rédige 3 bullet points résumant la thèse d'investissement:
 
 **Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
 **Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si données absentes: N/D]
-**Upside/Downside estimé:** [% entre cours actuel et objectif si disponible]
+**Cours actuel BRVM:** {current_price} FCFA (source: Supabase historical_data)
+**Upside/Downside estimé:** [% entre cours actuel et objectif de cours calculé]
 **Niveau de confiance:** [Élevé / Moyen / Faible]
 **Horizon:** [Court terme <3 mois / Moyen terme 3-12 mois / Long terme >12 mois]
 
@@ -575,7 +576,7 @@ IMPORTANT:
         data = {
             "model": DEEPSEEK_MODEL,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 2000,
+            "max_tokens": 4000,
             "temperature": 0.3
         }
         
@@ -598,7 +599,7 @@ IMPORTANT:
             logging.error(f"      ❌ DeepSeek exception: {e}")
             return None
 
-    def _analyze_with_gemini(self, text_content, symbol, report_title):
+    def _analyze_with_gemini(self, text_content, symbol, report_title, current_price="N/D"):
         """Analyse avec Gemini API"""
         if not GEMINI_API_KEY:
             return None
@@ -619,7 +620,9 @@ Fournis une analyse structurée en français couvrant:
 ## RECOMMANDATION
 
 **Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
+**Cours actuel BRVM:** {current_price} FCFA (source: Supabase historical_data)
 **Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si absent: N/D]
+**Upside/Downside estimé:** [% entre cours actuel et objectif de cours calculé]
 **Niveau de confiance:** [Élevé / Moyen / Faible]
 **Horizon:** [Court terme / Moyen terme / Long terme]
 
@@ -703,7 +706,7 @@ IMPORTANT:
             logging.error(f"      ❌ Gemini exception: {e}")
             return None
 
-    def _analyze_with_mistral(self, text_content, symbol, report_title):
+    def _analyze_with_mistral(self, text_content, symbol, report_title, current_price="N/D"):
         """Analyse avec Mistral API"""
         if not MISTRAL_API_KEY:
             return None
@@ -724,7 +727,9 @@ Fournis une analyse structurée en français couvrant:
 ## RECOMMANDATION
 
 **Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
+**Cours actuel BRVM:** {current_price} FCFA (source: Supabase historical_data)
 **Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si absent: N/D]
+**Upside/Downside estimé:** [% entre cours actuel et objectif de cours calculé]
 **Niveau de confiance:** [Élevé / Moyen / Faible]
 **Horizon:** [Court terme / Moyen terme / Long terme]
 
@@ -787,7 +792,7 @@ IMPORTANT:
         data = {
             "model": MISTRAL_MODEL,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 2500,
+            "max_tokens": 4000,
             "temperature": 0.3
         }
         
@@ -829,6 +834,23 @@ IMPORTANT:
         
         logging.info(f"    📝 {len(text_content)} caractères extraits, envoi à l'IA...")
         
+        # Fetch cours réel depuis Supabase REST
+        current_price = "N/D"
+        try:
+            supabase_url = os.environ.get('SUPABASE_URL', '')
+            supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', os.environ.get('SUPABASE_SERVICE_KEY', ''))
+            if supabase_url and supabase_key:
+                r = requests.get(
+                    f"{supabase_url}/rest/v1/historical_data?company_id=eq.{company_id}&select=close_price,trade_date&order=trade_date.desc&limit=1",
+                    headers={"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"},
+                    timeout=10
+                )
+                if r.status_code == 200 and r.json():
+                    current_price = f"{r.json()[0]['close_price']:,.0f}"
+                    logging.info(f"    💰 Cours réel: {current_price} FCFA")
+        except Exception as e:
+            logging.warning(f"    ⚠️  Cours non disponible: {e}")
+
         # Fetch peers data pour peer comparison
         peers_text = self._fetch_peers_data(symbol)
         if peers_text:
@@ -842,7 +864,7 @@ IMPORTANT:
         # Tentative 1: DeepSeek
         if DEEPSEEK_API_KEY:
             logging.info("      🤖 Tentative DeepSeek...")
-            analysis = self._analyze_with_deepseek(text_content, symbol, report['titre'])
+            analysis = self._analyze_with_deepseek(text_content, symbol, report['titre'], current_price)
             if analysis:
                 provider_used = "deepseek"
                 logging.info("      ✅ DeepSeek: Succès!")
@@ -850,7 +872,7 @@ IMPORTANT:
         # Tentative 2: Gemini
         if not analysis and GEMINI_API_KEY:
             logging.info("      🤖 Tentative Gemini...")
-            analysis = self._analyze_with_gemini(text_content, symbol, report['titre'])
+            analysis = self._analyze_with_gemini(text_content, symbol, report['titre'], current_price)
             if analysis:
                 provider_used = "gemini"
                 logging.info("      ✅ Gemini: Succès!")
@@ -858,7 +880,7 @@ IMPORTANT:
         # Tentative 3: Mistral
         if not analysis and MISTRAL_API_KEY:
             logging.info("      🤖 Tentative Mistral...")
-            analysis = self._analyze_with_mistral(text_content, symbol, report['titre'])
+            analysis = self._analyze_with_mistral(text_content, symbol, report['titre'], current_price)
             if analysis:
                 provider_used = "mistral"
                 logging.info("      ✅ Mistral: Succès!")
