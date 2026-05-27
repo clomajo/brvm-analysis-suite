@@ -32,11 +32,14 @@ BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
 │                                                             │
 │  ÉTAPE 0  update_index.py          — indices BRVM           │
 │  ÉTAPE 1  data_collector_simple.py — scrape brvm.org (7sec) │
-│  ÉTAPE 1b test_pipeline.py         — 12 tests qualité       │
+│  ÉTAPE 1b scrape_boc_pdf.py        — BOC PDF PER/div/rdt_net │
+│  ÉTAPE 1c scrape_indices.py        — indices BRVMC + BRVM30  │
+│  ÉTAPE 1d scrape_commodities.py    — commodités Yahoo Finance │
+│  ÉTAPE 1e test_pipeline.py         — 12 tests qualité        │
 │  ÉTAPE 2  technical_analyzer_simple.py — RSI, MACD, SMA     │
 │  ÉTAPE 3  opportunity_scorer_simple.py — scores 0-100       │
 │  ÉTAPE 3b generate_decisions.py    — signaux + régime       │
-│  ÉTAPE 3c verify_decisions.py      — vérif. 90j (dès 07/26) │
+│  ÉTAPE 3c verify_decisions.py      — vérif. J+20 (dès 07/26)│
 │  ÉTAPE 3d test_pipeline.py         — tests post-décisions   │
 │  ÉTAPE 4  prediction_analyzer.py   — modèles ML (désactivé) │
 │  ÉTAPE 5  fundamental_analyzer.py  — Mistral AI             │
@@ -119,7 +122,7 @@ historical_data (Supabase)
             └── ACHAT/SURVEILLER/EVITER + market_regime
                     └── brvm_decisions (Supabase)
                             │
-                            └── verify_decisions.py (J+90)
+                            └── verify_decisions.py (J+20 — post dégel)
                                     └── brvm_decisions_results
 ```
 
@@ -136,6 +139,10 @@ historical_data (Supabase)
 | Variation journalière sur données non consécutives | Top Gainers parfois incorrect | Backlog DATA-07 |
 | GRU fiable J+1/J+2 uniquement | Horizons J+5-J+10 = indicatifs | ADR-014 — 16/05/2026 |
 | Features Mistral statiques incompatibles GRU | Ne pas intégrer dans prédictions prix | ADR-015 — 16/05/2026 |
+| Signal technique = bruit (AUC 0.51/10 ans) | Abandonner score composite V1 post-dégel | ADR-016 — 25/05/2026 |
+| Signal BOA cours cible = base V2 | cours_cible = dividende / rendement_cible | ADR-017 — 26/05/2026 |
+| Liquidité = filtre binaire éliminatoire | +5 à +7% hit rate confirmé | ADR-018 — 25/05/2026 |
+| Horizon vérification = J+20 | Remplace 90 jours post-dégel | ADR-019 — 26/05/2026 |
 
 ---
 
