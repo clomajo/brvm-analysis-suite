@@ -120,3 +120,34 @@ Format : Contexte → Décision → Raison → Conséquences
 **Décision:** Conserver les modèles GRU actuels (prix seul). Ne pas intégrer les features Mistral dans les modèles de prévision de prix.
 **Raison:** Les features Mistral sont statiques (même valeur sur toute la séquence de 20 jours). Le GRU interprète cette constante comme du bruit qui perturbe l'apprentissage des patterns de prix. Conclusion identique à Pilla & Mekonen (S&P 500, 2025) : features additionnelles nuisent au LSTM/GRU sur données financières.
 **Conséquences:** Valeur des signaux Mistral = tab Opportunités (generate_decisions.py) uniquement. Pour améliorer les prédictions : tester features dynamiques (RSI, volume) post juillet 2026.
+
+## ADR-016 — Signal technique = bruit structurel sur le BRVM
+**Date :** 25/05/2026
+**Contexte :** Backtest 10 ans (22 992 signaux, 2016–2026) sur RSI/MACD/SMA/trend/vol_regime.
+**Résultats :** AUC 0.51 tous scores confondus. Aucune formule de pondération ne performe mieux qu'une autre. Régime BULL/BEAR inversé : BEAR 55% > BULL 49.6% à J+10.
+**Décision :** Abandonner le signal technique comme prédicteur directionnel post-dégel. Ne pas reconstruire de score composite technique pour V2.
+**Raison :** Le BRVM (fixing quotidien, faibles volumes, corrections lentes) rend les indicateurs de momentum classiques structurellement inutiles. RSI/MACD/SMA mesurent du bruit sur ce marché.
+**Conséquences :** Modèle V2 basé sur valorisation fondamentale (cours cible BOA). Score V1 conservé jusqu'au 01/07/2026 uniquement pour compléter la période de validation.
+
+## ADR-017 — Signal BOA cours cible = base du modèle V2
+**Date :** 26/05/2026
+**Contexte :** Analyse hit rate BOA Capital sur 547 lignes, 17 semaines (déc 2025–avr 2026).
+**Résultats :** BUY hit rate 60.7% J+10 / 64.3% J+20 / 56.6% J+30. SELL hit rate 24.5% J+20 (inversé — correction lente sur marché illiquide). Potentiel BOA >10% → hausse réelle 64-70% à J+20.
+**Décision :** Utiliser `cours_cible = dividende / rendement_cible_sectoriel` comme signal principal V2. Rendements cibles par ticker déduits de l'historique BOA 17 semaines.
+**Raison :** Signal fondamental de valorisation (décote vs valeur intrinsèque) performant sur horizons J+20 — cohérent avec la microstructure BRVM (convergence lente vers valeur fondamentale).
+**Conséquences :** `company_fundamentals` alimenté quotidiennement via `scrape_boc_pdf.py`. Signal ACHAT si potentiel >10% + liquide + dividende disponible.
+
+## ADR-018 — Liquidité = filtre binaire éliminatoire (pas composante additive)
+**Date :** 25/05/2026
+**Contexte :** Régression logistique live (751 signaux) et backtest 10 ans.
+**Résultats :** Filtrer les tickers illiquides améliore le hit rate de +5 à +7 points systématiquement. liq_score en composante additive = coefficient négatif en régression (contre-intuitif).
+**Décision :** La liquidité est un filtre binaire éliminatoire dans V2. Aucun signal ACHAT sur ticker illiquide, quelle que soit la valorisation.
+**Raison :** Un titre illiquide avec potentiel +30% ne peut pas être exploité — spread, impossibilité d'exécution, risque de blocage. La liquidité ne doit pas "compenser" une mauvaise décote — elle doit bloquer le signal.
+**Conséquences :** Périmètre V2 réduit aux tickers avec volume_20j suffisant. Critère exact à calibrer en juillet.
+
+## ADR-019 — Horizon de vérification = J+20 (remplace 90 jours)
+**Date :** 26/05/2026
+**Contexte :** Backtest 10 ans montre signal s'améliorant de J+5=47.9% à J+30=56.7%. Régression live montre pic BOA à J+20.
+**Décision :** Modifier `verify_decisions.py` pour vérifier à J+20 au lieu de 90 jours post-dégel.
+**Raison :** 90 jours croise trop d'événements exogènes (AG, ex-dividendes, chocs macro) qui masquent le signal initial. Le signal fondamental BOA peak à J+20 — c'est l'horizon de convergence naturel sur le BRVM.
+**Conséquences :** Résultats de vérification plus rapides et plus propres. Modifier aussi l'affichage "Valide jusqu'au" sur les DecisionCards post-dégel.
