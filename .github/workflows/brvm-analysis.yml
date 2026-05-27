@@ -225,6 +225,21 @@ jobs:
             echo "⚠️ Échec collecte news — non bloquant"
           fi
   
+
+      - name: 📡 ÉTAPE V2 - Signaux Actifs J-10 (hebdomadaire)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📡 Calcul signaux actifs V2..."
+          DAY=$(date +%u)
+          if [ "$DAY" = "1" ]; then
+            python signaux_actifs.py
+            echo "✅ Signaux V2 calculés"
+          else
+            echo "⏭️ Skipped — tourne seulement le lundi"
+          fi
+
       - name: 📤 Upload Rapports
         uses: actions/upload-artifact@v4
         with:
