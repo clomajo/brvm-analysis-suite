@@ -231,3 +231,17 @@ Hors filtre (n=13) : mediane J+90 = -2.0%
 - ADR-017 : Univers V2 = moyennes caps uniquement (150-300 Mds FCFA)
 - ADR-018 : Fenetres J-10 = signal d'achat optimal avant ex_dividend_date
 - ADR-019 : Palm Oil et Rubber retires de scrape_commodities.py (HTTP 404 permanent)
+
+## Règle opérationnelle — Fin de session
+
+À la fin de chaque session de développement BRVM Analytics, mettre à jour simultanément :
+1. SKILL.md — contraintes, ADR, bugs résolus, baselines
+2. CHANGELOG.md — entrée datée avec FEAT/INFRA/PERF/FIX
+3. BACKLOG.md — nouveaux items identifiés
+4. DECISIONS.md — nouveaux ADR
+5. ARCHITECTURE.md — changements structurels
+
+Puis commit unique :
+git add SKILL.md CHANGELOG.md BACKLOG.md DECISIONS.md ARCHITECTURE.md
+git commit -m "docs: mise à jour documentation session JJ/MM/YYYY"
+git push
