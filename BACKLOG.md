@@ -207,3 +207,40 @@ Intégré pipeline ÉTAPE 1b. Filtre rdt_net > 20%. Commit b8fc9f6.
 - **Description:** FTSC affiche dividende 1726 FCFA / rdt_net 75.73% dans le bulletin officiel
 - **Statut:** Filtré par rdt_net > 20% dans scrape_boc_pdf.py
 - **À vérifier:** Source réelle dividende FTSC (confusion avec coupon obligataire ?)
+
+## Ajouts session 27/05/2026
+
+### V2-04 — Intégrer signaux V2 dans l'interface (post-dégel)
+- **Priorité:** Haute
+- **Description:** Afficher cours_cible, décote, signal J-10 dans DecisionCards et onglet Opportunités
+- **Dépendance:** ADR-016 — attendre 01/07/2026
+- **Tables:** target_prices (à créer) ou colonne cours_cible dans brvm_decisions
+
+### V2-05 — Créer table target_prices dans Supabase
+- **Priorité:** Haute
+- **Description:** ticker, cours_cible, decote_pct, methode, per_ref, calcul_date
+- **Script:** calculate_target_price.py — ajouter upsert Supabase
+- **Note:** Actuellement le script calcule mais n'upserte pas
+
+### V2-06 — Retirer Palm Oil et Rubber de scrape_commodities.py
+- **Priorité:** Basse
+- **Description:** FUTR.KL et TOCOM-RUBBER.T retournent HTTP 404 permanent
+- **Fix:** Supprimer ces deux tickers de la liste dans scrape_commodities.py
+
+### V2-07 — Normaliser EPS sur 3 ans (moyenne glissante)
+- **Priorité:** Moyenne
+- **Description:** EPS ponctuel crée des décotes aberrantes (SNTS 1945%, NTLC 2650%)
+- **Fix:** Utiliser moyenne EPS FY-1/FY-2/FY-3 au lieu de l'année la plus récente
+- **Impact:** Réduire les faux positifs dans calculate_target_price.py
+
+### DATA-16 — Enrichir EPS historique FY2019-FY2020
+- **Priorité:** Basse
+- **Description:** stockanalysis.com ne remonte pas avant FY2021 pour les tickers BRVM
+- **Alternative:** BOC PDF archivés sur brvm.org (PER + dividende par semaine depuis 2015)
+- **Impact:** Permettrait backtest sur 7-8 ans au lieu de 4 ans
+
+### DATA-17 — Calibrer seuil volume_20j pour filtre liquidité V2
+- **Priorité:** Haute (juillet 2026)
+- **Description:** Filtre liquidité binaire confirmé (+5 à +7% hit rate) mais seuil exact non défini
+- **Action:** Analyser distribution volume_20j par liquidity_tier après dégel
+

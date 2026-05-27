@@ -153,3 +153,21 @@ historical_data (Supabase)
 - `brvm_decisions` : lecture publique + écriture service_role
 - `user_actions` : lecture/écriture scopée par utilisateur
 - Clés API dans GitHub Secrets (jamais dans le code)
+
+## Mise à jour 27/05/2026 — Modèle V2
+
+### Nouveaux scripts opérationnels
+| Script | Rôle | Fréquence |
+|---|---|---|
+| signaux_actifs.py | Watchlist J-10 ex_dividend_date | Lundi (pipeline CI) |
+| calculate_target_price.py | Cours cible PER sectoriel + Gordon | Manuel / à intégrer |
+| backtest_value.py | Backtest décote vs performance | Analyse ponctuelle |
+| backtest_dividend.py | Comportement cours autour ex-date | Analyse ponctuelle |
+
+### Architecture signal V2
+### Performance attendue V2 (backtest 2021-2026)
+- Médiane J+90 : +15-20%
+- Alpha vs BRVMC : +10-13%
+- Taux de succès : 65-70%
+- Fréquence : 6-8 signaux/an
+

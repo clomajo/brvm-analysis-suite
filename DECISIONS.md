@@ -151,3 +151,36 @@ Format : Contexte → Décision → Raison → Conséquences
 **Décision :** Modifier `verify_decisions.py` pour vérifier à J+20 au lieu de 90 jours post-dégel.
 **Raison :** 90 jours croise trop d'événements exogènes (AG, ex-dividendes, chocs macro) qui masquent le signal initial. Le signal fondamental BOA peak à J+20 — c'est l'horizon de convergence naturel sur le BRVM.
 **Conséquences :** Résultats de vérification plus rapides et plus propres. Modifier aussi l'affichage "Valide jusqu'au" sur les DecisionCards post-dégel.
+
+## ADR-020 — Univers V2 = moyennes caps uniquement
+**Date:** 27/05/2026
+**Contexte:** Backtest dividende (50 événements 2023-2026) par taille de capitalisation.
+**Résultats:** Grande cap médiane J+90=+0.5%, Moyenne cap=+11.0%, Petite cap=-2.1%.
+**Décision:** Restreindre l'univers V2 aux capitalisations 150-300 Mds FCFA.
+**Raison:** Grandes caps trop suivies (signal déjà intégré), petites caps trop erratiques (liquidité, exécution). Zone d'inefficience exploitable = moyennes caps.
+**Watchlist actuelle:** SOGC, SPHC, BOAS, BOABF, ONTBF, TTLC.
+**Conséquences:** Environ 6-8 signaux par an. Max 4 positions simultanées.
+
+## ADR-021 — Signal J-10 avant ex_dividend_date = fenêtre d'achat optimale
+**Date:** 27/05/2026
+**Contexte:** Backtest 50 événements de détachement dividende 2023-2026.
+**Résultats:** J-10 médiane +3.6%, 86% positifs. J-30 médiane 0.0%, 46% positifs.
+**Décision:** Fenêtre d'achat = J-10 avant ex_dividend_date. Ni J-30 (trop tôt, pas de signal) ni J-5 (trop peu de marge d'exécution sur la BRVM).
+**Raison:** Le marché BRVM anticipe le dividende dans les 10 jours précédant le détachement — comportement comportemental clair et reproductible.
+**Conséquences:** signaux_actifs.py tourne chaque lundi et alerte quand J-10 approche.
+
+## ADR-022 — Filtre qualité ROE>15% + P/B<2.5 = filtre éliminatoire V2
+**Date:** 27/05/2026
+**Contexte:** Analyse ROE et P/B sur groupe hausse vs baisse J+90 (backtest dividende).
+**Résultats:** ROE seul non discriminant (23.4% vs 23.6%). P/B+ROE combinés : médiane +9.5% vs -2.0%.
+**Décision:** Filtre combiné ROE>15% ET P/B<2.5 est éliminatoire dans V2.
+**Raison:** P/B capte la surévaluation relative que le ROE ne voit pas. Un titre peut être rentable (ROE élevé) mais surévalué (P/B>3) — dans ce cas le dividende ne suffit pas à soutenir le cours.
+**Conséquences:** Environ 4-6 tickers passent le filtre simultanément sur la BRVM.
+
+## ADR-023 — Modèle V2 en parallèle silencieux jusqu'au 01/07/2026
+**Date:** 27/05/2026
+**Contexte:** Modèle V1 gelé (ADR-001). V2 validé par backtest mais pas encore en conditions réelles.
+**Décision:** V2 tourne en scripts séparés (signaux_actifs.py, calculate_target_price.py) sans remplacer generate_decisions.py.
+**Raison:** Respecter la période de validation live V1 (avril-juillet 2026). Comparer V1 vs V2 en silencieux. Décision de bascule au 01/07/2026 après vérification des 3 positions live.
+**Conséquences:** Aucun changement frontend avant juillet. V2 loggé dans GitHub Actions chaque lundi.
+

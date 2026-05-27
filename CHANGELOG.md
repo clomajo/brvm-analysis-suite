@@ -428,3 +428,35 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - companies : ticker→symbol
 - historical_data : date→trade_date, close_price→price (pas de colonne ticker)
 - Score composite seulement en V1 (composantes détaillées NULL)
+
+## 2026-05-27
+
+### INFRA — Fix pipeline
+- pymupdf ajouté à requirements.txt — scrape_boc_pdf.py opérationnel en CI
+- Palm Oil (FUTR.KL) et Rubber (TOCOM-RUBBER.T) — HTTP 404 permanent Yahoo Finance
+- Pipeline complet vert : 47 records prix, 1272 prix commodités, 48 tickers BOC parsés
+- BRVMC=420.33, BRVM30=197.33 au 27/05/2026
+
+### FEAT — Modèle V2 : signal value + dividende + qualité
+- Signal primaire validé : acheter J-10 avant ex_dividend_date sur moyennes caps
+- Filtre qualité : ROE>15% + P/B<2.5 → médiane J+90 = +9.5%, alpha +4.3% vs BRVMC
+- Filtre taille : moyennes caps (150-300 Mds FCFA) → médiane J+90 = +11.0%
+- Combinaison Cap+Qualité : médiane J+90 = +18.2%, alpha +13% vs BRVMC
+- Signal dividende J-10 : 86% réussite sur 10 jours (50 événements 2023-2026)
+
+### PERF — Backtest value (FY2021-FY2024, 65 signaux)
+- Décote >15% : médiane J+60 = +6.7%, alpha +2.9%, 72% positifs
+- Décote >80% : médiane J+60 = +11.3%, alpha +7.5%, 83% positifs
+- BRVMC benchmark : +3.8% J+60, +5.2% J+90
+
+### PERF — PER sectoriels empiriques calculés
+- Banque 12.4x, Agro 10.2x, Industrie 13.2x, Telecom 13.3x, Distribution 16.1x
+- Filtre 2-50x appliqué — tickers exclus : BNBC(445), BOAN(190), SICC(137), UNLC(846)
+
+### INFRA — Scripts V2 ajoutés au pipeline
+- calculate_target_price.py — cours cible PER sectoriel + Gordon
+- backtest_value.py — backtest décote vs performance FY2021-FY2024
+- backtest_dividend.py — comportement cours autour ex_dividend_date
+- signaux_actifs.py — watchlist J-10 hebdomadaire (pipeline lundi)
+- ADR-020 à ADR-023 ajoutés (voir DECISIONS.md)
+
