@@ -122,3 +122,41 @@ BOA vs BRVM · Risque · Législatif · Direction · Macro · Matières 1ères �
 
 ## Modèle de scoring V1 (gelé jusqu'au 01/07/2026)
 endskill
+
+---
+
+## Session 25/05/2026 — Analyse régression live (52 jours)
+
+### Résultats régression logistique (751 signaux, avril–mai 2026)
+
+| Horizon | Hit rate | AUC | Interprétation |
+|---|---|---|---|
+| J+5 | 39.0% | 0.626 | Signal inversé |
+| J+10 | 36.2% | 0.637 | Signal inversé |
+| J+20 | 32.9% | 0.691 | Signal inversé fort |
+| J+30 | 25.9% | 0.672 | Signal inversé fort |
+
+**Conclusion : modèle inversé sur cette période** — score élevé = baisse prédite
+- Coefficient `score` : -0.31 à J+5, -0.28 à J+10 (p<0.05)
+- Coefficient `confidence` : +0.42 à J+5 (utile), -0.56 à J+30 (nocif)
+- Coefficient `regime_bull` : non significatif J+5/J+10, fort à J+20/J+30
+- Liquidité filtre : +5.1% J+5, +5.2% J+10, +7.0% J+20 → **filtre confirmé**
+- Seuil optimal ROC : 95 (sur 14 signaux seulement — artefact période baissière)
+
+**Nuance importante :** 52 jours de données sur une seule fenêtre de marché — inversion possiblement conjoncturelle, pas structurelle. À valider avec backtest 10 ans.
+
+### Scripts produits (session 25/05)
+- `regression_brvm_horizons.py` — régression logistique multi-horizons (live)
+- Colonnes réelles confirmées lors du débogage :
+  - `brvm_decisions.date` (pas signal_date)
+  - `brvm_decisions.signal` (pas decision)
+  - `companies.symbol` (pas ticker)
+  - `historical_data.trade_date` + `price` (pas close_price)
+  - Score composite seulement en V1 (composantes détaillées = NULL)
+
+### Conclusions session 25/05
+- Signal technique = bruit sur 52 jours → confirmé structurellement par backtest 10 ans (session suivante)
+- Liquidité = filtre utile → confirmé
+- Horizon J+20 optimal pour signal fondamental
+- BOA Capital utilise méthode cours cible (DCF/multiples) → signal fondamental, pas technique
+- Modèle V2 = décote vs valeur intrinsèque (cours_cible BOA) plutôt que score technique
