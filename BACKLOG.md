@@ -159,3 +159,51 @@ dynamiques (RSI, volume) à tester en priorité post juillet 2026.
 - **Description:** Section "Fondamentaux clés" utilise un objet JS hardcodé (~lignes 3493-3504) pour ~15 tickers seulement
 - **Fix:** Lire depuis company_fundamentals (Supabase) — colonnes pe_ratio, pb_ratio, div_yield, shares_outstanding
 - **Impact:** Badge ⚠️ Données estimées disparaît · couverture 43/47 tickers
+
+---
+
+## 2026-05-25/26 — Nouveaux items
+
+### ✅ PERF-01 — Régression logistique live (25/05/2026)
+Hit rate J+5=39% J+10=36% — signal inversé sur période baissière.
+Liquidité filtre confirmé +5 à +7%. Backtest 10 ans lancé.
+
+### ✅ PERF-02 — Backtest 10 ans signal V1 (25/05/2026)
+22 992 signaux — AUC 0.51 structurel. Signal technique = bruit confirmé.
+Scripts : regression_brvm_horizons.py + backtest_regression.py
+
+### ✅ DATA-13 — scrape_boc_pdf.py — Bulletin Officiel de la Cote (26/05/2026)
+PER, dividende, rdt_net, date_dividende pour 47 tickers/jour.
+Intégré pipeline ÉTAPE 1b. Filtre rdt_net > 20%. Commit b8fc9f6.
+
+### V2-01 — Cours cible par ticker (post-dégel 01/07/2026)
+- **Priorité:** Haute — base modèle V2
+- **Description:** Calculer `cours_cible = dividend_per_share / rendement_cible_sectoriel` pour chaque ticker
+- **Source dividende:** company_fundamentals (scrape_boc_pdf.py quotidien)
+- **Source rendement cible:** boa_recommendations.rendement historique moyen par ticker
+- **Signal:** ACHAT si potentiel > +10% + liquide + dividende disponible
+- **Dépendance:** ADR-017
+
+### V2-02 — Modifier verify_decisions.py horizon J+20 (post-dégel 01/07/2026)
+- **Priorité:** Haute
+- **Description:** Remplacer vérification 90 jours par J+20
+- **Raison:** ADR-019 — signal BOA peak à J+20, 90j = trop d'événements exogènes
+- **Impact:** Résultats de vérification plus rapides et plus propres
+
+### V2-03 — Filtre liquidité binaire dans generate_decisions.py (post-dégel)
+- **Priorité:** Haute
+- **Description:** Bloquer tout signal ACHAT si volume_20j < seuil (à calibrer juillet)
+- **Raison:** ADR-018 — liquidité filtre +5 à +7% hit rate confirmé
+- **Note:** Ne pas modifier avant 01/07/2026 (ADR-001)
+
+### DATA-14 — pymupdf dans requirements.txt CI GitHub Actions
+- **Priorité:** Haute — bloquant pour pipeline CI
+- **Description:** scrape_boc_pdf.py utilise pymupdf mais non déclaré dans requirements.txt
+- **Fix:** Ajouter `pymupdf` dans requirements.txt
+- **Impact:** GitHub Actions échoue silencieusement sans cette dépendance
+
+### DATA-15 — FTSC dividende aberrant dans bulletin BRVM
+- **Priorité:** Basse — informatif
+- **Description:** FTSC affiche dividende 1726 FCFA / rdt_net 75.73% dans le bulletin officiel
+- **Statut:** Filtré par rdt_net > 20% dans scrape_boc_pdf.py
+- **À vérifier:** Source réelle dividende FTSC (confusion avec coupon obligataire ?)
