@@ -172,3 +172,47 @@ WHERE id = ID_ENREGISTREMENT;
 | GitHub Actions | https://github.com/clomajo/brvm-analysis-suite/actions |
 | BRVM officiel | https://www.brvm.org |
 | Sikafinance (validation) | https://www.sikafinance.com |
+
+---
+
+## 6. Diagnostics spécifiques — scrape_boc_pdf.py
+
+### PDF du jour non disponible (jour férié ou publication tardive)
+```bash
+# Le script tente automatiquement J-1 si J échoue
+# Si les deux échouent, vérifier manuellement :
+curl -I "https://www.brvm.org/sites/default/files/boc_$(date +%Y%m%d)_2.pdf" --insecure
+
+# Jours fériés BRVM 2026 (pas de bulletin) :
+# Jan 1, Mar 17, Mar 20, Avr 6, Mai 1, Mai 14, Mai 25, Mai 27, Aoû 7, Aoû 26, Déc 25
+```
+
+### Données aberrantes dans company_fundamentals après scrape
+```bash
+# Vérifier les rdt_net > 15% (probablement corrompus)
+curl -s "$SUPABASE_URL/rest/v1/company_fundamentals?dividend_yield=gt.15&select=ticker,dividend_yield,dividend_per_share,scraped_at&order=scraped_at.desc" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY"
+
+# Filtre sanité actuel : rdt_net > 20% = exclu automatiquement
+# FTSC (75.73%) exclu — données bulletin BRVM aberrantes confirmées
+```
+
+### pymupdf absent en CI GitHub Actions
+```bash
+# Symptôme : scrape_boc_pdf.py échoue avec ModuleNotFoundError
+# Fix : ajouter pymupdf dans requirements.txt
+echo "pymupdf" >> requirements.txt
+git add requirements.txt
+git commit -m "fix: ajouter pymupdf dans requirements.txt CI"
+git push
+```
+
+### Calendrier mis à jour — échéances clés
+
+| Événement | Date | Action |
+|---|---|---|
+| Dégel modèle + vérification V1 | 01/07/2026 | Analyser brvm_decisions_results, déployer V2 |
+| Modifier verify_decisions.py | 01/07/2026 | Horizon 90j → J+20 (ADR-019) |
+| Activer signal cours cible V2 | 01/07/2026 | cours_cible = dividende / rendement_cible (ADR-017) |
+| Convertir liquidité en filtre binaire | 01/07/2026 | Calibrer seuil volume_20j (ADR-018) |
+| Ajouter pymupdf requirements.txt | Immédiat | DATA-14 — bloquant CI |
