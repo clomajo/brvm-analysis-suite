@@ -160,3 +160,74 @@ endskill
 - Horizon J+20 optimal pour signal fondamental
 - BOA Capital utilise méthode cours cible (DCF/multiples) → signal fondamental, pas technique
 - Modèle V2 = décote vs valeur intrinsèque (cours_cible BOA) plutôt que score technique
+
+
+---
+
+## Session 27/05/2026 — Modèle V2 : Value + Dividende + Qualité
+
+### Contexte
+- Fix pymupdf ajouté à requirements.txt — scrape_boc_pdf.py opérationnel
+- Palm Oil (FUTR.KL) et Rubber (TOCOM-RUBBER.T) — HTTP 404 permanent — à retirer de scrape_commodities.py
+- Pipeline complet vert : 47 records, 1272 prix commodités, 48 tickers BOC parsés
+
+### Modèle V2 — Signal primaire validé par backtest
+
+Acheter J-10 avant ex_dividend_date sur moyennes caps (150-300 Mds FCFA) avec ROE>15% et P/B<2.5x.
+Performance attendue : mediane +15-20% a J+90, alpha +10-13% vs BRVMC, taux de succes 65-70%, frequence 6-8 signaux/an.
+
+Regles de gestion :
+- Max 4 positions simultanees, max 25% portefeuille par position
+- Stop relatif : sortir si J+30 < BRVMC - 5%
+- Horizon cible : J+60 (alpha maximal) ou J+90 si fondamentaux solides
+
+### PER sectoriels empiriques (calcules sur donnees reelles, filtre 2-50x)
+- Banque : 12.4x (n=11)
+- Agro : 10.2x (n=4)
+- Industrie : 13.2x (n=12)
+- Telecom : 13.3x (n=3)
+- Distribution : 16.1x (n=8)
+
+### Tickers exclus modele V2 (EPS non representatif)
+NTLC, SNTS, BOAN, BNBC, SICC, UNLC, ETIT, FTSC, CFAC, SIVC
+
+### Watchlist moyennes caps confirmees
+- SOGC, SPHC, BOAS, BOABF — Cap+Qualite confirmes (mediane J+90 = +18.2%)
+- ONTBF, TTLC — Cap seule (P/B hors filtre)
+
+### Resultats backtest
+
+Backtest value (FY2021-FY2024, 65 signaux) :
+- Decote >15% : med J+60 = +6.7%, alpha +2.9%, 72% positifs
+- Decote >80% : med J+60 = +11.3%, alpha +7.5%, 83% positifs
+- BRVMC benchmark : +3.8% J+60, +5.2% J+90
+
+Backtest dividende (2023-2026, 50 evenements) :
+- J-10 : mediane +3.6%, 86% positifs — signal le plus propre
+- J+10 : mediane 0.0%, 44% positifs — correction immediate
+- J+90 : mediane +0.5%, 51% positifs — signal bruite sans filtre
+
+Backtest par taille de cap (J+90) :
+- Grande (>300 Mds) : mediane +0.5%, 60% positifs
+- Moyenne (150-300 Mds) : mediane +11.0%, 67% positifs
+- Petite (<130 Mds) : mediane -2.1%, 40% positifs
+
+Filtre combine ROE>15% + P/B<2.5 (n=11) : mediane J+90 = +9.5%, alpha +4.3%
+Hors filtre (n=13) : mediane J+90 = -2.0%
+
+### Scripts produits (session 27/05)
+- calculate_target_price.py — cours cible PER sectoriel + Gordon
+- backtest_value.py — backtest decote vs performance FY2021-FY2024
+- backtest_dividend.py — comportement cours autour ex_dividend_date
+- signaux_actifs.py — watchlist J-10 hebdomadaire (pipeline lundi)
+- backtest_regression.py, boa_simple.py — scripts complementaires
+
+### Colonnes confirmees (session 27/05)
+- company_fundamentals : ticker, fiscal_year, eps, pb_ratio, roe, pe_ratio, market_cap, ex_dividend_date, dividend_per_share
+- FY2026 = donnees vides pour la plupart — toujours filtrer roe=not.is.null pour obtenir FY2025
+
+### ADR session 27/05
+- ADR-016 : Modele V2 parallele silencieux jusqu'au 01/07/2026 — pas de remplacement V1 avant verification live
+- ADR-017 : Univers V2 = moyennes caps uniquement (150-300 Mds FCFA)
+- ADR-018 : Fenetres J-10 = signal d'achat optimal avant ex_dividend_date
+- ADR-019 : Palm Oil et Rubber retires de scrape_commodities.py (HTTP 404 permanent)
