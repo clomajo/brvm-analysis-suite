@@ -398,3 +398,33 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - **Mise à jour:** quotidienne via UPDATE (pas INSERT) — updated_at reflète la dernière analyse
 - **Doublons détectés:** company_id=42 a 3 entrées — neutralisé par limit=1
 - **report_date:** = fin d'exercice fiscal (2025-12-31) — ne pas confondre avec date de génération
+
+---
+
+## 2026-05-25
+
+### PERF — Régression logistique live (751 signaux, avril–mai 2026)
+- Hit rate J+5=39% J+10=36% J+20=33% J+30=26% — signal inversé sur cette période
+- AUC J+20=0.691 — bon modèle mais à l'envers (score élevé = baisse prédite)
+- Liquidité filtre : +5 à +7% de hit rate → filtre binaire confirmé
+- Coefficient regime_bull fort à J+20/J+30, non significatif à court terme
+- Seuil optimal ROC = 95 sur 14 signaux (artefact période baissière)
+
+### PERF — Backtest 10 ans (22 992 signaux, 2016–2026)
+- AUC 0.51 tous scores confondus — signal technique structurellement nul
+- Aucune formule de score ne performe mieux qu'une autre (V1, RSI seul, trend seul = identiques)
+- Régime BULL/BEAR inversé : BEAR 55% > BULL 49.6% à J+10
+- Signal s'améliore avec le temps : J+5=47.9% → J+30=56.7% (signal fondamental lent)
+- Conclusion : signal technique = bruit sur BRVM (ADR-016)
+
+### FEAT — Identification signal BOA cours cible
+- Méthode BOA = DCF/multiples → cours_cible stable = valeur intrinsèque annuelle
+- Hit rate BOA BUY 64.3% J+20 / SELL 24.5% J+20 (inversé — correction lente marché illiquide)
+- Formule reverse-engineered : cours_cible = dividende / rendement_cible_sectoriel
+- Base V2 : décote vs valeur intrinsèque (pas score technique)
+
+### INFRA — Débogage colonnes Supabase
+- brvm_decisions : signal_date→date, decision→signal, regime→market_regime
+- companies : ticker→symbol
+- historical_data : date→trade_date, close_price→price (pas de colonne ticker)
+- Score composite seulement en V1 (composantes détaillées NULL)
