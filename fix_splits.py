@@ -260,7 +260,7 @@ def count_rows_before(company_id, date_str):
 def apply_split_correction(company_id, date_str, facteur, ticker, source, dry_run=True):
     """
     Divise tous les prix AVANT date_str par facteur.
-    Détecte automatiquement si le split est déjà appliqué en base (ratio_obs ~ 1.0).
+    Utilise une RPC ou une UPDATE via REST batch.
     """
     # Vérification préalable
     before = get_price_before(company_id, date_str)
@@ -268,27 +268,15 @@ def apply_split_correction(company_id, date_str, facteur, ticker, source, dry_ru
     n_rows = count_rows_before(company_id, date_str)
 
     if not before or not after:
-        print(f"  ⚠️  {ticker} {date_str}: données insuffisantes — IGNORÉ")
+        print(f"  ⚠️  {ticker} {date_str}: données insuffisantes (avant={before}, après={after})")
         return 0
 
     ratio_obs = before["price"] / after["price"]
-
-    # Détection split déjà appliqué : ratio obs proche de 1.0
-    # (le prix avant ≈ prix après = split déjà intégré dans les données source)
-    SEUIL_DEJA_APPLIQUE = 1.15
-    deja_applique = ratio_obs < SEUIL_DEJA_APPLIQUE
-
-    statut = "⏭️  DÉJÀ APPLIQUÉ — IGNORÉ" if deja_applique else ("✅" if not dry_run else "📋")
-    print(f"\n{statut} {ticker} {date_str} ÷{facteur}x")
-    print(f"  Source    : {source}")
-    print(f"  Avant     : {before['trade_date']} → {before['price']:,.0f} FCFA")
-    print(f"  Après     : {after['trade_date']}  → {after['price']:,.0f} FCFA")
+    print(f"\n{'[DRY RUN] ' if dry_run else '[APPLY]  '}{ticker} {date_str} ÷{facteur}x")
+    print(f"  Source  : {source}")
+    print(f"  Avant   : {before['trade_date']} → {before['price']:,.0f} FCFA")
+    print(f"  Après   : {after['trade_date']}  → {after['price']:,.0f} FCFA")
     print(f"  Ratio obs : ÷{ratio_obs:.3f}x  (officiel: ÷{facteur}x)")
-
-    if deja_applique:
-        print(f"  → Ratio obs ({ratio_obs:.3f}x) < seuil {SEUIL_DEJA_APPLIQUE}x : split déjà dans les données")
-        return 0
-
     print(f"  Lignes à corriger : {n_rows}")
 
     if dry_run:
