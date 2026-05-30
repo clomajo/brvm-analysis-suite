@@ -184,3 +184,20 @@ Format : Contexte → Décision → Raison → Conséquences
 **Raison:** Respecter la période de validation live V1 (avril-juillet 2026). Comparer V1 vs V2 en silencieux. Décision de bascule au 01/07/2026 après vérification des 3 positions live.
 **Conséquences:** Aucun changement frontend avant juillet. V2 loggé dans GitHub Actions chaque lundi.
 
+
+## ADR-020 — fix_splits.py source de vérité (29/05/2026)
+Statut : ACCEPTÉ
+Contexte : 61 splits détectés, 50 confirmés par avis officiels BRVM.
+Décision : fix_splits.py est la source de vérité. Dry run obligatoire avant --apply.
+Conséquence : toute future correction de split passe par ce script.
+
+## ADR-021 — Backup avant correction de masse (29/05/2026)
+Statut : ACCEPTÉ
+Décision : créer backup_historical_data.json avant toute opération de masse.
+Format : JSON complet via pagination REST (batch 1000 lignes).
+
+## ADR-022 — SQL Editor pour corrections de masse (29/05/2026)
+Statut : ACCEPTÉ
+Contexte : fix_splits.py via PATCH REST = 47,000 requêtes ≈ 1h.
+Décision : toutes corrections de masse → SQL Editor Supabase (UPDATE direct).
+Conséquence : créer RPC apply_split() pour usage futur depuis Python.

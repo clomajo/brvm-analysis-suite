@@ -460,3 +460,24 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - signaux_actifs.py — watchlist J-10 hebdomadaire (pipeline lundi)
 - ADR-020 à ADR-023 ajoutés (voir DECISIONS.md)
 
+
+## [2026-05-29]
+
+### INFRA — DATA-05/06 : Correction splits historiques
+- fix_splits.py : 50 splits appliqués, 47,606 lignes corrigées
+- 11 splits ignorés (déjà dans données source)
+- 15 facteurs estimés (non documentés officiellement)
+- Backup historical_data.json créé (110,594 lignes)
+
+### INFRA — SNTS historique corrigé
+- fix_snts_updates.sql : 2,476 prix remplacés par données réelles (2016-2026)
+- Données source : 41_market-data_SONATEL.xlsx
+- company_fundamentals SNTS : shares_outstanding et market_cap corrigés
+
+### FIX — Frontend vue d'ensemble
+- FinancialAnalysis.jsx : latest pointe sur dernier FY avec données réelles
+- Correction : FY2026 NULL n'est plus affiché par défaut
+
+### FIX — Pipeline InvalidJSONError
+- technical_analyzer_simple.py : sanitize NaN/Inf avant envoi Supabase
+- import math ajouté

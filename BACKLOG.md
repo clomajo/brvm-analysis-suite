@@ -244,3 +244,13 @@ Intégré pipeline ÉTAPE 1b. Filtre rdt_net > 20%. Commit b8fc9f6.
 - **Description:** Filtre liquidité binaire confirmé (+5 à +7% hit rate) mais seuil exact non défini
 - **Action:** Analyser distribution volume_20j par liquidity_tier après dégel
 
+
+## Ajouts backlog 29/05/2026
+
+- [ ] Relancer entraînement GRU sur données corrigées (splits fixes)
+- [ ] Re-scraper SNTS données pré-2016 si besoin historique complet
+- [ ] Vérifier autres tickers potentiellement corrompus comme SNTS (prix aberrants)
+- [ ] Relancer analyse dirigeants BRVM sur données corrigées
+- [ ] Documents officiels BRVM manquants : CABC 2017, CIEC 2018, SIVC 2017 (confirmer estimés)
+- [ ] Ajouter RPC Supabase apply_split pour corrections futures instantanées
+- [ ] fix_snts_updates.sql → archiver dans repo (actuellement local seulement)

@@ -245,3 +245,65 @@ Puis commit unique :
 git add SKILL.md CHANGELOG.md BACKLOG.md DECISIONS.md ARCHITECTURE.md
 git commit -m "docs: mise à jour documentation session JJ/MM/YYYY"
 git push
+
+## Session 29/05/2026 — DATA-05/06 : Correction splits historiques + fixes pipeline
+
+### Correction splits historiques (DATA-05/06 complété)
+
+50 splits appliqués via fix_splits.py sur 47,606 lignes historical_data.
+11 splits ignorés car déjà intégrés dans les données source (ratio obs ≈ 1.0).
+Sources : avis officiels BRVM (PDFs), communiqués émetteurs, brvm.org/fr/esv/fractionnement.
+
+Méthode : fix_splits.py applique les facteurs du plus récent au plus ancien.
+Détection automatique des splits déjà appliqués (seuil ratio obs < 1.15).
+
+Facteurs BOA 2024 confirmés par avis officiels :
+- BOAB/BOAC/BOABF/SIBC : attribution 1p1 → ÷2.0x
+- BOAS/BOAM : attribution 1p2 → ÷1.5x
+- BOAN : attribution 3p5 → ÷1.667x
+
+Splits estimés (15) — facteur arrondi, marqués dans fix_splits.py :
+SAFC 2026, SICC 2026, ONTBF 2026, ORGT 2026, SCRC 2026, SDSC 2026,
+STAC 2025, FTSC 2025, UNLC 2020, SNTS 2018, STAC 2018, CIEC 2018,
+SOGC 2018, SIVC 2017, SICC 2017
+
+Impact : SMA correctes sur historique long, backtests value fiables,
+GRU sans sauts artificiels de 100x.
+
+### SNTS — correction historique complète
+
+Données historical_data SNTS corrompues depuis scraping initial (~25x trop basses).
+Ex : jan 2022 = 605 FCFA en base vs 13,975 FCFA réel.
+Correction : fix_snts_updates.sql — 2,476 UPDATE statements individuels.
+Source : 41_market-data_SONATEL.xlsx (cours réels 2016-2026).
+Résultat : jan 2022 = 13,950 FCFA ✅
+
+SNTS fundamentals corrigés :
+- shares_outstanding : 100 → 100,000,000
+- market_cap : 2,820,000 → 2,820,000,000,000 FCFA
+
+### Frontend fix — vue d'ensemble FY2025
+
+FinancialAnalysis.jsx affichait FY2026 vide. Fix : realData filtre les exercices
+sans données (revenue/net_income/eps tous NULL). latest pointe sur FY2025.
+
+### Pipeline fix — InvalidJSONError NaN/Inf
+
+technical_analyzer_simple.py : fonction safe() avec math.isnan()/isinf()
+avant envoi Supabase. import math ajouté.
+
+### Backup historical_data
+backup_historical_data.json — 110,594 lignes — localement, ne pas commiter.
+
+### Règle — Corrections de données en masse
+Toujours utiliser SQL Editor Supabase. Ne jamais PATCH ligne par ligne via REST.
+
+UPDATE historical_data
+SET price = ROUND((price / FACTEUR)::numeric, 2)
+WHERE company_id = (SELECT id FROM companies WHERE symbol = 'TICKER')
+AND trade_date < 'YYYY-MM-DD';
+
+### ADR session 29/05
+- ADR-020 : fix_splits.py = source de vérité splits — dry run obligatoire avant --apply
+- ADR-021 : Backup complet historical_data avant toute correction de masse
+- ADR-022 : Corrections de masse → SQL Editor uniquement (pas REST PATCH)

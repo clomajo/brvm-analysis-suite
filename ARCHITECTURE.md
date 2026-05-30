@@ -171,3 +171,23 @@ historical_data (Supabase)
 - Taux de succès : 65-70%
 - Fréquence : 6-8 signaux/an
 
+
+## Correction splits historiques (29/05/2026)
+
+### fix_splits.py
+Script de correction des prix historiques BRVM.
+- Localisation : ~/Desktop/brvm-analysis-suite/fix_splits.py
+- Usage : python3 fix_splits.py (dry run) | python3 fix_splits.py --apply
+- Logique : applique facteurs du plus récent au plus ancien
+- Détection splits déjà appliqués : ratio_obs < 1.15 → ignoré
+- 50 splits officiels + 15 estimés (marqués ESTIMÉ dans source)
+
+### fix_snts_updates.sql
+2,476 UPDATE statements pour corriger historical_data SNTS.
+Source : 41_market-data_SONATEL.xlsx (cours réels 2016-2026).
+À archiver dans le repo.
+
+### Données historiques post-correction
+- historical_data : 110,594 lignes (vs 92,714 avant — nouveaux tickers ajoutés)
+- SNTS : série cohérente 2016-2026, prix en FCFA réels
+- Tous splits 2017-2018 corrigés sauf 15 estimés
