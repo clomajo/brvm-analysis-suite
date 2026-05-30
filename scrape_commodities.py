@@ -21,8 +21,6 @@ HEADERS = {
 # Mapping commodity_id → Yahoo Finance ticker
 COMMODITIES = {
     "cocoa":   {"yahoo": "CC=F",  "name": "Cocoa"},
-    "palmoil": {"yahoo": "FUTR.KL", "name": "Palm Oil"},  # Bursa Malaysia
-    "rubber":  {"yahoo": "TOCOM-RUBBER.T", "name": "Rubber"},
     "cotton":  {"yahoo": "CT=F",  "name": "Cotton"},
     "gold":    {"yahoo": "GC=F",  "name": "Gold"},
     "crude":   {"yahoo": "CL=F",  "name": "Crude Oil"},
