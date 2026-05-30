@@ -240,6 +240,21 @@ jobs:
             echo "⏭️ Skipped — tourne seulement le lundi"
           fi
 
+      - name: 📊 ÉTAPE V2b - Market Cap (mensuel — 1er lundi du mois)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "📊 Mise à jour market cap..."
+          DAY=$(date +%u)
+          DOM=$(date +%d)
+          if [ "$DAY" = "1" ] && [ "$DOM" -le 7 ]; then
+            python scrape_market_cap.py
+            echo "✅ Market cap mis à jour"
+          else
+            echo "⏭️ Skipped — tourne seulement le 1er lundi du mois"
+          fi
+
       - name: 📤 Upload Rapports
         uses: actions/upload-artifact@v4
         with:
