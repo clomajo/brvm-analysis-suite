@@ -108,6 +108,15 @@ jobs:
             echo "⏭️ Skipped — tourne seulement le lundi"
           fi
 
+      - name: 🎯 ÉTAPE 1f - Cours Cibles V2 (target_prices)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "🎯 Calcul cours cibles V2..."
+          python calculate_target_price.py
+          echo "✅ Cours cibles mis à jour"
+
       - name: 📈 ÉTAPE 2 - Analyse Technique (Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

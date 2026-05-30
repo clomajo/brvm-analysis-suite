@@ -194,6 +194,21 @@ def run():
     for r in resultats[-5:]:
         print(f"  {r['ticker']}: cible={r['cours_cible']} vs actuel={r['prix_actuel']} ({r['decote_pct']}%)")
 
+    # Upsert dans Supabase target_prices
+    if resultats:
+        print(f"\n=== Upsert Supabase ({len(resultats)} lignes) ===")
+        for i in range(0, len(resultats), 50):
+            batch = resultats[i:i+50]
+            r = requests.post(
+                f"{SUPABASE_URL}/rest/v1/target_prices?on_conflict=ticker,calcul_date",
+                headers={**HEADERS, "Prefer": "resolution=merge-duplicates,return=representation"},
+                json=batch
+            )
+            if r.status_code in [200, 201]:
+                print(f"  ✅ Batch {i//50+1} : {len(batch)} lignes insérées/mises à jour")
+            else:
+                print(f"  ❌ Erreur batch {i//50+1} : {r.status_code} {r.text[:200]}")
+
     return resultats
 
 if __name__ == "__main__":
