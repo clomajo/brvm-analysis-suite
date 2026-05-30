@@ -48,21 +48,37 @@ def get_secteur(ticker):
     return "autre"
 
 def fetch_fundamentals():
-    """Récupère EPS + dividende les plus récents par ticker."""
+    """Récupère EPS moyen 3 ans + dividende le plus recent par ticker (V2-07)."""
     r = requests.get(
         f"{SUPABASE_URL}/rest/v1/company_fundamentals"
         f"?select=ticker,fiscal_year,eps,dividend_per_share,pe_ratio"
         f"&eps=not.is.null&order=ticker.asc,fiscal_year.desc",
-        headers=HEADERS
+        headers={**HEADERS, "Range": "0-2999"}
     )
     data = r.json()
-    # Garde seulement l'année la plus récente par ticker
-    latest = {}
+    # Grouper par ticker (max 3 ans)
+    grouped = {}
     for row in data:
         t = row["ticker"]
-        if t not in latest:
-            latest[t] = row
-    return latest
+        if t not in grouped:
+            grouped[t] = []
+        if len(grouped[t]) < 3:
+            grouped[t].append(row)
+    # Calculer EPS moyen + garder dividende le plus recent
+    result = {}
+    for ticker, rows in grouped.items():
+        eps_values = [r["eps"] for r in rows if r["eps"] and abs(r["eps"]) < 1e7]
+        eps_avg = round(sum(eps_values) / len(eps_values), 2) if eps_values else None
+        latest = rows[0]
+        result[ticker] = {
+            "ticker": ticker,
+            "fiscal_year": latest["fiscal_year"],
+            "eps": eps_avg,
+            "eps_years": len(eps_values),
+            "dividend_per_share": latest["dividend_per_share"],
+            "pe_ratio": latest["pe_ratio"],
+        }
+    return result
 
 def fetch_prix_actuels():
     """Récupère le dernier prix connu par ticker."""
@@ -159,7 +175,8 @@ def run():
         })
 
         flag = "🟢" if signal == "ACHAT" else "🔴" if signal == "VENTE" else "⚪"
-        print(f"  {flag} {ticker} ({secteur}) | EPS={eps} | Cible={cours_cible} | Actuel={prix_actuel} | Décote={decote_pct}% | {signal}")
+        n_years = row.get("eps_years", 1)
+        print(f"  {flag} {ticker} ({secteur}) | EPS={eps} (moy {n_years}ans) | Cible={cours_cible} | Actuel={prix_actuel} | Décote={decote_pct}% | {signal}")
 
     # Tri par décote décroissante
     resultats.sort(key=lambda x: x["decote_pct"], reverse=True)
