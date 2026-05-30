@@ -191,3 +191,22 @@ Source : 41_market-data_SONATEL.xlsx (cours réels 2016-2026).
 - historical_data : 110,594 lignes (vs 92,714 avant — nouveaux tickers ajoutés)
 - SNTS : série cohérente 2016-2026, prix en FCFA réels
 - Tous splits 2017-2018 corrigés sauf 15 estimés
+
+## Backtest V2 — Architecture finale (29/05/2026)
+
+### backtest_value.py
+Backtest stratégie value BRVM avec filtre cap+qualité.
+- Filtre : cap 150-500B, ROE>15%, P/B<2.5, décote>15%
+- Date signal : 30 avril (après publication résultats FY)
+- Mesure : J+60 et J+90 depuis date signal
+- Benchmark : BRVMC calculé sur mêmes périodes
+- FILTRE_CAP_QUALITE = True (mettre False pour voir tous signaux)
+
+### scrape_market_cap.py
+Scraper stockanalysis.com pour market_cap et shares_outstanding.
+- 45/46 tickers BRVM (ETIT exclu — HTTP 404)
+- UPDATE company_fundamentals (toutes années fiscales)
+- Délai 1.5s entre requêtes
+
+### SCORECARD_V2.md
+Document de référence stratégie V2 — 25 signaux, médiane +7.8%, alpha +2.8%.

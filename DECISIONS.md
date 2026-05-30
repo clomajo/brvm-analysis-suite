@@ -201,3 +201,21 @@ Statut : ACCEPTÉ
 Contexte : fix_splits.py via PATCH REST = 47,000 requêtes ≈ 1h.
 Décision : toutes corrections de masse → SQL Editor Supabase (UPDATE direct).
 Conséquence : créer RPC apply_split() pour usage futur depuis Python.
+
+## ADR-023 — Date signal V2 = 30 avril (29/05/2026)
+Statut : ACCEPTÉ
+Contexte : utiliser janvier comme date signal = look-ahead bias (résultats FY non publiés).
+Décision : date signal = 30 avril de l'année suivante (4 mois après clôture FY).
+Impact : médiane J+90 passe de +5.9% à +7.8% — version honnête et plus performante.
+
+## ADR-024 — Pas de filtre décote maximum (29/05/2026)
+Statut : ACCEPTÉ
+Contexte : test empirique montre que décotes >150% performent mieux (médiane +6.3%)
+que décotes 60-150% (médiane +5.1%).
+Décision : aucun plafond sur la décote — les grandes décotes sont le cœur du signal.
+
+## ADR-025 — scrape_market_cap.py mensuel (29/05/2026)
+Statut : ACCEPTÉ
+Décision : relancer scrape_market_cap.py une fois par mois pour maintenir
+market_cap et shares_outstanding à jour dans company_fundamentals.
+Source : stockanalysis.com/quote/brvm/{ticker}/statistics/

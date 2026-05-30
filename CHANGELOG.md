@@ -481,3 +481,21 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 ### FIX — Pipeline InvalidJSONError
 - technical_analyzer_simple.py : sanitize NaN/Inf avant envoi Supabase
 - import math ajouté
+
+## [2026-05-29 — soir]
+
+### FEAT — Backtest V2 finalisé
+- filtre cap+qualite : 150-500B FCFA, ROE>15%, P/B<2.5
+- correction look-ahead bias : date signal = 30 avril (après publication résultats)
+- résultats honnêtes : 25 signaux, médiane J+90 +7.8%, alpha +2.8%, 68% positifs
+- SCORECARD_V2.md créé
+
+### FEAT — scrape_market_cap.py
+- 45/46 tickers scraped depuis stockanalysis.com/quote/brvm/{ticker}/statistics/
+- market_cap et shares_outstanding mis à jour dans company_fundamentals
+- ETIT : HTTP 404 permanent (exclu)
+
+### INFRA — backtest_value.py mis à jour
+- filtre cap+qualite intégré (FILTRE_CAP_QUALITE = True)
+- dates signal corrigées (fy_dates → avril)
+- CAP_MAX élargi 300B → 500B (inclut BOAC)

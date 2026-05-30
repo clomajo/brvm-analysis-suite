@@ -254,3 +254,11 @@ Intégré pipeline ÉTAPE 1b. Filtre rdt_net > 20%. Commit b8fc9f6.
 - [ ] Documents officiels BRVM manquants : CABC 2017, CIEC 2018, SIVC 2017 (confirmer estimés)
 - [ ] Ajouter RPC Supabase apply_split pour corrections futures instantanées
 - [ ] fix_snts_updates.sql → archiver dans repo (actuellement local seulement)
+
+## Ajouts backlog 29/05/2026 soir
+
+- [ ] scrape_eps_fy2025.py — récupérer EPS FY2025 manquants (BOAB, BOAC, BOAS, SOGC, NSBC) depuis BOC PDF ou stockanalysis.com — débloque forward test juillet 2026
+- [ ] Forward test V2 — lancer signal avril 2026 sur FY2025 disponibles, tracker J+90 (échéance juillet 2026)
+- [ ] Relancer scrape_market_cap.py mensuellement pour maintenir market_cap à jour
+- [ ] Ajouter benchmark BRVMC au output de backtest_value.py (alpha par signal)
+- [ ] Valider signal SPHC FY2025 quand BOAB/BOAS publient EPS (comparaison simultanée)

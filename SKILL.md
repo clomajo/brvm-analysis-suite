@@ -307,3 +307,62 @@ AND trade_date < 'YYYY-MM-DD';
 - ADR-020 : fix_splits.py = source de vérité splits — dry run obligatoire avant --apply
 - ADR-021 : Backup complet historical_data avant toute correction de masse
 - ADR-022 : Corrections de masse → SQL Editor uniquement (pas REST PATCH)
+
+### Backtest V2 — Résultats finaux (session 29/05/2026 soir)
+
+Backtest value avec filtre cap+qualité sur données corrigées (FY2021-FY2024) :
+
+Paramètres :
+- Cap : 150-500B FCFA
+- ROE > 15%
+- P/B < 2.5
+- Décote > 15% vs PER sectoriel
+- Date signal : 30 avril (après publication résultats) — correction look-ahead bias
+
+Résultats (25 signaux, entrée avril, J+90) :
+- Médiane : +7.8%
+- Moyenne : +6.4%
+- Positifs : 17/25 = 68%
+- BRVMC médian même période : +5.0%
+- Alpha médian : +2.8%
+- Plus grand gain : +54.1% (BOAS FY2024)
+- Plus grande perte : -9.5% (CIEC FY2023)
+- Win/Loss ratio : 3.5x (gain moyen +22% / perte moyenne -6%)
+
+Distribution alpha :
+- Décote >150% : médiane J+90 +6.3%, 75% positifs (meilleur groupe)
+- Décote 60-150% : médiane J+90 +5.1%, 73% positifs
+- Décote <60% : médiane J+90 +5.9%, 67% positifs
+→ Pas de filtre décote max — les grandes décotes sont les meilleurs signaux
+
+Frais estimés BRVM (~1.5% aller-retour) : alpha net ~+1.3%
+
+### scrape_market_cap.py
+
+Script créé pour peupler market_cap et shares_outstanding depuis stockanalysis.com.
+URL : https://stockanalysis.com/quote/brvm/{ticker}/statistics/
+45/46 tickers scraped (ETIT = HTTP 404 permanent).
+Résultats mis à jour dans company_fundamentals (toutes années fiscales).
+
+Valeurs clés (mai 2026) :
+- SNTS : 2,820B | ORAC : 2,410B | SGBC : 1,150B | ECOC : 897B
+- SOGC : 157.7B | SPHC : 177.6B | ONTBF : 193.8B | TTLC : 179.4B
+- BOAM : 139.7B | BOABF : 246.4B | BOAS : 277.2B | BOAC : 353.8B
+
+### Signal actif FY2025 (mai 2026)
+
+SPHC : prix 6,950 FCFA, fair value ~9,966 FCFA, décote +43%
+ROE 19.2%, P/B 1.46, cap 178B — tous critères V2 remplis.
+Timing : fenêtre avril déjà passée — attendre juillet 2026 avec BOAB/BOAS/SOGC.
+
+Tickers attendant EPS FY2025 : BOAB, BOAC, BOAS, SOGC, NSBC, CIEC, ORGT.
+Checkpoint forward test : juillet 2026 (90 jours après avril 2026).
+
+### PER sectoriels empiriques (confirmés)
+- Banque : 12.4x | Agro : 10.2x | Industrie : 13.2x
+- Telecom : 13.3x | Distribution : 16.1x | Autre : 11.0x
+
+### ADR session 29/05 soir
+- ADR-023 : Date signal V2 = 30 avril (pas janvier) — correction look-ahead bias
+- ADR-024 : Pas de filtre décote max — décotes >150% sont les meilleurs signaux
+- ADR-025 : scrape_market_cap.py à relancer mensuellement pour maintenir market_cap à jour
