@@ -82,22 +82,73 @@ def fetch_all_prices():
     print(f"  {len(all_prices)} tickers chargés")
     return all_prices
 
+# Filtre cap+qualite (ADR-017/021)
+# Mettre a False pour voir tous les signaux sans filtre
+FILTRE_CAP_QUALITE = True
+CAP_MIN = 150e9
+CAP_MAX = 500e9
+ROE_MIN = 15.0
+PB_MAX  = 2.5
+
 def fetch_fundamentals_history():
-    """Récupère EPS historique par ticker et année fiscale."""
+    """Recupere EPS historique par ticker et annee fiscale."""
     r = requests.get(
         f"{SUPABASE_URL}/rest/v1/company_fundamentals"
-        f"?select=ticker,fiscal_year,eps,pe_ratio"
+        f"?select=ticker,fiscal_year,eps,pe_ratio,roe,pb_ratio,market_cap"
         f"&eps=not.is.null"
         f"&order=ticker.asc,fiscal_year.asc",
         headers=HEADERS
     )
     data = r.json()
+
+    # market_cap actuel par ticker (FY2025 = seule annee peuplee)
+    r2 = requests.get(
+        f"{SUPABASE_URL}/rest/v1/company_fundamentals"
+        f"?select=ticker,market_cap"
+        f"&market_cap=not.is.null",
+        headers=HEADERS
+    )
+    cap_by_ticker = {}
+    for row in r2.json():
+        if row["market_cap"]:
+            cap_by_ticker[row["ticker"]] = row["market_cap"]
+
     result = {}
+    skipped_cap = []
+    skipped_qualite = []
+
     for row in data:
         t = row["ticker"]
-        fy = row["fiscal_year"]  # ex: FY2023
-        if t not in EXCLUSIONS and row["eps"] and row["eps"] > 0:
-            result.setdefault(t, {})[fy] = row["eps"]
+        fy = row["fiscal_year"]
+        if t in EXCLUSIONS:
+            continue
+        if not row["eps"] or row["eps"] <= 0:
+            continue
+
+        if FILTRE_CAP_QUALITE:
+            cap = cap_by_ticker.get(t)
+            roe = row.get("roe")
+            pb  = row.get("pb_ratio")
+
+            if not cap or not (CAP_MIN <= cap <= CAP_MAX):
+                if t not in skipped_cap:
+                    skipped_cap.append(t)
+                continue
+            if not roe or roe < ROE_MIN:
+                if t not in skipped_qualite:
+                    skipped_qualite.append(t)
+                continue
+            if not pb or pb > PB_MAX:
+                if t not in skipped_qualite:
+                    skipped_qualite.append(t)
+                continue
+
+        result.setdefault(t, {})[fy] = row["eps"]
+
+    if FILTRE_CAP_QUALITE:
+        print(f"  Filtre cap {CAP_MIN/1e9:.0f}-{CAP_MAX/1e9:.0f}B exclus: {skipped_cap}")
+        print(f"  Filtre qualite ROE>{ROE_MIN}% PB<{PB_MAX} exclus: {skipped_qualite}")
+
     return result
 
 def get_price_at_date(prices_dict, target_date_str, window=10):
@@ -117,10 +168,10 @@ def run():
     # Dates de signal : fin de chaque année fiscale
     # FY2021 → signal au 31/12/2021, mesure J+60 et J+90
     fy_dates = {
-        "FY2021": "2022-01-31",  # publication typique ~1 mois après clôture
-        "FY2022": "2023-01-31",
-        "FY2023": "2024-01-31",
-        "FY2024": "2025-01-31",
+        "FY2021": "2022-04-30",  # resultats publies ~4 mois apres cloture BRVM
+        "FY2022": "2023-04-30",
+        "FY2023": "2024-04-30",
+        "FY2024": "2025-04-30",
     }
 
     resultats = []
