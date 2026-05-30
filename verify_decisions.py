@@ -1,7 +1,7 @@
 """
 verify_decisions.py
 -------------------
-Vérifie les signaux BRVM à 90 jours et upsert dans brvm_decisions_results.
+Vérifie les signaux BRVM à J+20 et upsert dans brvm_decisions_results.
 À lancer quotidiennement via GitHub Actions (après generate_decisions.py).
 
 Variables d'environnement requises :
@@ -17,7 +17,7 @@ SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-VERIFICATION_WINDOW = 90  # jours
+VERIFICATION_WINDOW = 20  # jours (ADR-019 — J+20 optimal, signal BOA peak)
 
 
 def get_price_at_date(company_id: int, target_date: date):

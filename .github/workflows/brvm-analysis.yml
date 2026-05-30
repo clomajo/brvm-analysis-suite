@@ -145,13 +145,13 @@ jobs:
           python generate_decisions.py
           echo "✅ Decisions generated"
 
-      - name: ✅ ÉTAPE 3c - Verify Decisions (90-day lookback)
+      - name: ✅ ÉTAPE 3c - Verify Decisions (J+20 — ADR-019)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
-          echo "🚀 Verifying signals from 90 days ago..."
+          echo "🚀 Verifying signals from 20 days ago (J+20)..."
           python verify_decisions.py
           echo "✅ Verification complete"
 
