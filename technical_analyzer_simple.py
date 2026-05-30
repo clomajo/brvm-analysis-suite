@@ -2,6 +2,7 @@
 """
 technical_analyzer_simple.py - Simplified technical analyzer using direct HTTP
 """
+import math
 
 import os
 import sys
@@ -103,12 +104,19 @@ def process_company(company_id, symbol):
     rsi = calculate_rsi(df['close'])
     macd, signal, hist = calculate_macd(df['close'])
     
+    def safe(v, decimals=2):
+        if v is None: return None
+        try:
+            f = float(v)
+            return None if (math.isnan(f) or math.isinf(f)) else round(f, decimals)
+        except: return None
+
     data = {
         'historical_data_id': historical_id,
-        'rsi': round(rsi, 2) if rsi else None,
-        'macd_line': round(macd, 2) if macd else None,
-        'signal_line': round(signal, 2) if signal else None,
-        'histogram': round(hist, 2) if hist else None,
+        'rsi': safe(rsi),
+        'macd_line': safe(macd),
+        'signal_line': safe(signal),
+        'histogram': safe(hist),
     }
     
     # Check if exists
