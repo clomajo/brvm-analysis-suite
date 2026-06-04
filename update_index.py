@@ -23,7 +23,22 @@ def supabase_upsert(table, data):
     return r.status_code
 
 print("Fetching BRVM index values...")
-r = requests.get('https://www.brvm.org/en/cours-actions/0', verify=False, timeout=15)
+for attempt in range(3):
+    try:
+        r = requests.get('https://www.brvm.org/en/cours-actions/0', verify=False, timeout=15)
+        break
+    except requests.exceptions.ReadTimeout:
+        if attempt == 2:
+            print("WARNING: BRVM.org timeout apres 3 tentatives - ETAPE 0 ignoree")
+            exit(0)
+        print(f"WARNING: Timeout tentative {attempt + 1}/3 - retry dans 10s")
+        import time; time.sleep(10)
+    except requests.exceptions.ConnectionError:
+        if attempt == 2:
+            print("WARNING: BRVM.org inaccessible - ETAPE 0 ignoree")
+            exit(0)
+        print(f"WARNING: Connexion echouee tentative {attempt + 1}/3 - retry dans 10s")
+        import time; time.sleep(10)
 text = BeautifulSoup(r.text, 'html.parser').get_text()
 
 # Format: 'BRVM-C406,950,13%' / 'BRVM-30191,950,32%' / 'BRVM-PRES158,770,67%'
