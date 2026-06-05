@@ -2,66 +2,45 @@
 
 ---
 
+## 🟢 COMPLÉTÉS — 2026-06-04
+
+### ✅ DATA-18 — Extraction ROE depuis analyses Mistral
+Script `extract_roe_eps.py` — lit `analysis_summary` (pas `analysis_text`).
+26/47 tickers avec ROE dans company_fundamentals FY2025.
+
+### ✅ DATA-19 — Calcul EPS depuis net_income/shares_outstanding
+`fill_eps_corrected.sql` exécuté. EPS = net_income × 1M / shares_outstanding.
+20/47 tickers avec EPS. ROE calculé pour tickers manquants via net_income/total_equity.
+
+### ✅ RESEARCH-01 — Exploration modèle Fair Value V3
+Prototype DDM/PE hybride testé. Rejeté (ADR-033). Modèle pragmatique identifié.
+
+---
+
 ## 🟢 COMPLÉTÉS — 2026-05-30
 
 ### ✅ V2-06 — Retirer Palm Oil et Rubber de scrape_commodities.py
-FUTR.KL et TOCOM-RUBBER.T retirés — HTTP 404 permanent. Commit efde604.
-
 ### ✅ DATA-14 — pymupdf dans requirements.txt
-Déjà présent. Doublons (joblib, pypdf, feedparser) nettoyés. Commit 9212b00.
-
 ### ✅ fix_snts_updates.sql archivé
-Déplacé Downloads → sql/ du repo. Commit 73474e9.
-
 ### ✅ ADR-029 — scrape_market_cap.py mensuel automatisé
-Ajouté au workflow GitHub Actions (1er lundi du mois). Commit 7a069ae.
-
 ### ✅ UI-02 — Supprimer tab BOA vs BRVM
-Tab et composant BOAComparison retirés. Commit 25a92a0.
-
 ### ✅ DATA-11 — Nettoyer doublons fundamental_analysis
-45 lignes, 45 company_id distincts. Contrainte UNIQUE ajoutée.
-
 ### ✅ DATA-12 — Fondamentaux clés connectés à Supabase
-FUND_DATA hardcodé remplacé par fetch company_fundamentals. ROE ajouté. Commit c6a03e8.
-
 ### ✅ V2-07 — EPS moyenne glissante 3 ans
-fetch_fundamentals() retourne EPS moyen 3 ans. Commit dc52769.
-
 ### ✅ V2-05 — Table target_prices + upsert quotidien
-Table créée (Supabase), upsert dans calculate_target_price.py, pipeline ÉTAPE 1f. Commit b939b53.
-
 ### ✅ V2-02 — verify_decisions.py horizon J+20
-VERIFICATION_WINDOW 90 → 20 jours. Commit 07f46c6.
-
 ### ✅ CHART-01 — Ligne Fair Value style Morningstar
-Ligne pointillée orange sur graphique historique depuis target_prices. Commit 9c65c31.
-
 ### ✅ UI-03 — Badge Fair Value V2 sur DecisionCards
-Badge 🎯/📉 décote % + cours_cible sur chaque card. Fetch optimisé. Commit 965ef99.
-
-### ✅ STYLE-01 — FERMÉ
-react-markdown incompatible Vite 3.2.7 (ADR-031). Parser inline maison = solution définitive.
-
-### ✅ scrape_eps_fy2025.py — INUTILE
-FY2025 non encore publié pour BOAB/BOAC/BOAS/SOGC. scrape_all_v4.py capturera automatiquement dès publication. Pas de script nécessaire.
+### ✅ STYLE-01 — FERMÉ (react-markdown incompatible)
 
 ---
 
 ## 🟢 COMPLÉTÉS — sessions précédentes
 
 ### ✅ DATA-05/06 — Correction splits historiques (29/05/2026)
-50 splits appliqués, 47,606 lignes corrigées. fix_splits.py = source de vérité.
-
 ### ✅ SNTS historique corrigé (29/05/2026)
-2,476 updates. Données réelles 2016-2026 depuis SONATEL.xlsx.
-
 ### ✅ scrape_market_cap.py (29/05/2026)
-45/46 tickers. market_cap + shares_outstanding dans company_fundamentals.
-
 ### ✅ DATA-10 — SICC/ONTBF données corrompues (05/05/2026)
-Identifié et exclu du hit rate. historical_data corrigé.
-
 ### ✅ PRED-01 — GRU via Supabase REST (03/05/2026)
 ### ✅ PRED-02 — Tracking record prédictions (03/05/2026)
 ### ✅ SCORE-07 — verify_decisions.py Scorecard live (05/05/2026)
@@ -72,19 +51,35 @@ Identifié et exclu du hit rate. historical_data corrigé.
 
 ---
 
-## 🔴 BACKLOG ACTIF — POST-DÉGEL 01/07/2026
+## 🔴 BACKLOG ACTIF — PRIORITÉ HAUTE (post-dégel 01/07/2026)
+
+### MODEL-01 — Modèle pragmatique BRVM (prochaine session)
+- **Priorité:** Haute — à construire avant bascule 01/07/2026
+- **Description:** Signal combiné : BOA_action + BOA_potential + ROE_relatif + momentum_MA20
+- **Logique:**
+  ```python
+  signal_achat = (
+      boa_action in ["BUY", "HOLD"]     # BOA pas négatif
+      AND boa_potential > 5              # upside BOA > 5%
+      AND roe > roe_median_secteur       # qualité relative
+      AND prix > ma20                    # momentum positif
+  )
+  ```
+- **Avantage vs V3 :** Utilise ce qu'on a réellement · backtestable · transparent · indépendant de BOA
+- **Dépendance :** ROE sectoriel médian (calculable depuis company_fundamentals)
 
 ### V2-01 — Cours cible via rendement cible sectoriel
 - **Priorité:** Haute — post-dégel
 - **Description:** cours_cible = dividend_per_share / rendement_cible_sectoriel
-- **Source rendement:** boa_recommendations.rendement historique moyen par ticker
+- **Source rendement:** boa_recommendations.rendement (en %, diviser par 100)
+- **Note:** rendement BOA confirmé colonne `rendement` dans `boa_recommendations`
 - **Dépendance:** ADR-017, ADR-023
 
 ### V2-03 — Filtre liquidité binaire dans generate_decisions.py
 - **Priorité:** Haute — post-dégel
 - **Description:** Bloquer tout signal ACHAT si volume_20j < seuil
+- **Calibration:** ratio volume/shares_outstanding · seuils : >0.1%=liquide · 0.01-0.1%=peu liquide · <0.01%=illiquide
 - **Note:** Ne pas modifier avant 01/07/2026 (ADR-001)
-- **Dépendance:** DATA-17 (calibration seuil)
 
 ### V2-04 — Intégrer signaux V2 complets dans l'interface
 - **Priorité:** Haute — post-dégel
@@ -98,12 +93,17 @@ Identifié et exclu du hit rate. historical_data corrigé.
 
 ### Forward test V2 — Checkpoint juillet 2026
 - **Priorité:** Haute
-- **Description:** Valider signal SPHC FY2025 + positions BOAB/BOAS/SOGC quand EPS FY2025 publiés
-- **Échéance:** Juillet 2026 (90 jours après avril 2026)
+- **Description:** Valider signal SPHC FY2025 + positions BOAB/BOAC/BOABF/SNTS/NTLC
+- **Échéance:** Juillet 2026
 
 ---
 
 ## 🟠 BACKLOG ACTIF — PRIORITÉ MOYENNE
+
+### DATA-20 — Compléter ROE/EPS pour 21 tickers manquants
+- **Description:** 21/47 tickers sans ROE · 27/47 sans EPS après session 04/06
+- **Sources possibles :** rapports annuels BRVM · BOC PDF archivés · saisie manuelle pour tickers clés
+- **Tickers prioritaires :** BOAC, CIEC, SMBC, CFAC, ETIT (ROE extrait mais EPS manquant)
 
 ### DATA-10 — Corriger prix corrompus SICC et ONTBF
 - **SICC:** Prix ~10x trop élevés — source Sikafinance à corriger
@@ -131,41 +131,13 @@ Identifié et exclu du hit rate. historical_data corrigé.
 ## 🟡 BACKLOG ACTIF — PRIORITÉ BASSE
 
 ### SCORE-05 — Bonus dividende imminent dans score V2
-- 0-30 jours → +8 points · 31-60 jours → +4 points — activer après juillet 2026
-
 ### SCORE-06 — Bonus AG dans score V2
-- AG prévues dans 30 jours → +5 points
-
 ### FUND-06 — Notations BloomField Investment
-- Notes crédit BOA group (BOAC, BOABF, BOAM) — 3-4 tickers seulement
-
 ### DATA-08 — Calendrier AG depuis brvm.org
-- Compléter corporate_events avec type AG
-
 ### DATA-09 — Commodités tab — données réelles
-- Pipeline Yahoo Finance quotidien déjà en place — connecter au frontend
-
-### DATA-11 — Doublons fundamental_analysis — ✅ RÉSOLU
-- Contrainte UNIQUE ajoutée. Clos.
-
 ### DATA-15 — FTSC dividende aberrant (75.73% rdt_net)
-- Filtré par scrape_boc_pdf.py. Vérifier source réelle (coupon obligataire ?)
-
 ### DATA-16 — Enrichir EPS historique FY2019-FY2020
-- stockanalysis.com ne remonte pas avant FY2021
-- Alternative : BOC PDF archivés brvm.org depuis 2015
-
-### SIGNAL-01 — Filtre détresse relative ⚠️ — ✅ DÉPLOYÉ
-- Badge déjà en production (seuil -25pts vs BRVMC)
-
 ### SIGNAL-02 — Déduplication sectorielle BOA
-- Alerte si 3+ titres même groupe en BUY simultané
-
 ### GÉOPOLITIQUE-01 — Migrer GEO_MULTIPLIER vers table Supabase
-- country_risk table — remplace valeurs hardcodées dans generate_decisions.py
-
 ### Ajouter RPC Supabase apply_split
-- Pour corrections futures de splits depuis Python sans SQL Editor
-
-### Documents BRVM manquants
-- CABC 2017, CIEC 2018, SIVC 2017 — confirmer facteurs estimés vs officiels
+### Documents BRVM manquants (CABC 2017, CIEC 2018, SIVC 2017)
