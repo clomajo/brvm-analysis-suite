@@ -19,10 +19,12 @@ BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
 │  Tables principales:                                        │
 │  • companies          — 47 tickers BRVM                     │
 │  • historical_data    — 92 714+ lignes de prix              │
-│  • brvm_decisions     — signaux ACHAT/SURVEILLER/EVITER     │
+│  • brvm_decisions     — signaux ACHAT/SURVEILLER/EVITER (V1)│
 │  • brvm_decisions_results — vérifications live (dès 07/26)  │
 │  • fundamental_analysis   — analyses Mistral par ticker     │
 │  • technical_indicators   — RSI, MACD, SMA calculés         │
+│  • target_prices      — cours cible V2 + decote (calculé)   │
+│  • sector_per_history — P/E sectoriel BRVM, saisie mensuelle│
 └──────────────────────▲──────────────────────────────────────┘
                        │ REST API
 ┌──────────────────────┴──────────────────────────────────────┐
@@ -35,13 +37,17 @@ BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
 │  ÉTAPE 1b test_pipeline.py         — 12 tests qualité       │
 │  ÉTAPE 2  technical_analyzer_simple.py — RSI, MACD, SMA     │
 │  ÉTAPE 3  opportunity_scorer_simple.py — scores 0-100       │
-│  ÉTAPE 3b generate_decisions.py    — signaux + régime       │
+│  ÉTAPE 3b generate_decisions.py    — signaux V1 + régime    │
+│           (GELÉ jusqu'au 01/07/2026 — ADR-001)              │
 │  ÉTAPE 3c verify_decisions.py      — vérif. 90j (dès 07/26) │
 │  ÉTAPE 3d test_pipeline.py         — tests post-décisions   │
 │  ÉTAPE 4  prediction_analyzer.py   — modèles ML (désactivé) │
 │  ÉTAPE 5  fundamental_analyzer.py  — Mistral AI             │
 │  ÉTAPE 6  report_generator.py      — rapports multi-AI      │
 │  ÉTAPE 7  news_collector.py        — news + scoring IA      │
+│                                                             │
+│  calculate_target_price.py — cours cible V2 (indépendant   │
+│  du gel ADR-001, calibré jusqu'au go-live du 01/07/2026)    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,9 +77,9 @@ BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
 
 ---
 
-## Modèle de scoring
+## Modèle de scoring V1
 
-### Facteurs actuels (4 facteurs, gel jusqu'au 01/07/2026)
+### Facteurs actuels (4 facteurs, gel jusqu'au 01/07/2026 — ADR-001)
 
 ```
 Score composite (0-100) =
@@ -99,6 +105,26 @@ Score composite (0-100) =
 
 ---
 
+## Modèle de cours cible V2 (go-live 01/07/2026)
+
+```
+Cours cible = EPS moyen (jusqu'à 3 ans, filtre data-quality — ADR-011) × PER sectoriel (70%)
+              + dividende / 8% (30%)
+```
+
+**PER sectoriel :** lu dynamiquement depuis `sector_per_history` (7 secteurs officiels
+BRVM, ADR-010), jamais hardcodé. Alimentation manuelle mensuelle via `update_sector_per.py`.
+
+**Filtre data-quality EPS (ADR-011) :** remplace toute liste d'exclusion statique.
+Vérifie la consécutivité des années EPS disponibles (si 2+) et détecte un collapse
+EPS >80% YoY. Avec 1 seule année EPS, le ticker est accepté sans contrôle (compromis
+assumé pour ne pas exclure des tickers à forte capitalisation par manque d'historique).
+
+**Taux d'actualisation 8% :** maintenu sans modification (ADR-009), origine non
+traçable mais pas de méthode de remplacement fiable identifiée.
+
+---
+
 ## Flux de données
 
 ```
@@ -115,12 +141,21 @@ historical_data (Supabase)
     │       └── score composite 0-100
     │               └── opportunity_scores (Supabase)
     │
-    └── generate_decisions.py
-            └── ACHAT/SURVEILLER/EVITER + market_regime
-                    └── brvm_decisions (Supabase)
-                            │
-                            └── verify_decisions.py (J+90)
-                                    └── brvm_decisions_results
+    ├── generate_decisions.py (V1, gelé — ADR-001)
+    │       └── ACHAT/SURVEILLER/EVITER + market_regime
+    │               └── brvm_decisions (Supabase)
+    │                       │
+    │                       └── verify_decisions.py (J+90)
+    │                               └── brvm_decisions_results
+    │
+    └── calculate_target_price.py (V2, calibrable jusqu'au 01/07/2026)
+            │
+            ├── lit sector_per_history (P/E sectoriel, màj mensuelle manuelle)
+            ├── applique evaluer_qualite_eps() sur company_fundamentals
+            │       (filtre consécutivité + collapse, ADR-011)
+            │
+            └── ACHAT/NEUTRE/VENTE + decote_pct + per_source (traçabilité)
+                    └── target_prices (Supabase)
 ```
 
 ---
@@ -134,6 +169,8 @@ historical_data (Supabase)
 | App.jsx monolithique (~3500 lignes) | Maintenance difficile | Dette technique |
 | Données historiques pré-split non ajustées | Backtest BOA non fiable | Backlog DATA-05/06 |
 | Variation journalière sur données non consécutives | Top Gainers parfois incorrect | Backlog DATA-07 |
+| Parsing automatique du Tableau de Bord BOA non branché | Saisie PER sectoriel manuelle, pas automatique | Backlog (cf. ADR-010) — document source en lien email, pas en pièce jointe |
+| Tickers à 1 seule année EPS acceptés sans contrôle qualité | Risque d'EPS atypique non représentatif dans le cours cible V2 | Risque assumé (ADR-011), à surveiller après le 01/07/2026 |
 
 ---
 
@@ -142,5 +179,7 @@ historical_data (Supabase)
 - RLS (Row Level Security) activé sur toutes les tables Supabase
 - `brvm_data` : lecture publique
 - `brvm_decisions` : lecture publique + écriture service_role
+- `sector_per_history` : lecture publique, contrainte CHECK sur les 7 secteurs officiels
+- `target_prices` : lecture publique, colonne `per_source` avec CHECK (sector_per_history|fallback)
 - `user_actions` : lecture/écriture scopée par utilisateur
 - Clés API dans GitHub Secrets (jamais dans le code)

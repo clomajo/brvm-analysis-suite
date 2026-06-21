@@ -32,6 +32,7 @@ description: >
 | AI Fondamentaux | Mistral AI | `mistral-large-latest` |
 | AI Extraction | Claude API | `claude-sonnet-4` |
 | Env local | macOS Catalina, Node **v16.20.2** | Python 3.8/3.14 local |
+| .env pipeline | `~/Desktop/brvm-analysis-suite/.env` | SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL, MISTRAL_API_KEY |
 
 ---
 
@@ -40,25 +41,42 @@ description: >
 ### Frontend (brvm-analytics)
 - **Ne jamais télécharger App.jsx directement** — toujours modifier via scripts Python patch en terminal
 - **App.jsx est monolithique (~3500 lignes)** — tout le frontend est dans un seul fichier (ADR-002)
-- **Ne pas installer react-markdown** — cause des erreurs Vite 3 (incompatibilité esbuild)
+- **Ne pas installer react-markdown** — cause des erreurs Vite 3 — FERMÉ définitivement (ADR-031)
 - **Node v16.20.2 sur macOS Catalina** — impossible d'upgrader, imports complexes instables
 - **Vite 3.2.7** — contraintes esbuild spécifiques, ne pas supposer comportement Vite 4/5
+- **Warning chunk >500 KiB** — normal, dû à l'App.jsx monolithique, non bloquant
 
 ### Pipeline (brvm-analysis-suite)
 - **Toujours utiliser Supabase REST API** — psycopg2 échoue en GitHub Actions (ADR-004)
 - **Ne pas modifier `generate_decisions.py`** avant le 01/07/2026 — modèle gelé (ADR-001)
 - **Features Mistral statiques** → ne pas intégrer dans les modèles GRU (ADR-015, testé et rejeté)
 - **GRU fiable J+1/J+2 uniquement** — afficher J+5+ comme indicatif seulement (ADR-014)
+- **load_dotenv() dans heredoc** → utiliser `load_dotenv(find_dotenv(usecwd=True))` sinon AssertionError
+- **Corrections de masse** → SQL Editor Supabase uniquement, jamais PATCH REST ligne par ligne (ADR-026)
+- **`calculate_target_price.py` n'est PAS couvert par le gel ADR-001** — c'est un script V2 indépendant
+  de `generate_decisions.py` (V1), modifiable librement avant le 01/07/2026 (calibration normale
+  avant mise en prod, pas une rupture du gel — cf. ADR-009/010/011)
+- **PER sectoriels non hardcodés** — lus dynamiquement depuis `sector_per_history`, jamais en dur
+  dans le code (cf. ADR-010). Alimentation manuelle **mensuelle** via `update_sector_per.py`.
+- **Pas de liste d'exclusion statique pour le V2** — un filtre dynamique (`evaluer_qualite_eps()`
+  dans `calculate_target_price.py`) gère la qualité EPS par ticker, recalculé à chaque run (ADR-011)
 
 ### Workflow de déploiement frontend
 ```bash
 cd ~/Desktop/brvm-analytics
-# 1. Modifier via script Python patch (jamais éditer App.jsx directement)
-npm run build          # Vérifier que le build passe — obligatoire
+npm run build
 git add src/App.jsx
 git commit -m "fix: description"
-git push               # Vercel déploie en ~60 secondes
+git push
 # Vérifier sur brvm-analytics.vercel.app — hard refresh (Cmd+Shift+R)
+```
+
+### Workflow mensuel — mise à jour des PER sectoriels
+```bash
+cd ~/Desktop/brvm-analysis-suite
+python3 update_sector_per.py
+# Lire le P/E 2024 par secteur dans le "Tableau de Bord" BOA Capital Securities
+# (Lettre quotidienne, page 2) et saisir les 7 valeurs demandées.
 ```
 
 ---
@@ -71,18 +89,17 @@ git push               # Vercel déploie en ~60 secondes
 | Cards | `#FFFFFF` |
 | Accent principal | `#2B6CB0` |
 | Texte principal | `#1A202C` |
-| Texte secondaire | `#7d8590` → utiliser `#1A202C` (contraste corrigé) |
+| Texte secondaire | `#1A202C` (contraste corrigé — ne pas utiliser #7d8590) |
+| Warning / estimé | `#d2a94d` |
+| Fair Value line | `#E07B39` (LightweightCharts, lineStyle=2) |
 
 ---
 
-## Architecture UI (état au 11/05/2026 — ADR-013)
+## Architecture UI (état au 30/05/2026 — ADR-013)
 
 **Navbar globale :** `[Recherche ticker]` · Marché · Opportunités · Portefeuille · Obligations
-
 **Page par défaut :** Marché
-
 **Fiche ticker :** Aperçu · Prévisions · Backtest
-
 **Tabs archivés (masqués, code non supprimé) :**
 BOA vs BRVM · Risque · Législatif · Direction · Macro · Matières 1ères · Scorecard détaillé
 
@@ -92,107 +109,184 @@ BOA vs BRVM · Risque · Législatif · Direction · Macro · Matières 1ères �
 
 | Table | Contenu | Accès |
 |---|---|---|
-| `companies` | 47 tickers BRVM | lecture publique |
-| `historical_data` | 92 714+ lignes de prix | lecture publique |
-| `brvm_decisions` | Signaux ACHAT/SURVEILLER/EVITER | lecture publique + écriture service_role |
-| `brvm_decisions_results` | Vérifications live (dès 07/2026) | — |
-| `fundamental_analysis` | Analyses Mistral par ticker | — |
-| `technical_indicators` | RSI, MACD, SMA calculés | — |
-| `predictions` | Prévisions GRU (410 rows/run) | — |
-| `predictions_results` | Tracking record GRU | — |
-| `corporate_events` | AG, ex-dividendes, paiements | — |
-| `commodity_prices` | Cocoa, coton, or, pétrole, USD/XOF | — |
-| `company_fundamentals` | 5 ans FY2021–FY2025, 43 tickers | — |
-| `user_actions` | Moat data — scopé par utilisateur | lecture/écriture user + service_role full |
+| `companies` | 47 tickers — colonne `symbol` (pas `ticker`) | lecture publique |
+| `historical_data` | 110,594+ lignes — company_id, trade_date, price, volume | lecture publique |
+| `brvm_decisions` | Signaux — colonnes : ticker, date, score, signal, market_regime, liquidity_tier, confidence | lecture publique |
+| `target_prices` | Cours cible V2 quotidien — ticker, cours_cible, decote_pct, signal_v2, calcul_date, **per_source** (ajouté 21/06/2026) | lecture publique |
+| `sector_per_history` | **NOUVEAU (21/06/2026)** — P/E sectoriel par secteur officiel BRVM, alimentation mensuelle manuelle (secteur, per_2024, date_releve, source) | lecture publique |
+| `fundamental_analysis` | Analyses Mistral FY2025 — 45 lignes, UNIQUE company_id | lecture publique |
+| `company_fundamentals` | PER, ROE, EPS, market_cap, dividend_yield, shares_outstanding | lecture publique |
+| `corporate_events` | Dividendes + AG — ticker, event_type, event_date | lecture publique |
+| `commodity_prices` | Cocoa, coton, or, pétrole, USD/XOF (Palm Oil + Rubber retirés) | lecture publique |
+| `brvm_decisions_results` | Vérifications J+20 (dès 07/2026) | — |
+| `boa_recommendations` | 547 lignes, 17 semaines déc 2025–avr 2026 | — |
+| `user_actions` | Moat data | lecture/écriture user + service_role full |
+
+### Colonnes réelles confirmées (pièges courants)
+- `brvm_decisions` : signal_date → **`date`** · decision → **`signal`** · regime → **`market_regime`**
+- `companies` : **`symbol`** (pas ticker) · `id` pour jointure avec historical_data
+- `historical_data` : **`trade_date`** (pas date) · **`price`** (pas close_price) · pas de colonne ticker
+- `company_fundamentals` : filtre `roe=not.is.null` pour obtenir FY2025 (FY2026 = vide)
+- `fundamental_analysis` : `updated_at` = date réelle analyse · `report_date` = fin exercice fiscal
+- `boa_recommendations` : colonnes `action` (BUY/SELL/HOLD/REDUCE) · `cours_act` · `cours_pot` · `rendement` · `potential`
+- `brvm_decisions` : score_technique/fondamental/liquidite/tendance → **NULL en V1** (score composite seulement)
+- `sector_per_history` : `secteur` contraint par CHECK aux 7 valeurs officielles BRVM (cf. ci-dessous) ·
+  toujours lire la ligne `date_releve` la PLUS RÉCENTE par secteur (plusieurs lignes historisées possibles)
+
+### fundamental_analysis — contrainte UNIQUE
+- `UNIQUE (company_id)` ajoutée le 30/05/2026
+- 45 lignes, 45 company_id distincts (doublons supprimés)
+- Requête frontend : `order=updated_at.desc&limit=1` (redondant mais conservé)
 
 **Vues SQL utiles :**
-- `v_ytd_performance` — YTD par ticker vs BRVMC (filtre aberrations >±50%)
+- `v_ytd_performance` — YTD par ticker vs BRVMC
 - `v_historical_prices` — historical_data JOIN companies (expose colonne ticker)
 
 ---
 
-## Modèle de scoring (gelé jusqu'au 01/07/2026)
+## Modèle de scoring V1 (gelé jusqu'au 01/07/2026)
 
 ```
-Score composite (0–100) :
-  Technique (RSI, MACD, SMA)        ~40%
-  Fondamental (narratif Mistral)    ~25%
-  Liquidité (prestige/liquid/illiquid) ~20%
-  Tendance (momentum)               ~15%
+Score composite (0-100) =
+  Technique (RSI, MACD, SMA)     ~40%
+  Fondamental (narratif Mistral) ~25%
+  Liquidité (tier: prestige/liquid/illiquid) ~20%
+  Tendance (momentum)            ~15%
 ```
 
-**Seuils :**
-- ACHAT : score ≥ 65 (régime BULL uniquement)
-- SURVEILLER : score 30–64
-- EVITER : score < 30
-
-**Régimes :** BULL = SMA50 > SMA200 sur BRVMC · BEAR = ACHAT désactivé (alpha -0.72%)
-
-**Performance documentée :** Alpha +1.82% toutes conditions · +1.02% BULL · -0.72% BEAR
+**Seuils :** ACHAT >= 65 (BULL uniquement) · SURVEILLER 30-64 · EVITER < 30
+**Performance :** Alpha +1.82% global · +1.02% BULL · -0.72% BEAR
+**Verdict :** Signal technique = bruit structurel (AUC 0.51, 22 992 signaux) — ADR-016
 
 ---
 
-## Pipeline GitHub Actions (brvm-analysis-suite)
+## Modèle V2 (parallèle silencieux — bascule 01/07/2026)
 
-| Étape | Script | Rôle |
-|---|---|---|
-| ÉTAPE 0 | `update_index.py` | Indices BRVM |
-| ÉTAPE 1 | `data_collector_simple.py` | Scrape brvm.org (7 sec) |
-| ÉTAPE 1b | `test_pipeline.py` | 12 tests qualité |
-| ÉTAPE 2 | `technical_analyzer_simple.py` | RSI, MACD, SMA |
-| ÉTAPE 3 | `opportunity_scorer_simple.py` | Scores 0–100 |
-| ÉTAPE 3b | `generate_decisions.py` | Signaux + régime (**GELÉ**) |
-| ÉTAPE 3c | `verify_decisions.py` | Vérif. 90j → `brvm_decisions_results` |
-| ÉTAPE 3d | `test_pipeline.py` | Tests post-décisions |
-| ÉTAPE 4 | `prediction_analyzer_v2.py` | GRU via Supabase REST |
-| ÉTAPE 5 | `fundamental_analyzer.py` | Mistral AI |
-| ÉTAPE 6 | `report_generator.py` | Rapports multi-AI |
-| ÉTAPE 7 | `news_collector.py` | News + scoring IA |
+```
+Signal V2 = ACHAT si :
+  cours_actuel < cours_cible × (1 - seuil)
+  ET ROE > 15% ET P/B < 2.5
+  ET cap 150-500B FCFA
+  ET volume_20j > seuil_liquidite (à calibrer)
+  ET J-10 avant ex_dividend_date (signal optimal)
+```
+
+**Cours cible :** EPS moyen (jusqu'à 3 ans, cf. filtre data-quality ci-dessous) × PER sectoriel (70%)
++ dividende / 8% (30%)
+**Table :** `target_prices` — upsert quotidien via `calculate_target_price.py`
+**Performance backtest :** 25 signaux, médiane J+90 +7.8%, alpha +2.8%, 68% positifs
+**Watchlist :** SOGC, SPHC, BOAS, BOABF, ONTBF, TTLC, BOAC
+
+### Nomenclature sectorielle officielle BRVM (7 secteurs, en vigueur depuis 02/01/2025 — ADR-010)
+Remplace l'ancienne nomenclature à 5 catégories (Banque/Agro/Industrie/Telecom/Distribution),
+qui n'était alignée sur aucune classification officielle ni cohérente avec les PER constatés.
+
+- **Consommation de Base** (9) : NTLC, PALC, SPHC, SICC, STBC, SOGC, SLBC, SCRC, UNLC
+- **Consommation Discrétionnaire** (7) : BNBC, CFAC, LNBB, NEIC, ABJC, PRSC, UNXC
+- **Énergie** (4) : SMBC, TTLC, TTLS, SHEC
+- **Industriels** (6) : SDSC, SEMC, SIVC, FTSC, STAC, CABC
+- **Services Financiers** (16) : BOAB, BOABF, BOAC, BOAM, BOAN, BOAS, BICB, BICC, CBIBF, ECOC,
+  ETIT, NSBC, ORGT, SAFC, SGBC, SIBC
+- **Services Publics** (2) : CIEC, SDCC
+- **Télécommunications** (3) : ONTBF, ORAC, SNTS
+
+Mapping complet dans `SECTEUR_OFFICIEL` (dict, `calculate_target_price.py`). Source de
+vérité externe : richbourse.com/common/variation/index (filtre "Secteur").
+
+⚠️ **Pièges tickers proches à ne pas confondre :**
+- `STAC` (SETAO, Industriels) ≠ `STBC` (Sitab, Consommation de Base)
+- `ABJC` (Servair Abidjan) et `PRSC` (Tractafric Motors) sont dans le même secteur
+  (Conso Discrétionnaire) mais sont deux tickers distincts — ne pas les confondre
+- `CFAC` (CFAO Motors) n'appartient qu'à un seul secteur (Conso Discrétionnaire) — un bug
+  préexistant le dupliquait dans Agro ET Distribution avant l'ADR-010, corrigé depuis.
+
+### PER sectoriels — dynamiques, plus jamais hardcodés (ADR-010)
+Lus depuis la table `sector_per_history`, alimentée **manuellement, une fois par mois**,
+depuis le P/E 2024 affiché par secteur dans le "Tableau de Bord" du bulletin quotidien
+BOA Capital Securities (Lettre quotidienne, page 2). Procédure : `update_sector_per.py`.
+
+Si un secteur n'a pas de valeur en base au moment du run (ex: avant la première saisie,
+ou un mois oublié) : fallback sur une valeur figée documentée dans le code, avec un
+warning explicite affiché ET un champ `per_source = 'fallback'` tracé dans `target_prices`
+— jamais de substitution silencieuse.
+
+Dernières valeurs saisies (18/06/2026, source Tableau de Bord BOA, P/E 2024) :
+Consommation de Base 6.5x · Consommation Discrétionnaire 10.0x · Énergie 5.1x ·
+Industriels 3.5x · Services Financiers 14.7x · Services Publics 6.0x · Télécommunications 14.7x
+
+### Filtre data-quality EPS — remplace la liste d'exclusion statique (ADR-011)
+**Il n'existe plus de liste de tickers exclus codée en dur.** L'ancienne liste mentionnée
+dans une version antérieure de ce skill (NTLC, SNTS, BOAN, BNBC, SICC, UNLC, ETIT, FTSC,
+CFAC, SIVC) n'avait d'ailleurs **jamais été implémentée dans le code** — vérification
+faite le 13/06/2026. Elle était aussi partiellement incorrecte (SNTS a des données propres
+et n'aurait pas dû y figurer).
+
+Logique actuelle (`evaluer_qualite_eps()` dans `calculate_target_price.py`) :
+1. Minimum 1 année EPS exploitable pour être éligible.
+2. Si 2+ années disponibles (jusqu'à 3 retenues) : doivent être consécutives, sinon exclu.
+3. Collapse EPS >80% YoY → exclu, quel que soit le nombre d'années.
+4. **Cas à 1 seule année EPS** : accepté SANS contrôle de consécutivité/collapse
+   (mathématiquement impossible à vérifier avec un seul point) — risque résiduel assumé
+   pour ne pas exclure des tickers à forte capitalisation (ex: ORAC/Orange CI) uniquement
+   par manque de profondeur d'historique.
+
+Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de silence.
 
 ---
 
-## État du modèle (baseline établie au 16/05/2026)
+## Session 21/06/2026 — Résumé des changements
 
-| Métrique | Valeur | Source |
-|---|---|---|
-| Hit rate signaux | 52.2% / 550 signaux | `verify_decisions.py` |
-| Dir.Acc GRU J+2 | 56.1% | `verify_predictions.py` |
-| Dir.Acc GRU J+5+ | 43.9% | → indicatif uniquement |
-| Couverture Mistral | 47/47 tickers FY2025 | `extract_fundamental_signals.py` |
-| Vérification live | 01/07/2026 | `brvm_decisions_results` |
+### Pipeline (brvm-analysis-suite)
+- ADR-009 : taux d'actualisation 8% (composante dividende) maintenu sans modification,
+  origine non traçable, documenté plutôt que recalibré sans méthode fiable.
+- ADR-010 : migration des PER sectoriels de 5 catégories hardcodées (incohérentes avec
+  toute nomenclature officielle) vers les 7 secteurs officiels BRVM, lecture dynamique
+  depuis la nouvelle table `sector_per_history`.
+- ADR-011 : suppression de la liste d'exclusion statique (jamais implémentée dans le
+  code malgré la documentation) au profit d'un filtre data-quality dynamique sur l'EPS
+  (consécutivité + détection de collapse >80% YoY).
+- `calculate_target_price.py` : patché en profondeur — mapping ticker→secteur officiel
+  47/47 (corrige un bug de duplication CFAC agro+distribution), lecture PER dynamique
+  avec fallback traçable, nouveau filtre EPS.
+- Nouveaux scripts : `update_sector_per.py` (saisie mensuelle manuelle des PER sectoriels),
+  `parse_boa_dashboard.py` (parsing automatique du Tableau de Bord BOA — écrit et testé
+  mais NON branché en production, le document source arrivant par lien et non par pièce
+  jointe, ce qui complique l'automatisation de la récupération du fichier).
+
+### Supabase
+- `sector_per_history` : table créée, RLS activé, lecture publique, contrainte CHECK
+  sur les 7 secteurs officiels.
+- `target_prices` : colonne `per_source` ajoutée (traçabilité sector_per_history vs fallback).
+
+### Backlog ajouté
+- Intégration du pattern pré/post ex-dividende (hausse anticipative avant ex-date, baisse
+  mécanique après) directement comme composante du signal V2 — actuellement distinct de
+  la stratégie de capture de dividende déjà validée. Intuition de Jocelyn, à creuser après
+  le 01/07/2026 et après les résultats de la régression 10 ans du weekend.
+- Automatisation complète du parsing du Tableau de Bord BOA (email→stockage→GitHub Actions)
+  si le document source devient accessible par pièce jointe ou URL stable un jour.
 
 ---
 
-## Problèmes connus (ne pas tenter de corriger avant dégel)
+## Session 30/05/2026 — Résumé des changements
 
-| Problème | Impact | Statut |
-|---|---|---|
-| ONTBF / SICC prix ~10x inflés en 2026 | Fausse le hit rate | Exclu manuellement |
-| `report_generator.py` → `relation "report_summary" does not exist` | Non bloquant | Ignoré |
-| Données pré-split non ajustées (CFAC, SAFC) | Backtest non fiable | Backlog DATA-05/06 |
-| Variation journalière sur jours non consécutifs | Top Gainers parfois incorrect | Backlog DATA-07 |
-| Tab Commodités — fallback PRNG encore actif | Données pas réelles | Backlog DATA-09 |
+### Pipeline (brvm-analysis-suite)
+- V2-06 : Palm Oil + Rubber retirés de scrape_commodities.py (efde604)
+- requirements.txt nettoyé — doublons supprimés (9212b00)
+- fix_snts_updates.sql archivé dans sql/ (73474e9)
+- scrape_market_cap.py automatisé 1er lundi/mois GitHub Actions (7a069ae)
+- calculate_target_price.py : EPS moyenne 3 ans + upsert target_prices (b939b53, dc52769)
+- verify_decisions.py : VERIFICATION_WINDOW 90 → 20 jours (07f46c6)
 
----
+### Frontend (brvm-analytics)
+- Tab BOA vs BRVM supprimé (25a92a0)
+- Fondamentaux clés : FUND_DATA hardcodé → Supabase company_fundamentals (c6a03e8)
+- Ligne Fair Value style Morningstar sur graphique (9c65c31)
+- Badge Fair Value V2 🎯/📉 sur DecisionCards (965ef99)
 
-## Sécurité
-
-- RLS activé sur toutes les tables Supabase
-- Clés API dans GitHub Secrets — **jamais dans le code**
-- `brvm_data` : lecture publique · `brvm_decisions` : lecture publique + écriture service_role
-
----
-
-## Portefeuille réel (référence)
-
-| Ticker | Quantité | Prix d'achat (approx.) |
-|---|---|---|
-| BOAB | 5 | — |
-| BOAC | 10 | — |
-| NTLC | 5 | — |
-| SNTS | 10 | 28 500 FCFA |
-
-Broker : BOA Capital Direct (SGI). Total ~506 922 FCFA au 30/04/2026.
+### Supabase
+- fundamental_analysis : 45 lignes (doublons supprimés) + UNIQUE (company_id)
+- target_prices : table créée, RLS activé, lecture publique
 
 ---
 
@@ -200,10 +294,31 @@ Broker : BOA Capital Direct (SGI). Total ~506 922 FCFA au 30/04/2026.
 
 | ADR | Décision |
 |---|---|
-| ADR-001 | Modèle gelé jusqu'au 01/07/2026 |
+| ADR-001 | Modèle gelé jusqu'au 01/07/2026 (generate_decisions.py uniquement) |
 | ADR-002 | App.jsx monolithique — contrainte macOS Catalina |
 | ADR-003 | ACHAT désactivé en régime BEAR |
 | ADR-004 | Supabase REST API uniquement (pas psycopg2) |
+| ADR-009 | Taux d'actualisation 8% maintenu, origine non traçable |
+| ADR-010 | PER sectoriels dynamiques, nomenclature officielle BRVM 7 secteurs |
+| ADR-011 | Filtre data-quality EPS remplace la liste d'exclusion statique |
 | ADR-013 | Tabs décoratifs archivés — nouvelle navbar |
 | ADR-014 | GRU fiable J+1/J+2 uniquement |
 | ADR-015 | Features Mistral statiques → nuisent au GRU, rejetées |
+
+---
+
+## Règle opérationnelle — Fin de session
+
+À la fin de chaque session de développement BRVM Analytics, mettre à jour simultanément :
+1. SKILL.md — contraintes, ADR, bugs résolus, baselines
+2. CHANGELOG.md — entrée datée avec FEAT/INFRA/PERF/FIX
+3. BACKLOG.md — nouveaux items identifiés
+4. DECISIONS.md — nouveaux ADR
+5. ARCHITECTURE.md — changements structurels
+
+Puis commit unique :
+```bash
+git add SKILL.md CHANGELOG.md BACKLOG.md DECISIONS.md ARCHITECTURE.md
+git commit -m "docs: mise à jour documentation session JJ/MM/YYYY"
+git push
+```
