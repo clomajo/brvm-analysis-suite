@@ -40,11 +40,12 @@ description: >
 
 ### Frontend (brvm-analytics)
 - **Ne jamais télécharger App.jsx directement** — toujours modifier via scripts Python patch en terminal
-- **App.jsx est monolithique (~3500 lignes)** — tout le frontend est dans un seul fichier (ADR-002)
+- **App.jsx est le composant principal (~3500 lignes)**, mais PAS le seul fichier frontend — `src/components/` contient aussi `BOAComparison.jsx`, `Opportunities.jsx`, `FinancialAnalysis.jsx` (découverts le 23/06/2026, ADR-017). Toujours vérifier ce dossier en plus de App.jsx avant de conclure qu'un code n'existe pas dans le frontend.
 - **Ne pas installer react-markdown** — cause des erreurs Vite 3 — FERMÉ définitivement (ADR-031)
 - **Node v16.20.2 sur macOS Catalina** — impossible d'upgrader, imports complexes instables
 - **Vite 3.2.7** — contraintes esbuild spécifiques, ne pas supposer comportement Vite 4/5
-- **Warning chunk >500 KiB** — normal, dû à l'App.jsx monolithique, non bloquant
+- **Warning chunk >500 KiB** — normal, dû à l'App.jsx volumineux, non bloquant
+- **⚠️ Calcul Fair Value dupliqué et non corrigé** — `FinancialAnalysis.jsx` recalcule sa propre Fair Value en JavaScript (P/E sectoriel fixé à 10x en dur, pas de filtre data-quality), indépendamment de `target_prices`/`calculate_target_price.py`. Risque de chiffres aberrants pour tout ticker à donnée source défaillante (cf. ADR-017, cas NTLC). Correction prévue (option B : lire l'historique `target_prices`) mais NON FAITE à ce jour — ne pas supposer que la correction ADR-012 (shares_outstanding) a réglé ce composant.
 
 ### Pipeline (brvm-analysis-suite)
 - **Toujours utiliser Supabase REST API** — psycopg2 échoue en GitHub Actions (ADR-004)
@@ -234,6 +235,46 @@ Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de s
 
 ---
 
+## Session 23/06/2026 — Résumé des changements
+
+### Bug découvert et corrigé (ADR-012)
+- Signalement utilisateur direct sur l'app : Fair Value NTLC affichait +433%
+  de décote (cours cible 80 006,67 FCFA vs cours réel 15 005 FCFA).
+- Cause racine identifiée : `shares_outstanding` pour NTLC dans
+  `company_fundamentals` était stocké à 1 100 000, alors que la vraie valeur
+  (confirmée par 3 sources indépendantes : richbourse.com, BOA Capital, et
+  Sikafinance) est **22 070 400**. Source du bug : stockanalysis.com
+  lui-même affiche cette valeur fausse (probable split d'actions jamais
+  répercuté côté agrégateur) — pas un bug du pipeline de scraping.
+- Vérification systématique sur les 45 autres tickers : aucun autre cas
+  similaire détecté — problème confirmé isolé à NTLC.
+- Correction appliquée : `shares_outstanding` et `eps` recalculés et corrigés
+  pour NTLC dans `company_fundamentals`. Validation croisée à la décimale
+  contre les BNPA Sikafinance (822,37 vs 822,00 pour FY2024, etc.).
+- Ligne `target_prices` aberrante (calcul_date 2026-06-21) supprimée
+  manuellement par requête SQL ciblée.
+- NTLC reste exclu du calcul V2 par ADR-011 (années EPS non consécutives) —
+  cette correction ne le fait pas réapparaître dans les signaux, elle
+  assainit seulement la donnée de base.
+
+### Bug découvert, NON corrigé — reporté (ADR-017)
+- **Doublon de calcul Fair Value** : `src/components/FinancialAnalysis.jsx`
+  (page "AI Fundamental Analysis") recalcule sa propre Fair Value en
+  JavaScript, indépendamment de `target_prices` — P/E sectoriel fixé à 10x
+  en dur, aucun filtre data-quality, aucun garde-fou de plausibilité.
+  Continue d'afficher des aberrations pour NTLC (et potentiellement d'autres
+  tickers) même après la correction ADR-012.
+- Approche de correction retenue pour une session future : faire lire à ce
+  composant l'historique déjà présent dans `target_prices` plutôt que de
+  recalculer en JS (option B, cf. ADR-017 pour le détail des options
+  écartées : duplication JS rejetée, Edge Function jugée disproportionnée).
+- Découverte collatérale : `ARCHITECTURE.md`/SKILL.md sous-estimaient
+  l'architecture frontend réelle (ADR-002 mentionnait "pas de composants
+  séparés", alors que `BOAComparison.jsx`, `Opportunities.jsx`,
+  `FinancialAnalysis.jsx` existent bien comme fichiers distincts).
+
+---
+
 ## Session 21/06/2026 — Résumé des changements
 
 ### Pipeline (brvm-analysis-suite)
@@ -295,15 +336,17 @@ Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de s
 | ADR | Décision |
 |---|---|
 | ADR-001 | Modèle gelé jusqu'au 01/07/2026 (generate_decisions.py uniquement) |
-| ADR-002 | App.jsx monolithique — contrainte macOS Catalina |
+| ADR-002 | App.jsx = composant principal, mais PAS le seul fichier frontend (corrigé 23/06) |
 | ADR-003 | ACHAT désactivé en régime BEAR |
 | ADR-004 | Supabase REST API uniquement (pas psycopg2) |
 | ADR-009 | Taux d'actualisation 8% maintenu, origine non traçable |
 | ADR-010 | PER sectoriels dynamiques, nomenclature officielle BRVM 7 secteurs |
 | ADR-011 | Filtre data-quality EPS remplace la liste d'exclusion statique |
+| ADR-012 | Bug shares_outstanding NTLC (source stockanalysis.com) corrigé |
 | ADR-013 | Tabs décoratifs archivés — nouvelle navbar |
 | ADR-014 | GRU fiable J+1/J+2 uniquement |
 | ADR-015 | Features Mistral statiques → nuisent au GRU, rejetées |
+| ADR-017 | Doublon Fair Value FinancialAnalysis.jsx identifié, NON corrigé |
 
 ---
 

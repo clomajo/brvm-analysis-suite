@@ -21,6 +21,17 @@ Format : Contexte → Décision → Raison → Conséquences
 **Raison :** Contrainte technique — macOS Catalina + Node v16 rend les imports complexes instables. Patch via terminal Python plus fiable qu'une architecture multi-fichiers dans cet environnement.
 **Conséquences :** Fichier de ~3500 lignes difficile à maintenir. Dette technique à résorber après juillet 2026 si migration vers machine plus récente.
 
+**Mise à jour (23/06/2026) :** Cette description est partiellement obsolète.
+Le repo contient en réalité plusieurs composants séparés dans `src/components/`
+(`BOAComparison.jsx`, `Opportunities.jsx`, `FinancialAnalysis.jsx`), découverts
+lors de l'investigation ADR-017. `App.jsx` reste le composant principal et le
+plus volumineux, mais "pas de composants séparés" n'est plus exact. Ce
+décalage doc/code a directement contribué à une investigation plus longue que
+nécessaire (recherche infructueuse dans `App.jsx` du calcul Fair Value
+réellement situé dans `FinancialAnalysis.jsx`). À garder en tête : vérifier
+`src/components/` en plus de `App.jsx` pour toute recherche future de code
+frontend.
+
 ---
 
 ## ADR-003 — ACHAT désactivé en régime BEAR
@@ -276,3 +287,205 @@ fallback PER sectoriel (ADR-010).
 - Réintroduire une liste statique mise à jour manuellement : rejeté, ne résout
   pas le problème de fond (maintenance manuelle, dérive silencieuse dans le temps,
   comme observé avec le SKILL.md qui listait SNTS à tort).
+
+---
+
+## ADR-012 : Correction shares_outstanding NTLC — source stockanalysis.com erronée
+
+**Date :** 23/06/2026
+**Statut :** Accepté
+
+**Contexte :**
+
+Un signalement direct sur l'app en production a révélé un Fair Value V2 absurde
+pour NTLC (Nestlé CI) : cours cible 80 006,67 FCFA contre un cours réel de
+15 005 FCFA, soit une décote affichée de +433%. Investigation menée jusqu'à la
+cause racine :
+
+1. Le calcul reconstitué manuellement a confirmé que le script
+   `calculate_target_price.py` (version antérieure au filtre ADR-011) avait
+   utilisé un EPS moyen de 16 908,06 FCFA/action pour NTLC — cohérent avec les
+   valeurs stockées dans `company_fundamentals` (EPS FY2024=16447,64,
+   FY2023=15003,53, FY2021=19273,0).
+2. Recalcul indépendant de l'EPS à partir de `net_income / shares_outstanding`
+   a confirmé que la valeur stockée était **interne cohérente** avec
+   `shares_outstanding = 1 100 000` — donc pas une erreur de calcul du
+   pipeline, mais une donnée de base déjà fausse à la source.
+3. Confirmation par recherche externe et capture d'écran utilisateur : **3
+   sources indépendantes** (richbourse.com, BOA Capital — Tableau de Bord
+   18/06/2026, Sikafinance) convergent sur **22 070 400 actions** pour NTLC —
+   soit un facteur d'erreur de **~20x** par rapport à la valeur stockée.
+4. Le scraping de `company_fundamentals` est confirmé comme provenant de
+   **stockanalysis.com**, qui affiche lui-même `Shares Out: 1.10M` pour NTLC —
+   donc le pipeline de scraping fonctionne correctement, c'est la source
+   externe qui porte une donnée erronée (cause probable : split d'actions
+   Nestlé CI jamais répercuté côté stockanalysis.com, cohérent avec d'autres
+   cas de splits BRVM non ajustés déjà documentés au 13/04/2026 pour le
+   groupe BOA).
+5. Vérification systématique sur les 45 autres tickers ayant `shares_outstanding`
+   et `market_cap` renseignés (`market_cap / shares_outstanding` comparé au
+   cours réel) : **aucun autre ticker** ne présente d'écart anormal — le
+   problème est confirmé isolé à NTLC, pas un problème systémique de la source.
+
+**Décision :**
+
+1. Corriger `shares_outstanding` pour NTLC dans `company_fundamentals` :
+   1 100 000 → **22 070 400**.
+2. Recalculer et corriger la colonne `eps` pour NTLC à partir de
+   `net_income × 1 000 000 / 22 070 400`, sur toutes les lignes avec
+   `net_income` connu. Validation croisée : les valeurs recalculées
+   (822,37 / 750,19 / 753,36 / 963,64 pour FY2024/2023/2022/2021)
+   correspondent quasi exactement aux BNPA publiés par Sikafinance
+   (822,00 / 750,00 / 753,36 / 963,65) — écart résiduel négligeable,
+   probablement lié à un arrondi du nombre d'actions utilisé en interne
+   par Sikafinance.
+3. Ne PAS modifier le filtre `evaluer_qualite_eps()` (ADR-011) en réaction à
+   ce bug : NTLC reste exclu du calcul V2 pour une raison distincte et
+   toujours valide (années EPS non consécutives — FY2025 et FY2022 manquants
+   dans le flux normal du pipeline), indépendamment de la correction de
+   `shares_outstanding`.
+
+**Raison :**
+
+- Le filtre ADR-011 vérifie la consécutivité et le collapse EPS, mais n'a
+  structurellement aucun moyen de détecter une erreur de `shares_outstanding`
+  qui produit un EPS interne cohérent (calculé correctement à partir d'une
+  donnée de base fausse) — ce n'est pas un trou dans le filtre, c'est un
+  problème de donnée source que seule une vérification croisée à des
+  références externes peut révéler.
+- Une correction manuelle ciblée est jugée suffisante et proportionnée : le
+  problème est confirmé isolé à un seul ticker sur 46, pas un défaut
+  systémique de stockanalysis.com nécessitant un changement de source globale.
+
+**Conséquences :**
+
+- Aucun changement de signal V2 pour NTLC à court terme : il reste exclu par
+  ADR-011, peu importe la correction de `shares_outstanding`/`eps`. La
+  correction assainit néanmoins la donnée de base pour tout usage futur
+  (affichage de fiche société, comparatifs PER/PB, et un éventuel retour de
+  NTLC dans le calcul V2 si FY2025/FY2022 sont un jour complétés).
+- Item de vigilance ajouté : si une future donnée `shares_outstanding`
+  scrapée depuis stockanalysis.com produit un EPS ou un PER implicite hors
+  de toute fourchette plausible (ex: PER < 1x ou > 100x), envisager une
+  vérification croisée systématique avant intégration, plutôt que d'attendre
+  un signalement utilisateur sur l'app en production.
+- Aucune ligne `target_prices` à corriger pour NTLC : la ligne aberrante du
+  21/06/2026 (cours cible 80 006,67 FCFA) a déjà été supprimée séparément
+  (cf. nettoyage manuel du 23/06/2026, requête `DELETE` ciblée sur
+  `ticker='NTLC' AND calcul_date='2026-06-21'`).
+
+**Alternatives rejetées :**
+- Changer la source de scraping de `company_fundamentals` vers Sikafinance ou
+  richbourse pour tous les tickers : rejeté pour l'instant, le problème étant
+  confirmé isolé — un changement de source globale serait disproportionné et
+  introduirait un nouveau risque de migration sans bénéfice démontré au-delà
+  de ce cas unique.
+- Modifier le filtre data-quality pour détecter les PER/EPS implausibles en
+  plus de la consécutivité : envisagé mais non retenu dans l'immédiat — un
+  seul cas confirmé sur 46 tickers ne justifie pas une nouvelle règle
+  générale tout de suite. À reconsidérer si d'autres cas similaires
+  apparaissent lors de futurs scrapings.
+
+---
+
+## ADR-017 : Doublon de calcul Fair Value identifié — FinancialAnalysis.jsx (non corrigé)
+
+**Date :** 23/06/2026
+**Statut :** Accepté (constat) — correction reportée à une session ultérieure
+
+**Contexte :**
+
+Suite à la correction du bug `shares_outstanding` NTLC (ADR-012), un signalement
+direct sur l'app en production a montré que l'aberration Fair Value (164 476
+FCFA pour NTLC, "EPS moyen × P/E sectoriel 10x") persistait malgré la
+correction des données en base. Investigation du frontend a révélé l'existence
+d'un **composant séparé et jusque-là non documenté** : `src/components/
+FinancialAnalysis.jsx` (page "AI Fundamental Analysis"), distinct du composant
+principal `App.jsx` qui lit déjà correctement `target_prices`.
+
+`FinancialAnalysis.jsx` recalcule sa propre Fair Value **directement en
+JavaScript côté navigateur**, à partir d'une requête `company_fundamentals`
+filtrée sur `fiscal_year=eq.FY2025` :
+
+```js
+const avgEPS = last3.reduce((sum, d) => sum + (d.eps || 0), 0)
+               / last3.filter(d => d.eps).length;
+```
+
+combiné à un **P/E sectoriel codé en dur à 10x**, affiché littéralement dans le
+texte : `"Méthode: EPS moyen X ans × P/E sectoriel 10x"`.
+
+Ce calcul ne bénéficie d'aucune des protections construites le 20-23/06/2026 :
+- Pas de lecture de `sector_per_history` (ADR-010) — PER toujours fixé à 10x,
+  indépendamment du secteur réel du ticker.
+- Pas de filtre `evaluer_qualite_eps()` (ADR-011) — `last3` prend les 3
+  dernières lignes disponibles sans vérifier consécutivité ni collapse.
+- Pas de garde-fou `decote_pct < 200` (présent dans `App.jsx` au moment de la
+  lecture de `target_prices`, ligne ~3576) — aucune borne de plausibilité.
+
+L'architecture documentée dans `ARCHITECTURE.md` ne mentionnait que `App.jsx`
+("tout le frontend est dans un seul fichier (ADR-002)") — la découverte de
+`src/components/BOAComparison.jsx`, `Opportunities.jsx`, et
+`FinancialAnalysis.jsx` comme fichiers séparés constitue une mise à jour
+nécessaire de cette description architecturale, indépendamment du bug lui-même.
+
+**Décision :**
+
+1. Constater et documenter ce doublon de calcul comme item de dette technique
+   prioritaire — non corrigé à la date de cet ADR, reporté à une session
+   ultérieure par manque de temps.
+2. Approche de correction retenue pour la prochaine session : **Option B**
+   — faire lire à `FinancialAnalysis.jsx` l'historique déjà présent dans
+   `target_prices` (plusieurs lignes par ticker, une par `calcul_date`),
+   plutôt que de recalculer en JavaScript. Permet d'afficher une vraie courbe
+   Fair Value dans le temps (pas une ligne plate), sans dupliquer la logique
+   Python de `calculate_target_price.py` en JavaScript.
+3. Options explicitement écartées pour cette correction :
+   - Réécrire la même logique de calcul en JavaScript dans le composant
+     (dupliquerait le problème structurel qui a permis cette divergence).
+   - Construire une fonction de calcul partagée (Supabase Edge Function en
+     Deno/TypeScript) appelée par les deux frontends : jugée disproportionnée
+     pour ce besoin (nouvelle surface de code et de maintenance, nouveau
+     langage, sans bénéfice clair au-delà de cette page de détail). Écartée
+     aussi car indépendante des caractéristiques de la machine locale —
+     l'exécution se fait côté cloud (Supabase/Vercel), pas sur le Mac mini.
+4. Correction de la documentation architecturale : `ARCHITECTURE.md` doit
+   lister les composants séparés du frontend (`BOAComparison.jsx`,
+   `Opportunities.jsx`, `FinancialAnalysis.jsx`), pas seulement `App.jsx`.
+
+**Raison :**
+
+- Le vrai risque structurel n'est pas seulement le P/E à 10x ou l'absence de
+  filtre — c'est l'existence même d'un calcul métier dupliqué dans deux
+  langages (Python et JavaScript). Toute future correction du modèle V2
+  (nouveau secteur, ajustement du taux d'actualisation, nouvelle règle
+  data-quality) devra être répétée dans les deux endroits si la duplication
+  persiste, avec le risque réel d'oubli déjà démontré aujourd'hui par ce cas.
+- Le composant principal (`App.jsx`) a déjà la bonne architecture (lecture de
+  `target_prices`, garde-fou de plausibilité) — il n'y a pas besoin
+  d'inventer une nouvelle solution, seulement d'aligner `FinancialAnalysis.jsx`
+  sur ce pattern déjà éprouvé.
+
+**Conséquences :**
+
+- **L'aberration Fair Value reste visible sur la page "AI Fundamental
+  Analysis" pour NTLC et potentiellement d'autres tickers** jusqu'à la
+  correction de ce composant. Le composant principal (DecisionCard, `App.jsx`)
+  n'est pas affecté — il affiche déjà la bonne donnée (ou `null` si filtrée).
+- Risque pour tout ticker dont l'EPS source serait localement faux (comme
+  NTLC l'était avant ADR-012) : `FinancialAnalysis.jsx` afficherait la même
+  classe d'aberration, sans aucun garde-fou actuel pour l'intercepter.
+- Item de backlog créé : patch de `FinancialAnalysis.jsx` selon l'option B,
+  à traiter lors d'une prochaine session (code du composant non examiné en
+  détail à la date de cet ADR — seules les lignes de calcul et d'affichage
+  ont été identifiées par recherche ciblée `grep`).
+
+**Alternatives rejetées :**
+- Corriger immédiatement avec un patch minimal (garde-fou de plausibilité
+  uniquement, sans toucher au calcul lui-même) : rejeté car ça masquerait le
+  symptôme sans résoudre la duplication — le composant afficherait "N/D" au
+  lieu d'un chiffre faux, mais ne donnerait jamais le bon chiffre.
+- Supprimer purement le composant et rediriger vers l'affichage simple de
+  `App.jsx` : rejeté à la demande explicite de Jocelyn, qui souhaite
+  conserver le niveau de détail actuel de cette page (P&L, Cash Flow,
+  Valorisation, Dividende, Peers, Prévisions).

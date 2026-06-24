@@ -7,6 +7,66 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-06-23
+
+### FIX — Correction shares_outstanding NTLC (ADR-012)
+- **Repo:** brvm-analysis-suite / Supabase
+- **Description:** Signalement utilisateur direct sur l'app : Fair Value
+  NTLC affichait une décote de +433% (cours cible 80 006,67 FCFA vs cours
+  réel 15 005 FCFA). Cause racine : `shares_outstanding` dans
+  `company_fundamentals` stocké à 1 100 000 au lieu de 22 070 400 (facteur
+  d'erreur ×20), provenant de la source stockanalysis.com elle-même
+  (probable split d'actions non répercuté côté agrégateur), pas d'un bug du
+  pipeline de scraping.
+- **Validation:** 3 sources indépendantes convergentes (richbourse.com, BOA
+  Capital — Tableau de Bord 18/06/2026, Sikafinance) confirment 22 070 400
+  actions. EPS recalculé après correction validé à la décimale contre les
+  BNPA Sikafinance (822,37 vs 822,00 pour FY2024, etc.).
+- **Vérification systémique:** les 45 autres tickers avec `shares_outstanding`
+  renseigné ont été contrôlés (`market_cap / shares_outstanding` vs cours
+  réel) — aucun autre cas similaire détecté, problème confirmé isolé à NTLC.
+- **Fix:** `shares_outstanding` et `eps` corrigés dans `company_fundamentals`
+  pour NTLC. Ligne `target_prices` aberrante (calcul_date 2026-06-21)
+  supprimée manuellement par requête SQL ciblée.
+- **Non-impact:** NTLC reste exclu du calcul V2 par le filtre data-quality
+  (ADR-011, années EPS non consécutives) — cette correction n'affecte pas
+  les signaux V2 actuels, elle assainit uniquement la donnée de base.
+
+### BUG — Doublon de calcul Fair Value identifié, NON corrigé (ADR-017)
+- **Repo:** brvm-analytics (frontend)
+- **Description:** Investigation du signalement NTLC a révélé l'existence
+  d'un composant frontend séparé et jusque-là non documenté,
+  `src/components/FinancialAnalysis.jsx` (page "AI Fundamental Analysis"),
+  qui recalcule sa propre Fair Value **directement en JavaScript**,
+  indépendamment de `target_prices` :
+  - P/E sectoriel codé en dur à 10x (aucun lien avec `sector_per_history`,
+    ADR-010)
+  - Pas de filtre data-quality équivalent à `evaluer_qualite_eps()` (ADR-011)
+  - Pas de garde-fou de plausibilité (le composant principal `App.jsx` a un
+    filtre `decote_pct < 200` que celui-ci n'a pas)
+  - EPS lu depuis `company_fundamentals` filtré sur `fiscal_year=eq.FY2025`
+    uniquement (logique de fallback non encore investiguée en détail)
+- **Impact:** la page "AI Fundamental Analysis" continue d'afficher des
+  Fair Value potentiellement aberrantes pour NTLC et tout autre ticker à
+  donnée source défaillante, même après la correction ADR-012. Le composant
+  principal (DecisionCard, `App.jsx`) n'est pas affecté.
+- **Statut:** NON corrigé à ce jour — reporté à une session ultérieure.
+  Approche retenue : faire lire à `FinancialAnalysis.jsx` l'historique déjà
+  présent dans `target_prices` (plusieurs lignes par `calcul_date`) plutôt
+  que de dupliquer la logique Python en JavaScript — permettrait aussi
+  d'afficher une vraie courbe Fair Value dans le temps plutôt qu'une ligne
+  plate. Alternative (Edge Function de calcul partagé) jugée disproportionnée.
+
+### DOC — Correction architecture frontend (ADR-002 mis à jour)
+- **Description:** `ARCHITECTURE.md`/`SKILL.md` décrivaient le frontend
+  comme "App.jsx monolithique, pas de composants séparés" (ADR-002, mars
+  2026). Découverte de 3 fichiers composants distincts dans
+  `src/components/` (`BOAComparison.jsx`, `Opportunities.jsx`,
+  `FinancialAnalysis.jsx`) lors de l'investigation du bug Fair Value
+  ci-dessus. Documentation corrigée pour refléter l'architecture réelle.
+
+---
+
 ## 2026-06-21
 
 ### FIX — PER sectoriels hardcodés remplacés par lecture dynamique (ADR-010)
