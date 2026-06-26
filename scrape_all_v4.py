@@ -81,6 +81,55 @@ def parse_range(text):
         except: pass
     return None, None
 
+def check_eps_coherence(eps_scraped, net_income, shares_outstanding, ticker, fy, seuil_pct=10):
+    """
+    Vérifie la cohérence entre l'EPS scrapé tel quel depuis stockanalysis.com et
+    l'EPS recalculé à partir de net_income / shares_outstanding.
+
+    Contexte (cf. ADR-012 + investigation 25/06/2026) : eps est scrapé directement
+    depuis le champ "EPS (Basic)" de stockanalysis.com (ligne ~157), sans aucun
+    recalcul local. Si le nombre d'actions utilisé par stockanalysis.com diverge
+    de la valeur shares_outstanding stockée côté Supabase (corrigée manuellement
+    pour NTLC en ADR-012, par exemple), l'EPS scrapé reste incohérent même après
+    correction de shares_outstanding — exactement le bug découvert sur NTLC (eps
+    ~20x trop élevé), et retrouvé à des degrés divers sur BICC (~1.5x) et SOGC
+    (~0.73x, mais seulement sur 2 années anciennes sur 5).
+
+    shares_outstanding n'est disponible qu'au niveau "overview" (FY2025 uniquement,
+    cf. scrape_overview ligne ~278) — pas par année historique. On réutilise donc
+    le shares_outstanding de FY2025 comme approximation pour vérifier aussi les
+    années passées (FY2021-2024), sous l'hypothèse que le nombre d'actions n'a pas
+    changé sur la période. C'est une approximation, pas un fait : un split ou une
+    augmentation de capital donnerait un faux-positif. D'où le message explicite
+    ci-dessous plutôt qu'une correction automatique — on ne réécrit JAMAIS eps
+    automatiquement, on log seulement pour investigation manuelle (cf. discussion
+    25/06/2026 : ne jamais corriger une donnée sans en comprendre la cause racine).
+
+    Retourne eps_recalcule (float|None) — ne modifie jamais le dict row.
+    """
+    if eps_scraped is None or net_income is None or not shares_outstanding:
+        return None, None
+
+    eps_recalcule = round((net_income * 1_000_000) / shares_outstanding, 2)
+
+    if eps_scraped == 0:
+        return eps_recalcule, None
+
+    ecart_pct = abs(eps_scraped - eps_recalcule) / abs(eps_scraped) * 100
+    if ecart_pct > seuil_pct:
+        ratio = round(eps_scraped / eps_recalcule, 2) if eps_recalcule else None
+        warning = (
+            f"{ticker} {fy} : eps scrapé={eps_scraped} vs recalculé "
+            f"(net_income×1M/shares_outstanding)={eps_recalcule} — écart {ecart_pct:.1f}% "
+            f"(ratio {ratio}x). shares_outstanding utilisé = celui de FY2025 "
+            f"(approximation pour les années historiques — peut être un "
+            f"faux-positif si split/augmentation de capital sur la période, "
+            f"à vérifier manuellement avant toute correction)."
+        )
+        return eps_recalcule, warning
+
+    return eps_recalcule, None
+
 def get_soup(url, delay=1.5):
     try:
         time.sleep(delay)
@@ -450,6 +499,7 @@ if __name__ == '__main__':
 
     fund_ok, mgmt_ok = 0, 0
     fund_fail, mgmt_fail = [], []
+    eps_warnings = []  # cf. check_eps_coherence — divergences eps scrapé vs recalculé
     total_rows = 0
 
     for i, ticker in enumerate(tickers):
@@ -485,6 +535,16 @@ if __name__ == '__main__':
             row['fiscal_year'] = fy
             row['company_id'] = company_ids.get(ticker)
             row['scraped_at'] = date.today().isoformat()
+
+            # Vérification de cohérence eps vs net_income/shares_outstanding —
+            # ne modifie jamais row['eps'], log uniquement (cf. check_eps_coherence).
+            _, eps_warning = check_eps_coherence(
+                row.get('eps'), row.get('net_income'), overview.get('shares_outstanding'),
+                ticker, fy
+            )
+            if eps_warning:
+                eps_warnings.append(eps_warning)
+                print(f"  ⚠️  INCOHÉRENCE EPS : {eps_warning}")
 
             status = insert_fundamental(row)
             if status in [200, 201]:
@@ -525,5 +585,11 @@ if __name__ == '__main__':
     print(f"✅ Management: {mgmt_ok}/{len(tickers)}")
     if fund_fail: print(f"❌ Fund failed: {fund_fail}")
     if mgmt_fail: print(f"❌ Mgmt failed: {mgmt_fail}")
+    if eps_warnings:
+        print(f"\n⚠️  {len(eps_warnings)} incohérence(s) EPS détectée(s) (cf. ADR-012 / investigation 25/06/2026) :")
+        for w in eps_warnings:
+            print(f"   - {w}")
+        print("   👉 Aucune correction automatique appliquée — eps n'a pas été modifié.")
+        print("   👉 Vérifier manuellement avant correction (cf. SKILL.md, ne jamais corriger sans cause racine confirmée).")
     if not full_run:
         print(f"\n👉 Pour lancer sur 47 tickers: python scrape_all_v4.py --full")
