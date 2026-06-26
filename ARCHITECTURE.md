@@ -14,9 +14,9 @@ BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
 │  src/components/ (découvert 23/06/2026, ADR-017) :          │
 │  • BOAComparison.jsx                                        │
 │  • Opportunities.jsx                                        │
-│  • FinancialAnalysis.jsx — ⚠️ calcule sa propre Fair Value  │
-│    en JS, indépendamment de target_prices (doublon non      │
-│    corrigé, P/E 10x fixe, pas de filtre data-quality)        │
+│  • FinancialAnalysis.jsx — lit target_prices (corrigé      │
+│    25/06/2026, ADR-017) — sensible à un eps source faux     │
+│    pour certains tickers tant qu'ADR-018 n'est pas résolu   │
 └──────────────────────┬──────────────────────────────────────┘
                        │ REST API (Supabase)
 ┌──────────────────────▼──────────────────────────────────────┐
@@ -178,8 +178,9 @@ historical_data (Supabase)
 | Variation journalière sur données non consécutives | Top Gainers parfois incorrect | Backlog DATA-07 |
 | Parsing automatique du Tableau de Bord BOA non branché | Saisie PER sectoriel manuelle, pas automatique | Backlog (cf. ADR-010) — document source en lien email, pas en pièce jointe |
 | Tickers à 1 seule année EPS acceptés sans contrôle qualité | Risque d'EPS atypique non représentatif dans le cours cible V2 | Risque assumé (ADR-011), à surveiller après le 01/07/2026 |
-| `shares_outstanding` non fiable depuis stockanalysis.com pour certains tickers | EPS gonflé d'un facteur erroné (cas NTLC : ×20), cours cible V2 aberrant | NTLC corrigé manuellement (ADR-012) ; vigilance requise pour de futurs cas similaires lors des scrapings |
-| Doublon de calcul Fair Value : `FinancialAnalysis.jsx` recalcule en JS, indépendamment de `target_prices` | Aberrations possibles non filtrées (P/E 10x fixe, pas de filtre data-quality) | Non corrigé — backlog prioritaire (ADR-017) |
+| `shares_outstanding` non fiable depuis stockanalysis.com pour certains tickers | EPS gonflé d'un facteur erroné (cas NTLC : ×20), cours cible V2 aberrant | NTLC : `shares_outstanding` corrigé (ADR-012), mais `eps` lui-même pas recalculé par le scraper — cf. ligne suivante |
+| `eps` scrapé sans recalcul depuis `net_income`/`shares_outstanding` (ADR-018) | Toute correction manuelle de `shares_outstanding` seule est écrasée silencieusement par le scraping hebdomadaire suivant si `eps` n'est pas aussi corrigé en base | Détection ajoutée (`check_eps_coherence`, log uniquement) ; NTLC/BICC/SOGC confirmés incohérents au 25/06/2026, correction des données en attente (après run du 29/06/2026) |
+| Doublon de calcul Fair Value : `FinancialAnalysis.jsx` recalculait en JS, indépendamment de `target_prices` | Aberrations possibles non filtrées | **Corrigé 25/06/2026 (ADR-017)** — lit désormais `target_prices`, comme `App.jsx` |
 
 ---
 

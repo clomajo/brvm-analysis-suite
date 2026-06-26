@@ -7,6 +7,70 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-06-25
+
+### FIX — Doublon de calcul Fair Value corrigé (ADR-017)
+- **Repo:** brvm-analytics (frontend)
+- **Commit:** `c7294f6`
+- **Description:** `FinancialAnalysis.jsx` recalculait sa propre Fair Value
+  en JavaScript (P/E sectoriel 10x fixe, aucun filtre data-quality),
+  indépendamment de `target_prices`. Remplacé par une lecture directe de
+  `target_prices` (dernières 180 lignes par ticker), identique à la logique
+  déjà utilisée par `App.jsx`.
+- **Détail :**
+  - Graphique "Cours vs Fair Value — 3 ans" : ligne plate remplacée par une
+    vraie courbe historique (forward-fill depuis `target_prices`).
+  - Texte de méthode : `per_ref`/`per_source` affichés dynamiquement au lieu
+    du "P/E sectoriel 10x" fixe.
+  - Tickers exclus ADR-011 : affichage "N/D" (comportement déjà géré par le
+    JSX existant).
+- **Outil :** script de patch `patch_adr017_fairvalue.py`, testé par
+  validation croisée (patch manuel vs script) avant déploiement.
+- **Impact :** Dashboard et page "AI Fundamental Analysis" affichent
+  désormais la même Fair Value pour un ticker donné — fin de la divergence
+  documentée en ADR-017.
+
+### BUG — eps non recalculé depuis stockanalysis.com, cause racine identifiée (ADR-018)
+- **Repo:** brvm-analysis-suite
+- **Commit:** `654bfd2`
+- **Description:** Suite à la correction ADR-017, NTLC affichait toujours
+  une Fair Value aberrante (80 007 FCFA, +433%) — pas un bug d'affichage
+  cette fois, mais une donnée `target_prices` fausse à la source (ligne du
+  30/05/2026, calculée avec un `eps` jamais corrigé).
+- **Cause racine :** `scrape_all_v4.py` récupère `eps` tel quel depuis le
+  champ "EPS (Basic)" de stockanalysis.com, sans jamais le recalculer depuis
+  `net_income/shares_outstanding`. La correction `shares_outstanding`
+  d'ADR-012 n'a donc jamais corrigé `eps` en base — soit la correction n'a
+  jamais été persistée, soit elle a été écrasée par le scraping hebdomadaire
+  suivant (`scrape_all_v4.py --full`, tous les lundis, immédiatement suivi de
+  `calculate_target_price.py` dans le même run GitHub Actions).
+- **Correction d'ADR-012 :** l'affirmation "eps recalculé et corrigé pour
+  NTLC" dans ADR-012 était fausse — vérification directe du 25/06/2026 montre
+  que `company_fundamentals.eps` contient toujours les valeurs d'avant
+  correction.
+- **Ampleur élargie :** vérification systématique (`eps` stocké vs
+  `net_income×1M/shares_outstanding`) sur tout `company_fundamentals` a
+  confirmé 2 tickers de plus : **BICC** (ratio ~1,5x, 4 années touchées) et
+  **SOGC** (ratio ~0,73x, mais seulement FY2021-2022 — FY2023+ sains).
+- **Fix (partiel) :** nouvelle fonction `check_eps_coherence()` dans
+  `scrape_all_v4.py` — recalcule l'`eps` théorique et log un warning explicite
+  si l'écart dépasse 10%. **Ne corrige jamais `eps` automatiquement** — choix
+  délibéré pour éviter de propager silencieusement une erreur amont sur
+  `net_income`/`shares_outstanding`, et pour ne pas répéter l'erreur ADR-012
+  (correction non vérifiée après coup).
+- **Limite documentée :** `shares_outstanding` n'est scrapé que pour l'année
+  courante (FY2025) ; la vérification sur FY2021-2024 réutilise cette valeur
+  par approximation (hypothèse "nombre d'actions constant" — risque de
+  faux-positif en cas de split/augmentation de capital non documenté).
+- **Tests :** validé sur NTLC/BICC/SOGC (3/3, 2/2, et précisément FY2021-2022
+  seulement pour SOGC) + 4 cas sains sans faux positif (SPHC, SGBC, NSBC,
+  ORGT) + cas limites (None, zéro).
+- **Statut :** Correction des données (NTLC/BICC/SOGC) reportée à après le
+  run du lundi 29/06/2026, pour disposer de la liste complète des tickers
+  touchés avant correction SQL persistante.
+
+---
+
 ## 2026-06-23
 
 ### FIX — Correction shares_outstanding NTLC (ADR-012)
@@ -28,6 +92,10 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - **Fix:** `shares_outstanding` et `eps` corrigés dans `company_fundamentals`
   pour NTLC. Ligne `target_prices` aberrante (calcul_date 2026-06-21)
   supprimée manuellement par requête SQL ciblée.
+  **⚠️ Correction du 25/06/2026 :** seul `shares_outstanding` a réellement
+  persisté en base. `eps` contient toujours les valeurs fausses d'avant
+  correction (cf. entrée du 25/06/2026, ADR-018, qui identifie la cause
+  racine — `eps` n'est jamais recalculé par le pipeline de scraping).
 - **Non-impact:** NTLC reste exclu du calcul V2 par le filtre data-quality
   (ADR-011, années EPS non consécutives) — cette correction n'affecte pas
   les signaux V2 actuels, elle assainit uniquement la donnée de base.

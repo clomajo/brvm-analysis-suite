@@ -45,7 +45,7 @@ description: >
 - **Node v16.20.2 sur macOS Catalina** — impossible d'upgrader, imports complexes instables
 - **Vite 3.2.7** — contraintes esbuild spécifiques, ne pas supposer comportement Vite 4/5
 - **Warning chunk >500 KiB** — normal, dû à l'App.jsx volumineux, non bloquant
-- **⚠️ Calcul Fair Value dupliqué et non corrigé** — `FinancialAnalysis.jsx` recalcule sa propre Fair Value en JavaScript (P/E sectoriel fixé à 10x en dur, pas de filtre data-quality), indépendamment de `target_prices`/`calculate_target_price.py`. Risque de chiffres aberrants pour tout ticker à donnée source défaillante (cf. ADR-017, cas NTLC). Correction prévue (option B : lire l'historique `target_prices`) mais NON FAITE à ce jour — ne pas supposer que la correction ADR-012 (shares_outstanding) a réglé ce composant.
+- **✅ Calcul Fair Value dupliqué — CORRIGÉ (25/06/2026, ADR-017)** — `FinancialAnalysis.jsx` lit désormais `target_prices` (commit `c7294f6`), comme `App.jsx`. Plus de divergence Dashboard / page "AI Fundamental Analysis". ⚠️ Reste sensible à un `eps` source faux pour certains tickers (cf. contrainte pipeline ci-dessous, ADR-018) — ce n'est plus un bug de duplication de calcul, mais un problème de donnée en amont.
 
 ### Pipeline (brvm-analysis-suite)
 - **Toujours utiliser Supabase REST API** — psycopg2 échoue en GitHub Actions (ADR-004)
@@ -61,6 +61,15 @@ description: >
   dans le code (cf. ADR-010). Alimentation manuelle **mensuelle** via `update_sector_per.py`.
 - **Pas de liste d'exclusion statique pour le V2** — un filtre dynamique (`evaluer_qualite_eps()`
   dans `calculate_target_price.py`) gère la qualité EPS par ticker, recalculé à chaque run (ADR-011)
+- **`eps` scrapé sans recalcul depuis stockanalysis.com (découvert 25/06/2026, ADR-018)** —
+  `scrape_all_v4.py` récupère `eps` tel quel (champ "EPS (Basic)"), jamais recalculé depuis
+  `net_income/shares_outstanding`. Une correction manuelle de `shares_outstanding` seule
+  (comme ADR-012) NE corrige PAS `eps`, et est écrasée par le scraping suivant si `eps`
+  lui-même n'est pas corrigé en base. Détection ajoutée (`check_eps_coherence`, log
+  uniquement, jamais de correction automatique) — tickers confirmés incohérents au
+  25/06/2026 : NTLC (~20x), BICC (~1.5x), SOGC (FY2021-2022 seulement, ~0.73x).
+  `shares_outstanding` n'est disponible par le scraper que pour l'année courante (overview),
+  jamais par année historique — toute vérification sur FY2021-2024 est une approximation.
 
 ### Workflow de déploiement frontend
 ```bash
@@ -235,6 +244,43 @@ Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de s
 
 ---
 
+## Session 25/06/2026 — Résumé des changements
+
+### Bug corrigé (ADR-017)
+- `FinancialAnalysis.jsx` recalculait sa propre Fair Value en JS (P/E 10x fixe,
+  pas de filtre data-quality) — corrigé : lit désormais `target_prices`
+  (`select=cours_cible,per_ref,per_source,decote_pct,calcul_date&order=
+  calcul_date.desc&limit=180`), via script de patch `patch_adr017_fairvalue.py`.
+- Graphique "Cours vs Fair Value — 3 ans" : remplacement de la ligne plate
+  par une vraie courbe (forward-fill depuis l'historique `target_prices`).
+- Texte de méthode : affichage dynamique de `per_ref`/`per_source` au lieu
+  du "P/E sectoriel 10x" fixe.
+- Tickers exclus ADR-011 (NTLC, etc.) : `target_prices` vide → "N/D" affiché,
+  comportement déjà géré par le JSX existant, pas de changement nécessaire.
+- Commit `c7294f6` sur `brvm-analytics`.
+
+### Bug découvert — cause racine (ADR-018)
+- En vérifiant le fix ADR-017 sur NTLC, Fair Value toujours aberrante (80 007
+  FCFA) — pas un bug d'affichage cette fois, mais une donnée `target_prices`
+  elle-même fausse (ligne du 30/05/2026, jamais recalculée depuis).
+- Cause racine : `scrape_all_v4.py` scrape `eps` tel quel depuis
+  stockanalysis.com, sans jamais le recalculer depuis
+  `net_income/shares_outstanding`. La correction `shares_outstanding` d'ADR-012
+  n'a donc jamais corrigé `eps` en base (correction à ADR-012 : l'affirmation
+  "eps corrigé" était fausse, jamais persistée ou écrasée par le scraping
+  hebdomadaire suivant).
+- Élargi à 3 tickers confirmés : NTLC (~20x), BICC (~1.5x), SOGC (FY2021-2022
+  seulement, ~0.73x — FY2023+ sains).
+- Décision : ne pas corriger immédiatement, comprendre la cause racine d'abord
+  (éviter de répéter l'erreur ADR-012). Détection ajoutée (`check_eps_coherence`
+  dans `scrape_all_v4.py`, commit `654bfd2`) — log uniquement, jamais de
+  correction automatique de `eps`. Testé sur les 3 cas confirmés + 4 cas sains
+  + cas limites avant déploiement.
+- Correction réelle des données reportée à après le run du lundi 29/06/2026,
+  pour avoir la liste complète des tickers touchés avant de corriger.
+
+---
+
 ## Session 23/06/2026 — Résumé des changements
 
 ### Bug découvert et corrigé (ADR-012)
@@ -346,7 +392,8 @@ Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de s
 | ADR-013 | Tabs décoratifs archivés — nouvelle navbar |
 | ADR-014 | GRU fiable J+1/J+2 uniquement |
 | ADR-015 | Features Mistral statiques → nuisent au GRU, rejetées |
-| ADR-017 | Doublon Fair Value FinancialAnalysis.jsx identifié, NON corrigé |
+| ADR-017 | Doublon Fair Value FinancialAnalysis.jsx — corrigé 25/06 (lit target_prices) |
+| ADR-018 | eps non recalculé depuis stockanalysis.com (NTLC/BICC/SOGC) — détection ajoutée, correction des données en attente |
 
 ---
 
