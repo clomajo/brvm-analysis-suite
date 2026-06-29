@@ -188,7 +188,7 @@ jobs:
             echo "⚠️ Échec prédictions — non bloquant"
           fi
       
-      - name: 📄 ÉTAPE 5 - Analyse Fondamentale (Mistral AI)
+      - name: 📄 ÉTAPE 5 - Analyse Fondamentale (Mistral AI — bi-hebdomadaire)
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -197,25 +197,43 @@ jobs:
           DB_PORT: ${{ secrets.DB_PORT }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
-          echo "🚀 Analyse fondamentale avec Mistral AI..."
-          echo "🤖 Modèle: mistral-large-latest"
-          python fundamental_analyzer.py
-          echo "✅ Analyse fondamentale terminée"
-      
-      - name: 📝 ÉTAPE 6 - Génération Rapports (Mistral AI)
-        env:
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-        run: |
-          echo "🚀 Génération rapports avec Mistral AI..."
-          if python report_generator.py; then
-            echo "✅ Rapports générés"
+          # Bi-hebdomadaire : le 1er et le 15 du mois uniquement.
+          # Les fondamentaux changent au rythme des publications de rapports
+          # (trimestriel au mieux), donc une analyse quotidienne consommait
+          # inutilement le quota API Mistral (cf. session du 28/06/2026).
+          DOM=$(date +%d)
+          if [ "$DOM" = "01" ] || [ "$DOM" = "15" ]; then
+            echo "🚀 Analyse fondamentale avec Mistral AI..."
+            echo "🤖 Modèle: mistral-large-latest"
+            python fundamental_analyzer.py
+            echo "✅ Analyse fondamentale terminée"
           else
-            echo "⚠️ Échec génération rapports — non bloquant"
+            echo "⏭️ Skipped — analyse fondamentale bi-hebdomadaire (1er et 15 du mois)"
+          fi
+      
+      - name: 📝 ÉTAPE 6 - Génération Rapports (Mistral AI — bi-hebdomadaire)
+        env:
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        run: |
+          # Bi-hebdomadaire (1er et 15), aligné sur l'ÉTAPE 5 : les rapports
+          # sont générés à partir des analyses fondamentales, qui ne changent
+          # que deux fois par mois — inutile de régénérer quotidiennement
+          # (économie de quota Mistral, cf. session du 28/06/2026).
+          DOM=$(date +%d)
+          if [ "$DOM" = "01" ] || [ "$DOM" = "15" ]; then
+            echo "🚀 Génération rapports avec Mistral AI..."
+            if python report_generator.py; then
+              echo "✅ Rapports générés"
+            else
+              echo "⚠️ Échec génération rapports — non bloquant"
+            fi
+          else
+            echo "⏭️ Skipped — génération rapports bi-hebdomadaire (1er et 15 du mois)"
           fi
       
       - name: 📰 ÉTAPE 7 - Collecte News & Scoring IA
