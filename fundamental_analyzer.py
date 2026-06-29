@@ -206,6 +206,58 @@ class BRVMAnalyzer:
             if conn:
                 conn.close()
 
+    def _parse_date_from_titre(self, titre, fallback_year=None):
+        """
+        Extrait une date approximative depuis un titre de rapport BRVM en
+        français (ex: "Rapport d'activités - 1er trimestre 2026",
+        "Rapport d'activités - 3ème trimestre 2025", "Etats financiers ...
+        – Exercice 2025", "Rapport d'activités annuel - Exercice 2024").
+
+        Découvert le 28/06/2026 : le texte du lien <a> est toujours
+        "Télécharger" (générique), jamais le vrai titre — celui-ci est dans
+        un <strong> séparé, dans la cellule précédente du même <tr>. Sans ce
+        vrai titre, impossible de distinguer un rapport T1 d'un rapport T3 de
+        la même année, et la date retombait systématiquement sur le 31/12
+        (cf. ancien comportement, conservé ici comme fallback ultime).
+
+        Retourne une date approximative — le jour exact n'a pas d'importance,
+        seul l'ordre relatif (quel trimestre est le plus récent) compte pour
+        le tri qui suit.
+        """
+        if not titre:
+            return None
+
+        titre_lower = titre.lower()
+        year_match = re.search(r'(20\d{2})', titre_lower)
+        if not year_match:
+            return None
+        year = int(year_match.group(1))
+
+        # Rapport annuel / Exercice clos / États financiers → fin d'année,
+        # mais doit primer sur un trimestre de la MÊME année (le rapport
+        # annuel sort après tous les trimestres de l'exercice qu'il clôture).
+        if 'annuel' in titre_lower or 'exercice' in titre_lower or 'etats financiers' in titre_lower or 'états financiers' in titre_lower:
+            return datetime(year, 12, 31).date()
+
+        # Trimestres (1er/2ème/2e/3ème/3e/4ème/4e trimestre)
+        if re.search(r'1er\s*trimestre', titre_lower):
+            return datetime(year, 3, 31).date()
+        if re.search(r'2\s*[eè]me?\s*trimestre', titre_lower):
+            return datetime(year, 6, 30).date()
+        if re.search(r'3\s*[eè]me?\s*trimestre', titre_lower):
+            return datetime(year, 9, 30).date()
+        if re.search(r'4\s*[eè]me?\s*trimestre', titre_lower):
+            return datetime(year, 12, 31).date()
+
+        # Semestres (1er/2ème/2e semestre)
+        if re.search(r'1er\s*semestre', titre_lower):
+            return datetime(year, 6, 30).date()
+        if re.search(r'2\s*[eè]me?\s*semestre', titre_lower):
+            return datetime(year, 12, 31).date()
+
+        # Titre avec année mais type de rapport non reconnu — fallback prudent
+        return datetime(year, 12, 31).date()
+
     def _find_all_reports(self):
         """
         Collecte tous les rapports disponibles via les URLs individuelles
@@ -251,28 +303,45 @@ class BRVMAnalyzer:
                             full_url = 'https://www.brvm.org' + href
                         else:
                             full_url = 'https://www.brvm.org/' + href
-                        
-                        # Essayer d'extraire une date
-                        date_obj = datetime.now().date()
-                        
-                        # Chercher une année dans le texte ou l'URL
-                        year_match = re.search(r'(20\d{2})', text) or re.search(r'(20\d{2})', href)
-                        if year_match:
-                            year = int(year_match.group(1))
-                            # Chercher aussi un mois si possible
-                            month_match = re.search(r'/(\d{4})/(\d{2})/', href) or re.search(r'(\d{2})-(\d{4})', text)
-                            if month_match and len(month_match.groups()) >= 2:
-                                try:
-                                    month = int(month_match.group(1)) if len(month_match.group(1)) == 2 else 12
-                                    date_obj = datetime(year, month, 1).date()
-                                except:
+
+                        # Le vrai titre du rapport (ex: "SONATEL SN : Rapport
+                        # d'activités - 1er trimestre 2026") est dans un
+                        # <strong>, dans la cellule précédente du même <tr> —
+                        # PAS dans le texte du lien, qui n'est que "Télécharger"
+                        # (découvert le 28/06/2026, cf. docstring _parse_date_from_titre).
+                        vrai_titre = None
+                        tr_parent = link.find_parent('tr')
+                        if tr_parent:
+                            strong_tag = tr_parent.find('strong')
+                            if strong_tag:
+                                vrai_titre = strong_tag.get_text(strip=True)
+
+                        titre_final = vrai_titre or (text if text else f"Rapport {symbol}")
+
+                        # Date extraite en priorité depuis le vrai titre
+                        # (distingue T1/T3/annuel sur une même année) ; à
+                        # défaut, ancien comportement conservé en fallback
+                        # (cherche une année dans le texte du lien ou l'URL).
+                        date_obj = self._parse_date_from_titre(vrai_titre) if vrai_titre else None
+
+                        if date_obj is None:
+                            date_obj = datetime.now().date()
+                            year_match = re.search(r'(20\d{2})', text) or re.search(r'(20\d{2})', href)
+                            if year_match:
+                                year = int(year_match.group(1))
+                                month_match = re.search(r'/(\d{4})/(\d{2})/', href) or re.search(r'(\d{2})-(\d{4})', text)
+                                if month_match and len(month_match.groups()) >= 2:
+                                    try:
+                                        month = int(month_match.group(1)) if len(month_match.group(1)) == 2 else 12
+                                        date_obj = datetime(year, month, 1).date()
+                                    except:
+                                        date_obj = datetime(year, 12, 31).date()
+                                else:
                                     date_obj = datetime(year, 12, 31).date()
-                            else:
-                                date_obj = datetime(year, 12, 31).date()
-                        
+
                         pdf_links.append({
                             'url': full_url,
-                            'titre': text if text else f"Rapport {symbol}",
+                            'titre': titre_final,
                             'date': date_obj
                         })
                 
