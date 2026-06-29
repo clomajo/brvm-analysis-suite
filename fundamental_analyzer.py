@@ -568,11 +568,15 @@ Rédige 3 bullet points résumant la thèse d'investissement:
 ## RECOMMANDATION
 
 **Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
-**Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si données absentes: N/D]
 **Cours actuel BRVM:** {current_price} FCFA (source: Supabase historical_data)
-**Upside/Downside estimé:** [% entre cours actuel et objectif de cours calculé]
 **Niveau de confiance:** [Élevé / Moyen / Faible]
 **Horizon:** [Court terme <3 mois / Moyen terme 3-12 mois / Long terme >12 mois]
+
+NE PAS calculer ni proposer d'objectif de cours chiffré : le cours cible
+provient exclusivement du modèle V2 (target_prices, PER sectoriel dynamique +
+Gordon, cf. ADR-009/010/011) affiché séparément dans l'application. Toute
+valorisation chiffrée recalculée ici créerait une divergence avec cette source
+unique (cf. ADR-017/ADR-020). Concentre-toi sur l'analyse qualitative.
 
 Justification en 3-4 lignes synthétisant les points clés du rapport.
 
@@ -704,10 +708,14 @@ Fournis une analyse structurée en français couvrant:
 
 **Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
 **Cours actuel BRVM:** {current_price} FCFA (source: Supabase historical_data)
-**Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si absent: N/D]
-**Upside/Downside estimé:** [% entre cours actuel et objectif de cours calculé]
 **Niveau de confiance:** [Élevé / Moyen / Faible]
 **Horizon:** [Court terme / Moyen terme / Long terme]
+
+NE PAS calculer ni proposer d'objectif de cours chiffré : le cours cible
+provient exclusivement du modèle V2 (target_prices, PER sectoriel dynamique +
+Gordon, cf. ADR-009/010/011) affiché séparément dans l'application. Toute
+valorisation chiffrée recalculée ici créerait une divergence avec cette source
+unique (cf. ADR-017/ADR-020). Concentre-toi sur l'analyse qualitative.
 
 Justification en 3-4 lignes synthétisant les points clés.
 
@@ -811,10 +819,14 @@ Fournis une analyse structurée en français couvrant:
 
 **Signal:** [ACHAT FORT / ACHAT / CONSERVER / VENTE / VENTE FORTE]
 **Cours actuel BRVM:** {current_price} FCFA (source: Supabase historical_data)
-**Objectif de cours:** [EPS moyen 3 ans x P/E sectoriel ~10x. Si absent: N/D]
-**Upside/Downside estimé:** [% entre cours actuel et objectif de cours calculé]
 **Niveau de confiance:** [Élevé / Moyen / Faible]
 **Horizon:** [Court terme / Moyen terme / Long terme]
+
+NE PAS calculer ni proposer d'objectif de cours chiffré : le cours cible
+provient exclusivement du modèle V2 (target_prices, PER sectoriel dynamique +
+Gordon, cf. ADR-009/010/011) affiché séparément dans l'application. Toute
+valorisation chiffrée recalculée ici créerait une divergence avec cette source
+unique (cf. ADR-017/ADR-020). Concentre-toi sur l'analyse qualitative.
 
 Justification en 3-4 lignes synthétisant les points clés.
 
