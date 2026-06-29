@@ -133,6 +133,21 @@ class BRVMAnalyzer:
         Charge toutes les URLs déjà analysées en base.
         La contrainte UNIQUE(report_url) garantit qu'un PDF n'est analysé qu'une seule fois.
         Si l'URL est en base → skip définitif, peu importe la date.
+
+        === CHANGEMENT (28/06/2026) ===
+        Le mode UPSERT (qui vidait cette mémoire à chaque run pour forcer la
+        régénération de TOUT l'historique existant) a été retiré. Il avait été
+        introduit pour propager un changement de prompt à l'historique, mais
+        tournant quotidiennement, il régénérait inutilement des analyses dont
+        les fondamentaux n'avaient pas changé — cause probable de l'épuisement
+        du quota API Mistral (cf. session du 28/06/2026). Un rapport déjà
+        analysé est maintenant skippé définitivement, conformément au
+        docstring ci-dessus (qui décrivait déjà ce comportement sans que le
+        code ne le fasse réellement).
+
+        Pour forcer ponctuellement une régénération complète (ex. après un
+        changement de prompt) : vider manuellement la table, ou ajouter un
+        flag CLI dédié plutôt que de réintroduire ce comportement par défaut.
         """
         logging.info("📂 Chargement mémoire depuis PostgreSQL...")
         conn = self.connect_to_db()
@@ -143,9 +158,8 @@ class BRVMAnalyzer:
             with conn.cursor() as cur:
                 cur.execute("SELECT report_url FROM fundamental_analysis;")
                 rows = cur.fetchall()
-                # Mode UPSERT: vider la mémoire pour forcer régénération avec nouveau prompt
-                self.analysis_memory = set()
-                logging.info(f"   🔄 {len(rows)} PDF(s) en base — Mode UPSERT: tous seront régénérés")
+                self.analysis_memory = {row[0] for row in rows}
+                logging.info(f"   ✅ {len(self.analysis_memory)} PDF(s) déjà analysé(s) en base — skip définitif")
 
         except Exception as e:
             logging.error(f"❌ Erreur chargement mémoire: {e}")
@@ -978,7 +992,7 @@ IMPORTANT:
         logging.info("="*80)
         logging.info("📄 ÉTAPE 4: ANALYSE FONDAMENTALE (V30.0 - Multi-AI historisée)")
         logging.info("🤖 Rotation: DeepSeek → Gemini → Mistral")
-        logging.info("📦 Mode: UPSERT — régénération avec nouveau prompt NYC-style")
+        logging.info("📦 Mode: Historisation — rapports déjà analysés skippés définitivement")
         logging.info("="*80)
         
         conn = None
