@@ -7,6 +7,55 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-06-28
+
+### FIX — Analyse fondamentale bloquée sur Q3 2025 : contrainte SQL parasite (ADR-019)
+- **Repo:** brvm-analysis-suite / Supabase
+- **Commit:** `d2c0a13` (Python) + correction SQL en base
+- **Description:** L'analyse Mistral de SONATEL restait figée sur le rapport
+  T3 2025 malgré la publication du T1 2026 (17/04/2026). Cause racine : la
+  table `fundamental_analysis` avait une contrainte parasite
+  `unique_company_fundamental` (`UNIQUE(company_id)`) — non documentée nulle
+  part — qui n'autorisait qu'UN rapport par société. Chaque tentative de
+  sauvegarde d'un nouveau rapport échouait avec `duplicate key`, APRÈS que le
+  PDF ait été téléchargé, extrait et analysé par Mistral (travail payant perdu).
+- **Fix SQL:** suppression de `unique_company_fundamental` ; la table revient à
+  sa contrainte d'origine `fundamental_analysis_report_url_key`
+  (`UNIQUE(report_url)`), cohérente avec le `ON CONFLICT (report_url)` du code.
+  Doublon de contrainte créé pendant l'opération nettoyé ensuite.
+- **Fix Python:** `_find_all_reports()` lisait le titre depuis le texte du lien
+  (`"Télécharger"`, générique) au lieu du vrai titre dans le `<strong>` du
+  `<tr>`. Nouvelle fonction `_parse_date_from_titre()` extrait une date précise
+  par type de rapport (trimestre/semestre/annuel). Tri par date enfin fiable.
+- **Impact:** dès le prochain run, T1 2026 et les rapports manquants pour les
+  sociétés déjà en base pourront s'enregistrer.
+
+### FIX — Prompts Mistral sans valorisation chiffrée (ADR-020)
+- **Repo:** brvm-analysis-suite
+- **Commit:** `0a8deab`
+- **Description:** Les 3 prompts (DeepSeek/Gemini/Mistral) demandaient à l'IA
+  de calculer un objectif de cours via "P/E sectoriel ~10x" — le même P/E 10x
+  obsolète éliminé du frontend en ADR-017, réintroduit ici dans le prompt.
+  Retiré : l'analyse IA se concentre sur le qualitatif, le cours cible vient
+  exclusivement du modèle V2 (`target_prices`). Instruction explicite ajoutée
+  pour empêcher l'IA de réintroduire un prix.
+
+### PERF — Sobriété quota Mistral : retrait UPSERT + cadence bi-hebdomadaire (ADR-021)
+- **Repo:** brvm-analysis-suite
+- **Commits:** `0a8deab` (UPSERT) + `29dfde2` (workflow)
+- **Description:** Quota API Mistral (plan Free) épuisé à 100% avant fin de mois.
+  Deux causes : (1) le mode UPSERT régénérait TOUT l'historique d'analyses à
+  chaque run quotidien (`_load_analysis_memory_from_db` vidait la mémoire de
+  skip) ; (2) les étapes 5 et 6 (toutes deux Mistral) tournaient quotidiennement.
+- **Fix:** UPSERT retiré — un rapport déjà analysé est skippé définitivement.
+  Étapes 5 et 6 passées en bi-hebdomadaire (1er et 15 du mois) via garde
+  `DOM=$(date +%d)`.
+- **Impact:** consommation Mistral fortement réduite. Délai max d'analyse d'un
+  nouveau rapport : jusqu'au prochain 1er ou 15 (acceptable pour des
+  fondamentaux trimestriels).
+
+---
+
 ## 2026-06-25
 
 ### FIX — Doublon de calcul Fair Value corrigé (ADR-017)

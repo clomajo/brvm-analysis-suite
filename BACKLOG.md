@@ -27,6 +27,25 @@ elle-même NON faite — voir item actif ci-dessous.**
 
 ---
 
+## 🟢 COMPLÉTÉS — 2026-06-28
+
+### ✅ ADR-019 — Analyse fondamentale débloquée (contrainte SQL + titre)
+Contrainte parasite `unique_company_fundamental` (`UNIQUE(company_id)`)
+supprimée — elle bloquait tout 2e rapport par société (SONATEL figé sur
+Q3 2025 malgré T1 2026 publié). Extraction du titre corrigée (`<strong>` au
+lieu du lien "Télécharger"), `_parse_date_from_titre()` ajoutée. Commit
+`d2c0a13` + SQL en base.
+
+### ✅ ADR-020 — Prompts Mistral sans valorisation chiffrée
+P/E 10x retiré des 3 prompts ; le cours cible vient exclusivement du modèle V2.
+Commit `0a8deab`.
+
+### ✅ ADR-021 — Sobriété quota Mistral
+Mode UPSERT retiré (plus de régénération quotidienne de tout l'historique) +
+étapes 5 et 6 en bi-hebdomadaire (1er et 15). Commits `0a8deab` + `29dfde2`.
+
+---
+
 ## 🔴 BACKLOG ACTIF — PRIORITÉ HAUTE
 
 ### ADR-018 — Corriger eps NTLC/BICC/SOGC en base (après logs du 29/06)
@@ -117,6 +136,36 @@ elle-même NON faite — voir item actif ci-dessous.**
 ---
 
 ## 🟠 BACKLOG ACTIF — PRIORITÉ MOYENNE
+
+### Logging fort des échecs de sauvegarde après appel API réussi (issu d'ADR-019)
+- **Contexte :** Le bug ADR-019 (SONATEL figé sur Q3 2025) a duré ~3 semaines
+  car l'échec SQL `duplicate key` était noyé en ligne `ERROR` parmi des
+  centaines, sans rien faire remonter. L'appel Mistral réussissait (donc était
+  facturé) puis la sauvegarde échouait silencieusement.
+- **Action :** Dans `_save_to_db()` (et équivalents), faire remonter un échec de
+  sauvegarde survenant APRÈS un appel API réussi comme un signal visible
+  (compteur d'échecs en fin de run, ou résumé dédié), pas une simple ligne ERROR.
+  Un appel IA payant qui ne produit aucune ligne en base est une anomalie à
+  surveiller activement.
+- **Source :** Session du 28/06/2026, ADR-019.
+
+### Dédupliquer les 3 prompts IA dans fundamental_analyzer.py (issu d'ADR-020)
+- **Contexte :** Le même prompt géant est copié-collé 3 fois (DeepSeek, Gemini,
+  Mistral). Tout changement de méthode doit être fait à 3 endroits — exactement
+  le type de divergence qui a causé ADR-017 (et le P/E 10x oublié dans les
+  prompts, corrigé en ADR-020). Risque de re-divergence à chaque évolution.
+- **Action :** Extraire le prompt commun dans une seule constante/méthode
+  paramétrée, que les 3 fonctions `_analyze_with_*` réutilisent.
+- **Source :** Session du 28/06/2026, ADR-020.
+
+### Vérifier le bug d'extraction de date dans d'autres scripts (issu d'ADR-019)
+- **Contexte :** Le bug "titre lu depuis le lien au lieu du `<strong>`" + date
+  retombant au 31/12 était dans `fundamental_analyzer.py`. D'autres scripts qui
+  scrapent brvm.org (ex. `scrape_corporate_events.py`, `scrape_boc_pdf.py`)
+  pourraient avoir un schéma d'extraction de date similaire à vérifier.
+- **Action :** Auditer les autres scrapers pour un bug analogue d'extraction de
+  date/titre depuis le HTML brvm.org.
+- **Source :** Session du 28/06/2026, ADR-019.
 
 ### Intégration du pattern pré/post ex-dividende dans le signal V2
 - **Contexte :** Intuition de Jocelyn (20/06/2026) — distincte de la stratégie

@@ -244,6 +244,39 @@ Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de s
 
 ---
 
+## Session 28/06/2026 — Résumé des changements
+
+### Bug résolu (ADR-019) — analyse fondamentale figée sur Q3 2025
+- L'analyse Mistral de SONATEL restait sur le rapport T3 2025 malgré la
+  publication du T1 2026. Cause racine : contrainte SQL parasite
+  `unique_company_fundamental` (`UNIQUE(company_id)`) sur `fundamental_analysis`,
+  non documentée, qui empêchait tout 2e rapport par société. Chaque nouveau
+  rapport échouait à la sauvegarde (`duplicate key`) APRÈS analyse Mistral
+  réussie (travail payant perdu, ~3 semaines).
+- Contrainte parasite supprimée (table revenue à `UNIQUE(report_url)` d'origine).
+- Bug secondaire corrigé : `_find_all_reports()` lisait "Télécharger" au lieu du
+  vrai titre (dans un `<strong>` séparé). Nouvelle fonction
+  `_parse_date_from_titre()` → date précise par type de rapport. Commit `d2c0a13`.
+
+### Amélioration (ADR-020) — prompts sans valorisation chiffrée
+- Les 3 prompts (DeepSeek/Gemini/Mistral) demandaient à l'IA de calculer un
+  objectif de cours via "P/E 10x" (même méthode obsolète qu'ADR-017, réintroduite
+  dans le prompt). Retiré → l'IA fait du qualitatif, le cours cible vient
+  exclusivement du modèle V2. Commit `0a8deab`.
+
+### Optimisation (ADR-021) — sobriété quota Mistral
+- Quota API Mistral (plan Free) épuisé à 100% avant fin de mois. Retrait du mode
+  UPSERT (qui régénérait tout l'historique chaque jour) + étapes 5 et 6 passées
+  en bi-hebdomadaire (1er et 15). Commits `0a8deab` + `29dfde2`.
+
+### Note importante
+- **"Vibe" = chat.mistral.ai** (assistant web de Mistral). Le quota du plan Free
+  couvre à la fois l'usage Vibe ET l'API (`MISTRAL_API_KEY` du pipeline). Reset
+  mensuel. Si épuisé, le pipeline retombe sur le fallback DeepSeek→Gemini, puis
+  sur `fallback_text` si les trois sont à sec.
+
+---
+
 ## Session 25/06/2026 — Résumé des changements
 
 ### Bug corrigé (ADR-017)
@@ -394,6 +427,9 @@ Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de s
 | ADR-015 | Features Mistral statiques → nuisent au GRU, rejetées |
 | ADR-017 | Doublon Fair Value FinancialAnalysis.jsx — corrigé 25/06 (lit target_prices) |
 | ADR-018 | eps non recalculé depuis stockanalysis.com (NTLC/BICC/SOGC) — détection ajoutée, correction des données en attente |
+| ADR-019 | Analyse fondamentale bloquée sur Q3 2025 — contrainte SQL parasite UNIQUE(company_id) + extraction titre depuis `<strong>` — corrigé 28/06 |
+| ADR-020 | Prompts Mistral sans valorisation chiffrée (P/E 10x retiré, cours cible = modèle V2 uniquement) — corrigé 28/06 |
+| ADR-021 | Sobriété quota Mistral — retrait UPSERT + étapes 5/6 bi-hebdomadaires (1er et 15) — corrigé 28/06 |
 
 ---
 

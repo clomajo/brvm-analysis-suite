@@ -28,7 +28,8 @@ BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
 │  • historical_data    — 92 714+ lignes de prix              │
 │  • brvm_decisions     — signaux ACHAT/SURVEILLER/EVITER (V1)│
 │  • brvm_decisions_results — vérifications live (dès 07/26)  │
-│  • fundamental_analysis   — analyses Mistral par ticker     │
+│  • fundamental_analysis   — analyses Mistral (1 ligne par   │
+│    rapport, UNIQUE report_url — historisé, ADR-019)         │
 │  • technical_indicators   — RSI, MACD, SMA calculés         │
 │  • target_prices      — cours cible V2 + decote (calculé)   │
 │  • sector_per_history — P/E sectoriel BRVM, saisie mensuelle│
@@ -49,8 +50,11 @@ BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
 │  ÉTAPE 3c verify_decisions.py      — vérif. 90j (dès 07/26) │
 │  ÉTAPE 3d test_pipeline.py         — tests post-décisions   │
 │  ÉTAPE 4  prediction_analyzer.py   — modèles ML (désactivé) │
-│  ÉTAPE 5  fundamental_analyzer.py  — Mistral AI             │
-│  ÉTAPE 6  report_generator.py      — rapports multi-AI      │
+│  ÉTAPE 5  fundamental_analyzer.py  — Mistral AI (bi-hebdo   │
+│           1er et 15 — ADR-021) — analyses historisées       │
+│           (1 ligne/rapport, UNIQUE report_url)              │
+│  ÉTAPE 6  report_generator.py      — rapports (bi-hebdo,    │
+│           1er et 15 — ADR-021)                              │
 │  ÉTAPE 7  news_collector.py        — news + scoring IA      │
 │                                                             │
 │  calculate_target_price.py — cours cible V2 (indépendant   │
@@ -181,6 +185,9 @@ historical_data (Supabase)
 | `shares_outstanding` non fiable depuis stockanalysis.com pour certains tickers | EPS gonflé d'un facteur erroné (cas NTLC : ×20), cours cible V2 aberrant | NTLC : `shares_outstanding` corrigé (ADR-012), mais `eps` lui-même pas recalculé par le scraper — cf. ligne suivante |
 | `eps` scrapé sans recalcul depuis `net_income`/`shares_outstanding` (ADR-018) | Toute correction manuelle de `shares_outstanding` seule est écrasée silencieusement par le scraping hebdomadaire suivant si `eps` n'est pas aussi corrigé en base | Détection ajoutée (`check_eps_coherence`, log uniquement) ; NTLC/BICC/SOGC confirmés incohérents au 25/06/2026, correction des données en attente (après run du 29/06/2026) |
 | Doublon de calcul Fair Value : `FinancialAnalysis.jsx` recalculait en JS, indépendamment de `target_prices` | Aberrations possibles non filtrées | **Corrigé 25/06/2026 (ADR-017)** — lit désormais `target_prices`, comme `App.jsx` |
+| Contrainte SQL parasite `UNIQUE(company_id)` sur `fundamental_analysis` | Analyse Mistral bloquée sur 1 rapport/société ; nouveaux rapports échouaient à la sauvegarde après analyse (travail payant perdu) | **Corrigé 28/06/2026 (ADR-019)** — contrainte supprimée, retour à `UNIQUE(report_url)` |
+| Prompts Mistral avec P/E 10x hardcodé (objectif de cours calculé par l'IA) | Valorisation IA divergente du modèle V2 | **Corrigé 28/06/2026 (ADR-020)** — objectif de cours retiré des prompts, source unique = modèle V2 |
+| Quota API Mistral (plan Free) épuisé avant fin de mois | Pipeline retombe sur fallback DeepSeek/Gemini, voire fallback_text | **Atténué 28/06/2026 (ADR-021)** — retrait UPSERT + étapes 5/6 bi-hebdo. Reset mensuel le 30 |
 
 ---
 

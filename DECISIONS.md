@@ -631,3 +631,179 @@ Investigation jusqu'à la cause racine :
   réapparaître le même problème sur un futur ticker sans aucun signal
   d'alerte, comme cela s'est produit silencieusement depuis le 30/05/2026
   jusqu'à la découverte du 25/06/2026.
+
+---
+
+## ADR-019 : Analyse fondamentale bloquée — contrainte SQL parasite + extraction titre
+
+**Date :** 28/06/2026
+**Statut :** Accepté — implémenté
+
+**Contexte :**
+
+L'analyse Mistral de SONATEL affichée dans l'app datait de "Q3 2025" alors que
+l'exercice 2025 est clos (dividendes payés en mai 2026) et que le rapport
+T1 2026 est publié sur brvm.org depuis le 17/04/2026. Investigation :
+
+1. `company_fundamentals` contient bien FY2025 complet (eps=3420, net_income=
+   341963) — donc la donnée annuelle existe, le problème n'est pas le scraping
+   des chiffres.
+2. La table `fundamental_analysis` n'a qu'UNE ligne pour SONATEL, datée du
+   rapport T3 2025 (PDF `20251031`). Aucune trace de T1 2026.
+3. Les logs GitHub Actions (run du 26/06) montrent que le rapport T1 2026 a été
+   correctement téléchargé, son texte extrait, et analysé par Mistral AVEC
+   SUCCÈS — mais la sauvegarde a échoué : `duplicate key value violates unique
+   constraint "unique_company_fundamental"` `DETAIL: Key (company_id)=(18)
+   already exists`. Même erreur observée pour company_id=17.
+4. La table avait DEUX contraintes : `fundamental_analysis_report_url_key`
+   (`UNIQUE(report_url)`, l'originale, cohérente avec le code) ET
+   `unique_company_fundamental` (`UNIQUE(company_id)`, parasite). Cette
+   dernière n'est référencée NULLE PART (ni Git, ni ADR, ni code) — probablement
+   ajoutée tôt via l'éditeur graphique Supabase, en contradiction avec le code
+   Python qui gère pourtant `ON CONFLICT (report_url) DO UPDATE` (preuve que
+   l'intention était d'historiser plusieurs rapports par société).
+5. Bug secondaire découvert dans `_find_all_reports()` : le titre du rapport
+   était lu depuis le texte du lien `<a>` (toujours "Télécharger", générique),
+   pas depuis le vrai titre qui est dans un `<strong>` de la cellule précédente
+   du même `<tr>`. Conséquence : impossible de distinguer un T1 d'un T3, et la
+   date retombait systématiquement sur le 31/12 de l'année (fallback).
+
+**Décision :**
+
+1. Supprimer la contrainte parasite `unique_company_fundamental` (`UNIQUE
+   (company_id)`). La table revient à sa contrainte d'origine saine
+   `fundamental_analysis_report_url_key` (`UNIQUE(report_url)`), permettant
+   l'historisation de plusieurs rapports par société comme le code l'attend.
+   Script SQL `fix_unique_company_fundamental.sql` (vérifs préalables incluses).
+2. Corriger `_find_all_reports()` : nouvelle fonction `_parse_date_from_titre()`
+   qui lit le vrai titre depuis le `<strong>` du `<tr>` parent et en extrait une
+   date précise selon le type de rapport (1er/2e/3e/4e trimestre → fin du
+   trimestre correspondant ; semestre ; annuel/exercice → 31/12). Le tri par
+   date devient enfin fiable. Commit `d2c0a13`.
+3. Retrait du mode UPSERT dans `_load_analysis_memory_from_db()` (cf. ADR-020,
+   décision liée prise dans la même session pour le quota).
+
+**Raison :**
+
+- Le symptôme ("Q3 2025" figé) était la conséquence visible d'un échec SQL
+  silencieux : chaque run refaisait tout le travail coûteux (téléchargement,
+  extraction, appel Mistral payant) puis échouait à la dernière étape sans que
+  rien ne remonte dans l'interface. Le coût a été payé pendant ~3 semaines sans
+  aucun résultat persisté.
+- Assouplir une contrainte trop stricte (revenir à l'unicité par report_url,
+  déjà existante) est sûr et réversible ; supprimer des lignes pour forcer
+  l'unicité par société aurait été destructeur.
+
+**Conséquences :**
+
+- Dès le prochain run, le rapport T1 2026 (et tous les rapports manquants pour
+  les sociétés ayant déjà une ligne) pourront s'enregistrer.
+- Leçon transversale : un échec de sauvegarde APRÈS un appel API réussi (donc
+  facturé) doit être un signal d'alarme visible, pas une ligne ERROR noyée.
+  Item backlog créé pour renforcer ce logging.
+
+---
+
+## ADR-020 : Analyse Mistral sans valorisation chiffrée (source unique = modèle V2)
+
+**Date :** 28/06/2026
+**Statut :** Accepté — implémenté
+
+**Contexte :**
+
+Les 3 prompts de `fundamental_analyzer.py` (DeepSeek, Gemini, Mistral)
+demandaient à l'IA de calculer elle-même un "Objectif de cours" via "EPS moyen
+3 ans x P/E sectoriel ~10x" — exactement le P/E 10x hardcodé et obsolète qu'on
+avait éliminé du frontend en ADR-017, mais réintroduit ici dans le texte du
+prompt. L'IA produisait donc une valorisation chiffrée selon une méthode
+périmée, qui pouvait diverger du cours cible réel du modèle V2 (`target_prices`,
+PER sectoriel dynamique + Gordon).
+
+**Décision (option C retenue) :**
+
+Retirer complètement la ligne "Objectif de cours" et "Upside/Downside" des 3
+prompts. L'analyse IA se concentre désormais exclusivement sur le qualitatif
+(thèse, rentabilité, dividende, risques, moat, contexte sectoriel) — ce que les
+LLM font de façon fiable. Une instruction explicite est ajoutée : "NE PAS
+calculer ni proposer d'objectif de cours chiffré". Le cours cible chiffré vient
+exclusivement du modèle V2 affiché séparément. Commit `0a8deab`.
+
+**Alternatives rejetées :**
+
+- Option A (pointer le prompt vers la vraie valeur `target_prices`) : nécessitait
+  d'injecter cette donnée dans le prompt, plus de code, et laissait l'IA
+  manipuler un chiffre de valorisation.
+- Option B (corriger la formule dans le prompt vers la vraie méthode V2) :
+  l'IA aurait continué à recalculer de son côté, recréant le risque de
+  divergence — exactement le problème qu'ADR-017 a éliminé.
+
+**Raison :**
+
+- Même principe que ADR-017 : une seule source de vérité pour la valorisation.
+  Un LLM est doué pour le narratif, pas pour produire un chiffre de valorisation
+  reproductible. Faire calculer un prix par l'IA recrée le problème de double
+  source qu'on venait d'éliminer côté frontend.
+
+**Conséquences :**
+
+- Les analyses régénérées après cette date n'afficheront plus d'objectif de
+  cours chiffré dans la section RECOMMANDATION — uniquement un signal qualitatif
+  (ACHAT/CONSERVER/VENTE) et le cours actuel. Le chiffre cible reste disponible
+  via le badge V2 / la page Fair Value (ADR-017).
+- Les anciennes analyses en base gardent leur ancien format jusqu'à
+  régénération (qui n'arrivera qu'au prochain nouveau rapport, mode UPSERT
+  retiré — cf. ADR-021).
+
+---
+
+## ADR-021 : Sobriété quota Mistral — retrait UPSERT + cadence bi-hebdomadaire
+
+**Date :** 28/06/2026
+**Statut :** Accepté — implémenté
+
+**Contexte :**
+
+Le quota API Mistral (plan Free, `chat.mistral.ai` / "Vibe") a été épuisé à 100%
+avant la fin du mois, suspendant l'accès jusqu'au reset du 30/06/2026. Deux
+causes structurelles identifiées :
+
+1. **Mode UPSERT** : `_load_analysis_memory_from_db()` vidait la mémoire des
+   analyses déjà faites à chaque run (`self.analysis_memory = set()`), forçant
+   la régénération de TOUT l'historique à chaque exécution quotidienne — alors
+   que les fondamentaux ne changent qu'au rythme des publications (trimestriel).
+   Le docstring de la fonction promettait pourtant un "skip définitif" que le
+   code ne faisait pas.
+2. **Cadence quotidienne** des étapes 5 (analyse fondamentale) et 6 (génération
+   rapports), toutes deux dépendantes de Mistral, alors que leur source ne
+   change pas tous les jours.
+
+**Décision :**
+
+1. Retirer le mode UPSERT : `analysis_memory` charge réellement les URLs déjà
+   en base et les skip définitivement. Régénération forcée = manuelle si besoin
+   (vider la table ou flag CLI dédié), jamais par défaut. Commit `0a8deab`.
+2. Passer les étapes 5 et 6 du workflow en bi-hebdomadaire (1er et 15 du mois)
+   via une garde `DOM=$(date +%d)`, sur le modèle des autres étapes
+   conditionnelles existantes (1b, 1c, V2b). Commit `29dfde2`.
+
+**Raison :**
+
+- Les fondamentaux d'une société changent 4 fois par an au plus. Une analyse
+  quotidienne (et pire, une régénération quotidienne de tout l'historique)
+  était du gaspillage pur de quota, sans aucune nouvelle information produite
+  la plupart des jours.
+- Question soulevée pendant la session ("et si un rapport est mis à jour sur le
+  site ?") : écartée volontairement comme trop complexe à détecter de façon
+  fiable. Un rapport officiel corrigé sort en général sous une nouvelle URL
+  (donc traité comme nouveau) ; le cas d'un même fichier silencieusement
+  remplacé est rare et accepté comme angle mort assumé.
+
+**Conséquences :**
+
+- Consommation Mistral drastiquement réduite : plus de régénération inutile, et
+  appels concentrés sur 2 jours/mois.
+- Un nouveau rapport publié entre deux dates (ex. le 5 du mois) ne sera analysé
+  qu'au 15 — délai acceptable pour des fondamentaux trimestriels.
+- Reste quotidienne : ÉTAPE 3c (`verify_decisions.py`, utilise Mistral mais
+  vérifie des signaux J+20 datés, vraie raison de tourner chaque jour) — à
+  surveiller si elle pèse sur le quota.
