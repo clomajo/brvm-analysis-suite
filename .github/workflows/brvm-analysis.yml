@@ -300,3 +300,10 @@ jobs:
           echo ""
           echo "✅ Pipeline terminé"
           echo "═══════════════════════════════════════════════════════════"
+
+      - name: 🏥 Health Check — Bilan quotidien pipeline (T1)
+        if: always()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python health_check.py
