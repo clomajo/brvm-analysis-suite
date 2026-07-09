@@ -80,3 +80,12 @@ mis a jour aujourd'hui alors que nb_prices=49 et nb_decisions=47 sont OK).
 - Décision consignée : ADR-032 (DECISIONS.md)
 - Point ouvert (non bloquant) : écart ratio split (20) vs ratio
   shares_outstanding (20.064) — source de l'écart non investiguée
+
+### Session clôturée — 09/07/2026
+
+- Commit script + données : `873fce5`
+- Commit documentation (ADR-032, CHANGELOG, BACKLOG) : `74064c8`
+- Branche : `remediation-2026-07`
+- T3 terminé, aucun blocage. Prochaine tâche à planifier : finaliser T0
+  (vérification exports CSV) ou traiter les 86 lignes `[FALLBACK]` dans
+  `fundamental_analysis`.
