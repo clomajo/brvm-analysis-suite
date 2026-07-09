@@ -35,7 +35,7 @@ from dotenv import find_dotenv, load_dotenv
 # Configuration / seuils
 # --------------------------------------------------------------------------
 
-MIN_PRICES = 999     # sur 47 tickers ; certains ne cotent pas chaque jour
+MIN_PRICES = 35     # sur 47 tickers ; certains ne cotent pas chaque jour
 MIN_TARGETS = 30
 MIN_DECISIONS = 30
 
