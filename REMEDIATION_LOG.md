@@ -53,3 +53,14 @@ a revision (fetes mobiles) - a reverifier en mars/mai/aout 2026 avant echeance.
 
 **Extension differee (session separee) :** table Supabase pipeline_health
 pour historiser les bilans (point 7 de la spec T1, non implemente).
+
+
+## Suivi differe — nb_targets=22 (2026-07-09)
+
+Anomalie detectee par le health check (voir T1 ci-dessus) : target_prices
+incomplet pour la journee du 2026-07-09 (22/47 tickers, seuil=30).
+Investigation NON demarree — decision de Jocelyn de differer pour suivi
+ulterieur, hors session du 09/07/2026.
+
+A investiguer : calculate_target_price.py (pourquoi seulement 22 tickers
+mis a jour aujourd'hui alors que nb_prices=49 et nb_decisions=47 sont OK).
