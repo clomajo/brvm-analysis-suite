@@ -807,3 +807,56 @@ causes structurelles identifiées :
 - Reste quotidienne : ÉTAPE 3c (`verify_decisions.py`, utilise Mistral mais
   vérifie des signaux J+20 datés, vraie raison de tourner chaque jour) — à
   surveiller si elle pèse sur le quota.
+
+## ADR-032 : NTLC — Split réel confirmé, prix pré-2017-09-11 corrigés
+
+**Date :** 09/07/2026
+**Statut :** Adopté
+
+**Contexte**
+
+La correction de `company_fundamentals.shares_outstanding` pour NTLC
+(1 100 000 → 22 070 400, ~×20.064) a soulevé la question de savoir si
+un split réel de l'action avait eu lieu, auquel cas les prix historiques
+pré-split dans `historical_data` seraient faussés (non ajustés).
+
+**Investigation (T3, script jetable `tools/investigate_ntlc.py`)**
+
+- Une seule discontinuité de prix > 40% détectée sur tout l'historique
+  NTLC : 2017-09-11, -94.62% (49450 → 2660 FCFA).
+- Confirmation source officielle : **BRVM Avis N°164-2017/BRVM/DG**
+  (07/09/2017), fractionnement NESTLE CI à raison de **20 actions
+  nouvelles pour 1 action ancienne**. Valeur théorique post-split
+  annoncée : 2 475 FCFA (cohérent avec 49450/20 = 2472.5).
+- Le ratio shares_outstanding (20.064) diffère légèrement du ratio de
+  split officiel (20 exact) — écart de 70 400 actions (~0.32%), source
+  non identifiée. Sans impact sur la correction des prix, qui doit
+  suivre le ratio de split officiel, pas le ratio shares_outstanding.
+
+**Décision**
+
+Prix pré-2017-09-11 corrigés via SQL Editor (ADR-026) :
+
+```sql
+UPDATE historical_data
+SET price = price / 20
+WHERE company_id = 22 AND trade_date < '2017-09-11';
+```
+
+361 lignes affectées (2016-03-22 → 2017-09-08). Vérification post-
+correction : continuité de prix confirmée (2016 : 2355–3911 FCFA,
+2017 : 1900–3100 FCFA), plus de discontinuité ×20 dans l'historique.
+
+**Conséquences**
+
+- Backtests et graphiques NTLC désormais fiables sur toute la période
+  2016+.
+- Le léger écart entre ratio de split (20) et ratio shares_outstanding
+  (20.064) reste à investiguer séparément si `shares_outstanding` est
+  revérifié — ne pas réutiliser 20.064 pour d'autres corrections liées
+  au split.
+- Backup pré-correction disponible dans
+  `~/Desktop/brvm-backups/2026-07-08/` (T0) en cas de rollback.
+
+**Source**
+BRVM Avis N°164-2017/BRVM/DG — https://www.richbourse.com/common/actualite/afficher-fichier/07-09-2017-nestle-ci-fractionnement-dactions-valeur-theorique

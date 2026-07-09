@@ -64,3 +64,19 @@ ulterieur, hors session du 09/07/2026.
 
 A investiguer : calculate_target_price.py (pourquoi seulement 22 tickers
 mis a jour aujourd'hui alors que nb_prices=49 et nb_decisions=47 sont OK).
+
+## T3 — Investigation NTLC (split vs erreur de scraping) — 09/07/2026
+
+**Statut :** ✅ Terminé
+
+- Script `tools/investigate_ntlc.py` exécuté, sortie brute archivée
+  (`tools/ntlc_report.csv`)
+- Discontinuité unique détectée : 2017-09-11 (-94.62%)
+- Confirmée comme split réel via BRVM Avis N°164-2017/BRVM/DG (20:1)
+- Correction SQL appliquée (361 lignes, company_id=22,
+  trade_date < 2017-09-11, price = price / 20)
+- Vérification post-correction : continuité de prix confirmée sur tout
+  l'historique 2016-2026
+- Décision consignée : ADR-032 (DECISIONS.md)
+- Point ouvert (non bloquant) : écart ratio split (20) vs ratio
+  shares_outstanding (20.064) — source de l'écart non investiguée

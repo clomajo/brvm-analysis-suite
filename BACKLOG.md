@@ -327,3 +327,9 @@ Prototype DDM/PE hybride testé. Rejeté (ADR-033). Modèle pragmatique identifi
 ### ✅ UI-01 — Badge signal_combine + data_completeness (03/05/2026)
 ### ✅ UI-04 — Badge "vs clôture J-1" (16/05/2026)
 ### ✅ DATA-13 — scrape_boc_pdf.py (26/05/2026)
+
+- [ ] NTLC : investiguer l'écart entre ratio de split officiel (20)
+      et ratio shares_outstanding utilisé pour la correction FY
+      (20.064 = 22 070 400 / 1 100 000). Écart ~70 400 actions (0.32%).
+      Non bloquant, mais shares_outstanding pourrait nécessiter une
+      révision séparée si l'écart n'est pas un simple arrondi source.

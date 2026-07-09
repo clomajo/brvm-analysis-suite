@@ -379,3 +379,10 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - Onglets : Aperçu, Marché, Opportunités, Scorecard, Risque,
   Législatif, Direction, Prévisions, Backtest, Portefeuille, Obligations, Macro
 - Pricing B2B : 150$/mois broker, 500$/mois trading floor, 5 000$/an asset manager
+
+## 09/07/2026
+
+### FIX
+- NTLC : correction prix historiques pré-2017-09-11 (÷20, split réel
+  confirmé BRVM Avis N°164-2017/BRVM/DG). 361 lignes corrigées dans
+  historical_data. Voir ADR-032.
