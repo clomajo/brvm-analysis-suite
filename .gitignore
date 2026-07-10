@@ -109,6 +109,7 @@ patch_workflow.py
 *.backup*
 patch_*.py
 test_*.py
+!tests/test_*.py
 tester_*.py
 check_*.py
 scrap_brvm_v*.py
