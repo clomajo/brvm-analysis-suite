@@ -89,3 +89,20 @@ mis a jour aujourd'hui alors que nb_prices=49 et nb_decisions=47 sont OK).
 - T3 terminé, aucun blocage. Prochaine tâche à planifier : finaliser T0
   (vérification exports CSV) ou traiter les 86 lignes `[FALLBACK]` dans
   `fundamental_analysis`.
+
+## T2a — Extraction (injection de dépendances) — 09/07/2026
+
+**Statut :** ✅ Terminé — aucune modification de code nécessaire
+
+**Constat (vérifié par lecture directe du code source, pas d'hypothèse) :**
+Les 3 fonctions cibles de T2 (`evaluer_qualite_eps`, `check_eps_coherence`,
+`_parse_date_from_titre`) reçoivent déjà toutes leurs données en paramètres
+et ne font aucun accès Supabase direct dans leur corps. L'injection de
+dépendances requise par T2a est déjà en place — pas de refactor à faire.
+
+Vérification : grep de `self\.` dans le corps de `_parse_date_from_titre`
+(223-273) : aucune occurrence (les 3 matches trouvés appartiennent à
+`_find_all_reports`, méthode suivante).
+
+**Décision :** passage direct à T2b (écriture des tests), sans diff de
+refactor à valider puisqu'aucun refactor n'était nécessaire.
