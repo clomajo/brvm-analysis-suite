@@ -106,3 +106,35 @@ Vérification : grep de `self\.` dans le corps de `_parse_date_from_titre`
 
 **Décision :** passage direct à T2b (écriture des tests), sans diff de
 refactor à valider puisqu'aucun refactor n'était nécessaire.
+
+## T2b — Suite pytest (tests uniquement)
+
+**Date :** 10/07/2026
+**Commits :** f242e92, c1a740d, 07040a2, 9e00147 (branche remediation-2026-07)
+
+**Réalisé :**
+- tests/conftest.py, test_eps.py, test_parsing.py, test_health.py (24 tests)
+- pytest.ini (pythonpath = .), .github/workflows/tests.yml, pytest==8.* ajouté à requirements.txt
+- Cible : check_eps_coherence(), evaluer_qualite_eps(), _parse_date_from_titre(),
+  logique week-end/jour férié de health_check.main()
+
+**Incident découvert et corrigé :**
+Le pattern .gitignore `test_*.py` (initialement destiné à exclure d'anciens
+scripts jetables) masquait silencieusement test_eps.py, test_parsing.py et
+test_health.py — seul conftest.py avait été commité (f242e92), donnant un faux
+sentiment de succès local (pytest fonctionnait car les fichiers existaient sur
+disque, non ignorés par pytest lui-même). Détecté via `git status` avant push
+grâce à la gate de vérification systématique. Corrigé par exception ciblée
+`!tests/test_*.py` (commit c1a740d), sans toucher aux autres patterns.
+
+**Écart spec/code documenté (non corrigé, T2b = zéro modif prod) :**
+check_eps_coherence() retourne (None, None) silencieusement — sans warning —
+quand shares_outstanding est 0 ou None, alors que la spec T2 attendait un
+warning. Comportement réel figé tel quel dans les tests. À traiter éventuellement
+en T4.
+
+**Critères d'acceptation :**
+1. ✅ pytest -v local : 24/24 passed
+2. ✅ Workflow GitHub Actions vert (run c1a740d puis 9e00147)
+3. ✅ Test de non-régression volontaire : 4 assertions cassées (commit 07040a2)
+   → CI détecte l'échec (4 failed, 20 passed) → réparé (commit 9e00147) → CI verte
