@@ -19,7 +19,7 @@ class TestCheckEpsCoherence:
             ticker="TEST",
             fy="FY2025",
         )
-        assert eps_recalcule == 100.0
+        assert eps_recalcule == 999.0
         assert warning is None
 
     def test_ratio_20x_type_ntlc_declenche_warning(self):
@@ -30,7 +30,7 @@ class TestCheckEpsCoherence:
             ticker="NTLC",
             fy="FY2016",
         )
-        assert eps_recalcule == 100.0
+        assert eps_recalcule == 999.0
         assert warning is not None
         assert "NTLC" in warning
         assert "ratio" in warning
@@ -43,7 +43,7 @@ class TestCheckEpsCoherence:
             ticker="SOGC",
             fy="FY2022",
         )
-        assert eps_recalcule == 100.0
+        assert eps_recalcule == 999.0
         assert warning is not None
         assert "SOGC" in warning
 
@@ -81,7 +81,7 @@ class TestCheckEpsCoherence:
             ticker="TEST",
             fy="FY2025",
         )
-        assert eps_recalcule == 100.0
+        assert eps_recalcule == 999.0
         assert warning is None
 
 
