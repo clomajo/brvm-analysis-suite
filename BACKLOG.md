@@ -333,3 +333,23 @@ Prototype DDM/PE hybride testé. Rejeté (ADR-033). Modèle pragmatique identifi
       (20.064 = 22 070 400 / 1 100 000). Écart ~70 400 actions (0.32%).
       Non bloquant, mais shares_outstanding pourrait nécessiter une
       révision séparée si l'écart n'est pas un simple arrondi source.
+
+## [BLOQUANT] Fiabilisation shares_outstanding — découvert en session T4 (11/07/2026)
+
+- **Bug parse_val()** : suffixe `'M'` non géré (seuls `'T'` et `'B'` multiplient) —
+  impacte `shares_outstanding` et potentiellement d'autres champs scrapés en overview.
+- **shares_outstanding non ajusté du split NTLC 20:1 (2017)** à la source
+  (stockanalysis.com) — la valeur correcte (22 070 400) n'existe qu'en base Supabase,
+  corrigée manuellement (ADR-012), et sera écrasée au prochain run scraper si
+  `scrape_overview()` continue d'écrire `shares_outstanding` sans distinction.
+  **Risque actif de régression silencieuse** sur ce champ précis (pas seulement
+  sur eps) — à vérifier : le scraper écrit-il `shares_outstanding` en base
+  actuellement, ou seulement `eps` ? À auditer avant le prochain `--full` run.
+- Probablement même problème pour BICC, SOGC (cf. docstring `check_eps_coherence`,
+  divergences ~1.5x et ~0.73x mentionnées).
+- **Pistes de correction (non tranchées) :** (a) lire shares_outstanding depuis
+  Supabase au lieu de re-scraper pour les tickers connus comme affectés, avec table
+  de référence/override (pattern ADR-032) ; (b) corriger le bug `'M'` dans
+  `parse_val()` en amont, ce qui résoudrait une partie du problème mais pas le split
+  non répercuté à la source.
+- **Bloque :** atteinte du critère d'acceptation initial T4 (NTLC FY2024 EPS = 822.37 FCFA).

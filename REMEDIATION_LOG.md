@@ -138,3 +138,21 @@ en T4.
 2. ✅ Workflow GitHub Actions vert (run c1a740d puis 9e00147)
 3. ✅ Test de non-régression volontaire : 4 assertions cassées (commit 07040a2)
    → CI détecte l'échec (4 failed, 20 passed) → réparé (commit 9e00147) → CI verte
+
+## T4 — Refactor EPS (net_income/shares_outstanding) — 11/07/2026
+
+**Statut : FAIT (scope réduit, documenté)**
+
+- `check_eps_coherence()` : eps_recalcule devient valeur primaire de
+  `company_fundamentals.eps`, eps scrapé devient cross-check (docstring mise à jour).
+- Garde-fou de sanité ajouté (ratio eps_scrapé/eps_recalcule hors [0.2, 5] → pas
+  de remplacement) pour éviter l'insertion de valeurs aberrantes.
+- 24/24 tests pytest non-régression validés.
+- **Critère d'acceptation initial (NTLC FY2024 = 822.37 FCFA) NON atteint** — cause
+  racine identifiée (shares_outstanding scrapé faux, bug parse_val 'M' + split 2017
+  non répercuté à la source) et documentée séparément (ADR-033, BACKLOG.md), hors
+  périmètre de cette session par décision explicite.
+- Validation manuelle NTLC FY2024 : eps_recalcule=16 500 000 000 (aberrant),
+  garde-fou déclenché, eps_scraped=16447.64 conservé (comportement attendu).
+
+Commits : (à renseigner après le commit ci-dessous)

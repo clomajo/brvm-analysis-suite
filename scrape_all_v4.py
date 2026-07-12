@@ -105,7 +105,15 @@ def check_eps_coherence(eps_scraped, net_income, shares_outstanding, ticker, fy,
     automatiquement, on log seulement pour investigation manuelle (cf. discussion
     25/06/2026 : ne jamais corriger une donnée sans en comprendre la cause racine).
 
-    Retourne eps_recalcule (float|None) — ne modifie jamais le dict row.
+    T4 (07/2026) : eps_recalcule est désormais utilisé par l'appelant (cf. bloc
+    dans __main__) comme valeur primaire écrite dans company_fundamentals.eps ;
+    l'eps scrapé devient le signal de cross-check. Un garde-fou de sanité côté
+    appelant bloque le remplacement si le ratio eps_scrapé/eps_recalcule est
+    hors [0.2, 5] ou de signe incohérent (cf. bug parse_val() suffixe 'M' +
+    splits non répercutés à la source, ex. NTLC — cf. BACKLOG.md). Cette
+    fonction elle-même ne modifie jamais le dict row.
+
+    Retourne (eps_recalcule, warning) — (float|None, str|None).
     """
     if eps_scraped is None or net_income is None or not shares_outstanding:
         return None, None
@@ -536,15 +544,49 @@ if __name__ == '__main__':
             row['company_id'] = company_ids.get(ticker)
             row['scraped_at'] = date.today().isoformat()
 
-            # Vérification de cohérence eps vs net_income/shares_outstanding —
-            # ne modifie jamais row['eps'], log uniquement (cf. check_eps_coherence).
-            _, eps_warning = check_eps_coherence(
-                row.get('eps'), row.get('net_income'), overview.get('shares_outstanding'),
+            # T4 (07/2026) : eps_recalcule (net_income/shares_outstanding) devient
+            # la valeur primaire stockée dans company_fundamentals.eps. L'eps
+            # scrapé (stockanalysis.com "EPS (Basic)") devient le cross-check :
+            # conservé en fallback si le recalcul est impossible, et loggé en
+            # cas de divergence (cf. check_eps_coherence).
+            # GARDE-FOU DE SANITÉ : si le ratio eps_scrapé/eps_recalcule est hors
+            # [0.2, 5] ou de signe incohérent, eps_recalcule est jugé non fiable
+            # (bug connu : parse_val() n'applique pas le multiplicateur du
+            # suffixe 'M' sur shares_outstanding, aggravé par des splits non
+            # répercutés à la source pour certains tickers — cf. BACKLOG.md) et
+            # row['eps'] N'EST PAS remplacé.
+            SEUIL_RATIO_MIN, SEUIL_RATIO_MAX = 0.2, 5.0
+            eps_scraped = row.get('eps')
+            eps_recalcule, eps_warning = check_eps_coherence(
+                eps_scraped, row.get('net_income'), overview.get('shares_outstanding'),
                 ticker, fy
             )
+
+            eps_overwrite_bloque = False
+            if eps_recalcule is not None:
+                if eps_scraped not in (None, 0):
+                    if eps_recalcule == 0:
+                        eps_overwrite_bloque = True
+                    else:
+                        ratio = eps_scraped / eps_recalcule
+                        if ratio <= 0 or not (SEUIL_RATIO_MIN <= ratio <= SEUIL_RATIO_MAX):
+                            eps_overwrite_bloque = True
+                if not eps_overwrite_bloque:
+                    row['eps'] = eps_recalcule
+            # sinon (eps_recalcule None ou garde-fou déclenché) : row['eps']
+            # reste la valeur scrapée (fallback déjà en place).
+
             if eps_warning:
                 eps_warnings.append(eps_warning)
                 print(f"  ⚠️  INCOHÉRENCE EPS : {eps_warning}")
+            if eps_overwrite_bloque:
+                garde_fou_msg = (
+                    f"{ticker} {fy} : eps recalculé REJETÉ par le garde-fou de "
+                    f"sanité (ratio scrapé/recalculé hors [{SEUIL_RATIO_MIN}, "
+                    f"{SEUIL_RATIO_MAX}] ou signe incohérent) — eps scrapé conservé."
+                )
+                eps_warnings.append(garde_fou_msg)
+                print(f"  🛑 {garde_fou_msg}")
 
             status = insert_fundamental(row)
             if status in [200, 201]:

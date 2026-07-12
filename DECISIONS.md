@@ -860,3 +860,37 @@ correction : continuité de prix confirmée (2016 : 2355–3911 FCFA,
 
 **Source**
 BRVM Avis N°164-2017/BRVM/DG — https://www.richbourse.com/common/actualite/afficher-fichier/07-09-2017-nestle-ci-fractionnement-dactions-valeur-theorique
+
+## ADR-033 : EPS recalculé (net_income/shares_outstanding) comme valeur primaire, avec garde-fou de sanité — 11/07/2026
+
+**Contexte (T4) :** `scrape_all_v4.py` scrapait l'EPS directement depuis stockanalysis.com
+("EPS (Basic)"), avec un simple calcul de cross-check (`check_eps_coherence`) qui
+loggait les divergences sans jamais corriger `row['eps']`.
+
+**Décision :** `eps_recalcule = net_income × 1 000 000 / shares_outstanding` devient
+la valeur primaire écrite dans `company_fundamentals.eps`. L'eps scrapé devient le
+signal de cross-check (fallback si recalcul impossible, log si divergence).
+
+**Garde-fou ajouté :** si le ratio eps_scrapé/eps_recalcule est hors [0.2, 5] ou de
+signe incohérent, le remplacement est bloqué et l'eps scrapé est conservé — pour
+éviter d'insérer des valeurs aberrantes en base (cf. limite connue ci-dessous).
+
+**Limite connue — NON résolue par cet ADR :** `shares_outstanding` scrapé en direct
+depuis stockanalysis.com souffre de deux problèmes cumulés, hors périmètre T4 :
+1. `parse_val()` n'applique pas le multiplicateur du suffixe `'M'` (ex. "1.10M" → `1.1`
+   au lieu de `1 100 000`) — bug de parsing générique, potentiellement présent sur
+   d'autres champs de la page overview.
+2. Pour NTLC (et probablement BICC, SOGC — cf. docstring `check_eps_coherence`),
+   stockanalysis.com n'a jamais répercuté le split 20:1 de 2017 (ADR-032) sur
+   `shares_outstanding` — la vraie valeur (22 070 400, confirmée par calcul manuel :
+   822.37 FCFA d'EPS FY2024 exact) n'existe qu'en base Supabase (correction
+   manuelle antérieure, ADR-012), pas côté source.
+
+**Conséquence :** pour NTLC, le garde-fou bloque le remplacement (ratio ~1e-6, hors
+bornes) → `eps_scraped` (16447.64, lui-même faux) reste en base. Le critère
+d'acceptation initial de T4 (NTLC FY2024 = 822.37 FCFA) n'est **pas** atteint.
+Traitement reporté — cf. BACKLOG.md.
+
+**Validation :** 24/24 tests pytest passent (non-régression). Validation manuelle
+NTLC FY2024 : eps_recalcule=16 500 000 000 (aberrant), garde-fou déclenché, eps
+scrapé conservé — comportement attendu et volontaire.
