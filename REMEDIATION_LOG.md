@@ -155,4 +155,4 @@ en T4.
 - Validation manuelle NTLC FY2024 : eps_recalcule=16 500 000 000 (aberrant),
   garde-fou déclenché, eps_scraped=16447.64 conservé (comportement attendu).
 
-Commits : (à renseigner après le commit ci-dessous)
+Commits : 120008a
