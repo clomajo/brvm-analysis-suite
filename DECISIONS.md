@@ -894,3 +894,26 @@ Traitement reporté — cf. BACKLOG.md.
 **Validation :** 24/24 tests pytest passent (non-régression). Validation manuelle
 NTLC FY2024 : eps_recalcule=16 500 000 000 (aberrant), garde-fou déclenché, eps
 scrapé conservé — comportement attendu et volontaire.
+
+## ADR-034 : Frais de transaction et traitement IRVM — T5a
+
+**Contexte** : Collecte des frais de courtage réels et taux IRVM pour l'intégration T5b dans le pipeline de backtest dividend capture.
+
+**Décisions** :
+1. Structure de frais de transaction retenue :
+   - Commission BRVM : 0,2% du montant (acheteur + vendeur), source officielle brvm.org
+   - Commission DC/BR : 0,1% du montant (acheteur + vendeur), source officielle brvm.org
+   - Courtage SGI BOA Capital Securities : 1% du montant, maximum homologué 1% — **source Scribd non-primaire, non re-confirmée via CREPMF ou avis d'opéré réel**
+2. IRVM : Jocelyn confirmé personne physique (formulaire consentement BOA Capital, 27/12/2025). Taux applicable dépend du statut brut/net par titre, indiqué par avis officiel BRVM (astérisque = brut, IRVM à appliquer ; sans astérisque = net, IRVM déjà déduit).
+3. Méthode de calcul confirmée sur cas réel (NTLC exercice 2024) : dividende net = dividende brut × (1 − taux IRVM). Ex. 820 FCFA brut × (1 − 0,12) = 721,6 FCFA net pour personne physique.
+4. Statuts confirmés par ticker (dernière donnée disponible) :
+   - BOAC : net (exercice 2025, 594,528 FCFA)
+   - BOAB : net (exercice 2025, 585 FCFA)
+   - ECOC : brut, IRVM 12% (exercice 2025, 888 FCFA)
+   - NTLC : brut, IRVM 12% (exercice 2024, 820 FCFA — exercice 2025 non encore publié à cette date)
+   - NSBC : net (exercice 2024, 759,2612 FCFA — exercice 2025 non encore publié à cette date)
+   - SMBC : **aucun avis identifié, statut brut/net et taux inconnus**
+
+**Limitations connues (voir BACKLOG.md)** : taux courtage SGI non confirmé par source primaire ; SMBC sans donnée ; NTLC/NSBC exercice 2025 non publiés ; possible désynchronisation brut/net dans `corporate_events` déjà stocké.
+
+**Statut** : T5a clôturée avec limitations documentées. T5b peut démarrer avec ces valeurs, sous réserve de correction ultérieure si les gaps se résolvent.

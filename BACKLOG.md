@@ -353,3 +353,8 @@ Prototype DDM/PE hybride testé. Rejeté (ADR-033). Modèle pragmatique identifi
   `parse_val()` en amont, ce qui résoudrait une partie du problème mais pas le split
   non répercuté à la source.
 - **Bloque :** atteinte du critère d'acceptation initial T4 (NTLC FY2024 EPS = 822.37 FCFA).
+
+- [ ] Confirmer taux courtage SGI BOA Capital (1%) via source primaire CREPMF ou avis d'opéré réel (actuellement source Scribd non-primaire) — bloque la précision de T5b
+- [ ] SMBC : identifier avis de dividende (statut brut/net + montant), aucune donnée trouvée à ce jour
+- [ ] NTLC, NSBC : re-vérifier une fois l'avis exercice 2025 publié par la BRVM (non disponible au 13/07/2026)
+- [ ] Vérifier si les montants de dividende déjà stockés dans `corporate_events` (DIVIDEND_HISTORY) reflètent le brut ou le net selon le ticker — risque de double-comptage ou d'omission de l'IRVM dans les calculs de rendement historiques
