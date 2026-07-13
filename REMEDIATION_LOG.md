@@ -156,3 +156,53 @@ en T4.
   garde-fou déclenché, eps_scraped=16447.64 conservé (comportement attendu).
 
 Commits : 120008a
+## T5b — Backtest net (frais) — V2 cours cible
+
+**Date d'exécution :** 13/07/2026
+
+**Source des signaux :** `backtest_value.py` (commit `49a64b6`), réplique via `backtest_net_value.py` (aucune modification du script source).
+
+**Portée du calcul net :** frais de transaction uniquement. Cette stratégie (convergence prix/valeur intrinsèque) ne comptabilise pas de dividende encaissé dans son rendement mesuré — **aucun terme IRVM appliqué ici**. Ne pas confondre avec la stratégie dividend capture (BOAB/BOAC/ECOC/SMBC/NSBC/NTLC), traitée séparément en T5c.
+
+**⚠️ Flag 1 :** courtage SGI (1.0%) non confirmé par source primaire (CREPMF ou avis d'opéré réel) — hypothèse de travail issue d'un document Scribd non-primaire (cf. ADR-034, BACKLOG.md).
+
+**⚠️ Flag 2 :** les dividendes éventuellement versés pendant la fenêtre J+90 ne sont pas comptés dans `backtest_value.py`. Le rendement net ci-dessous est donc **conservateur** (sous-estimé) par rapport au rendement total réel (prix + dividende).
+
+**Étape 0 (reproductibilité) :** n=25 signaux ACHAT (attendu 25), médiane J+90 brute=+7.8% (attendu +7.8%) — **dans la tolérance, validé le 13/07/2026**.
+
+**Frais aller-retour appliqués :** 2.6% (= 2 × [0.2% BRVM + 0.1% DC/BR + 1.0% SGI non confirmé])
+
+
+### Tableau comparatif (J+90, n=25 signaux ACHAT)
+
+| Mesure | n | Médiane | Moyenne | % positifs | Pire cas |
+|---|---|---|---|---|---|
+| Brut | 25 | +7.8% | +6.4% | 68.0% | -27.9% |
+| Net (frais 2.6% AR) | 25 | +5.2% | +3.8% | 64.0% | -30.5% |
+
+### Sensibilité FILL_RATE
+
+⚠️ 0.75 est le taux de fill validé pour la stratégie DIVIDEND CAPTURE (walk-forward BOAB/BOAC/ECOC/SMBC/NSBC/NTLC), PAS pour cette stratégie V2 cours cible. Grille fournie à titre informatif/sensibilité uniquement.
+
+| FILL_RATE | n | Médiane | Moyenne | % positifs | Pire cas |
+|---|---|---|---|---|---|
+| 0.60 | 25 | +3.1% | +2.3% | 64.0% | -18.3% |
+| 0.75 | 25 | +3.9% | +2.9% | 64.0% | -22.9% |
+| 0.90 | 25 | +4.7% | +3.4% | 64.0% | -27.4% |
+
+### Calibration seuil_liquidite (proposition)
+
+| Ticker | volume_20j médian |
+|---|---|
+| BOAB | 3,171 |
+| BOAC | 4,623 |
+| ECOC | 1,814 |
+| NSBC | 1,512 |
+| NTLC | 1,772 |
+| SMBC | 952 |
+
+**Médiane des volume_20j (6 tickers) :** 1,793
+**Seuil proposé (× 0.5) :** 896
+
+*Proposition chiffrée à valider par Jocelyn — non appliquée au pipeline dans cette tâche.*
+
