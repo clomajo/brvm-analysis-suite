@@ -206,3 +206,62 @@ Commits : 120008a
 
 *Proposition chiffrée à valider par Jocelyn — non appliquée au pipeline dans cette tâche.*
 
+## T6 — Stress-test statistique V2 (cours cible)
+
+**Date d'exécution :** 13/07/2026
+
+**Source des signaux :** identique à T5b — `backtest_value.py` (commit `49a64b6`), répliqué via `tools/stress_test_v2.py`.
+
+**Étape 0 (reproductibilité, seuils par défaut) :** n=25 (attendu 25), médiane J+90=+7.8% (attendu +7.8%).
+
+
+### Volet 1 — Bootstrap (10 000 tirages)
+
+- n = 25, médiane observée = +7.8%, moyenne observée = +6.4%
+- IC95% médiane : [-1.6%, +14.3%]
+- IC95% moyenne : [+1.2%, +11.4%]
+
+⚠️ **Règle appliquée :** **V2 non prouvé statistiquement** — plafonner la taille de position par signal à un montant défini par Jocelyn jusqu'à n ≥ 60 signaux vérifiés.
+
+
+### Volet 2 — Walk-forward (3 tiers chronologiques)
+
+| Tiers | n | Période | Médiane | Moyenne |
+|---|---|---|---|---|
+| 1 | 8 | 2022-04-30 → 2023-04-30 | +9.8% | +7.5% |
+| 2 | 8 | 2023-04-30 → 2024-04-30 | +5.2% | +3.1% |
+| 3 | 9 | 2024-04-30 → 2025-04-30 | +8.4% | +8.3% |
+
+✅ Tous les tiers ont une médiane ≥ 0 — règle non déclenchée.
+
+
+### Volet 3 — Sensibilité aux seuils (grille ROE × P/B)
+
+| ROE \ P/B | 2.0 | 2.5 | 3.0 |
+|---|---|---|---|
+| 12 | n=22, +7.2% | n=26, +6.9% | n=28, +6.9% |
+| 15 | n=21, +8.4% | n=25, +7.8% | n=27, +7.8% |
+| 18 | n=17, +8.4% | n=21, +7.8% | n=23, +7.8% |
+
+✅ Aucune variation > 50% entre cases adjacentes — règle non déclenchée.
+
+
+### Volet 4 — Biais de survivance (10 tickers exclus)
+
+- Tickers exclus (9) : BNBC, BOAN, CFAC, ETIT, FTSC, NTLC, SICC, SIVC, UNLC
+- Signaux hypothétiques générés (auraient été ACHAT sans exclusion) : 8
+- Dont perdants (perf_j90 < 0) : 5
+
+| Ticker | FY | Perf J+90 hypothétique | Perdant |
+|---|---|---|---|
+| BOAN | FY2021 | -9.7% | oui |
+| BOAN | FY2022 | -4.2% | oui |
+| BOAN | FY2023 | -12.2% | oui |
+| BOAN | FY2024 | -3.5% | oui |
+| NTLC | FY2021 | -10.5% | oui |
+| NTLC | FY2023 | +10.1% | non |
+| NTLC | FY2024 | +19.7% | non |
+| SIVC | FY2023 | +14.1% | non |
+
+*Rapport brut, sans conclusion — interprétation réservée à Jocelyn.*
+
