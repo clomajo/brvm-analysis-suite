@@ -334,3 +334,50 @@ Ces 7 valeurs sont identiques à `PER_FALLBACK` dans `calculate_target_price.py`
 - ✅ `cours_cible` identiques avant/après (5 cas testés, écarts sous le centime)
 - ✅ Écarts PER documentés (aucun écart : source vivante = fallback à ce jour ; nomenclature spec obsolète notée)
 - ✅ Aucune autre modification que `calculate_target_price.py` + création `config/params.py`
+
+## T8 — Audit factuel des providers IA (DeepSeek, Gemini, Mistral)
+
+**Date d'exécution :** 13/07/2026
+
+**Statut :** Audit uniquement, zéro modification de code — conforme à la spec.
+
+**Sortie :** `docs/audit_ai_providers.csv` — 7 lignes (colonnes exactes imposées par la spec, `cout_estime_mensuel` laissé vide pour Jocelyn).
+
+### Méthode
+
+1. `grep -rln -i "deepseek\|gemini\|mistral"` sur tout le repo (hors venv) → 13 fichiers matchant.
+2. Croisement avec `.github/workflows/*.yml` pour distinguer scripts actifs en prod vs scripts de test/diagnostic/orphelins.
+3. Inspection ligne par ligne des scripts actifs (fonctions, modèles, `max_tokens`, table cible).
+
+### Scripts actifs en production avec appel IA (2 confirmés)
+
+- **`fundamental_analyzer.py`** — appelé `.github/workflows/brvm-analysis.yml:208`. Rotation DeepSeek → Gemini → Mistral (s'arrête au premier succès). Écrit dans `fundamental_analysis` (upsert par `report_url`).
+- **`report_generator.py`** — appelé `.github/workflows/brvm-analysis.yml:230`. Même architecture de rotation. Écrit dans `report_summary` + `report_company_analysis`.
+
+Les deux sont déclenchés par le même garde-fou de cadence dans le YAML (commande shell, pas dans le script Python) : `if [ "$DOM" = "01" ] || [ "$DOM" = "15" ]` — bi-hebdomadaire, cohérent avec ADR-021.
+
+**Précision sur l'ordre de rotation :** DeepSeek est le provider **primaire** (tenté en premier), Mistral le **dernier recours** — pas l'inverse. L'ARCHITECTURE.md ("AI Fondamentaux : Mistral AI") laisse entendre que Mistral est principal ; en pratique DeepSeek répond en premier dans l'immense majorité des cas si sa clé API est valide. À corriger dans ARCHITECTURE.md si Jocelyn le souhaite (hors périmètre T8).
+
+### Script consommateur (pas appelant) : `generate_decisions.py`
+
+Ne fait aucun appel API IA. Lit `company_fundamentals.signal_fondamental` (déjà calculé en amont) via REST (`supabase.table('company_fundamentals')...`). Exclu du CSV comme "appelant" — mentionné ici pour traçabilité de la chaîne de données.
+
+### Découverte — script orphelin actif niveau coût : `extract_fundamental_signals.py`
+
+Appelle Mistral (`mistral-small-latest`, différent de `mistral-large-latest` utilisé ailleurs) et **peuple `company_fundamentals.signal_fondamental`** — la colonne lue ensuite par `generate_decisions.py`. **N'apparaît dans aucun workflow YAML** (`.github/workflows/*.yml`) — absent de tout déclenchement automatique confirmé. Dernier commit (`a8145ec`, message "45 tickers Mistral signals... FY2025 fix") suggère une exécution manuelle ponctuelle, pas un job récurrent.
+
+Conséquence pratique : le signal fondamental consommé par `generate_decisions.py` (donc par `brvm_decisions`, donc potentiellement par des décisions ACHAT/SURVEILLER/EVITER affichées) dépend d'un script qui n'a **aucune garantie de rafraîchissement automatique**. Si `extract_fundamental_signals.py` n'est pas relancé manuellement, `signal_fondamental` reste figé à sa dernière exécution connue sans qu'aucune alerte ne le signale (pas de couverture par `health_check.py`, qui ne vérifie que `historical_data`/`target_prices`/`brvm_decisions`).
+
+Item détaillé porté en BACKLOG.md — voir "[T8] extract_fundamental_signals.py".
+
+### Découverte — violation ADR-004 sur 2 scripts actifs
+
+`fundamental_analyzer.py` et `report_generator.py` utilisent tous deux `import psycopg2` et des connexions directes (`conn.commit()`, `cur.execute(...)`) pour écrire en base, en violation du garde-fou non-négociable ADR-004 ("Supabase : REST API uniquement... JAMAIS psycopg2"). Ce n'est pas un point relevé dans les tâches précédentes (T0-T7) et représente un écart structurel sur deux scripts de production actifs, pas des scripts jetables.
+
+Item détaillé porté en BACKLOG.md — voir "[T8] Violation ADR-004".
+
+### Critères d'acceptation
+
+- ✅ `docs/audit_ai_providers.csv` produit avec les colonnes exactes imposées
+- ✅ `cout_estime_mensuel` laissé à Jocelyn (nb appels/mois × tokens estimés fournis en `frequence_appels`/`max_tokens`, à croiser avec les tarifs providers)
+- ✅ Zéro modification de code — audit uniquement

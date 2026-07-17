@@ -383,3 +383,45 @@ non-traçable ou problématique (contrairement à TAUX_ACTUALISATION/ADR-009).
 ailleurs. Le second n'a aucun historique git (probable doublon de téléchargement
 local). Action à décider : supprimer, ou clarifier s'ils doivent remplacer
 `calculate_target_price.py` un jour. Non traité dans T7 (hors périmètre).
+
+## [T8] Violation ADR-004 — psycopg2 dans 2 scripts de prod actifs
+
+Découvert lors de l'audit T8 (13/07/2026) : `fundamental_analyzer.py` et
+`report_generator.py` utilisent `import psycopg2` avec connexions directes
+(`conn.commit()`, `cur.execute(...)`) pour écrire respectivement dans
+`fundamental_analysis` et `report_summary`/`report_company_analysis`.
+
+Ceci viole ADR-004 ("Supabase : REST API uniquement... JAMAIS psycopg2"),
+un garde-fou non-négociable du plan de remédiation. Contrairement aux
+violations déjà connues et corrigées ailleurs dans le projet, celle-ci
+n'avait pas été détectée avant T8 — ces deux scripts sont actifs en
+production (bi-hebdo, 1er et 15 du mois).
+
+**Décision à prendre par Jocelyn :**
+- (a) Migrer les deux scripts vers REST API (upsert via `Prefer: resolution=merge-duplicates`,
+  cohérent avec le pattern déjà utilisé dans `update_sector_per.py`) — tâche
+  de refactor à spécifier séparément, testée sur les contraintes UNIQUE
+  existantes (`report_url` pour fundamental_analysis, `report_date` pour
+  report_summary).
+- (b) Documenter une exception explicite à ADR-004 pour ces deux scripts
+  si une raison technique valable justifie psycopg2 ici (volume d'écritures,
+  transactions multi-tables) — mise à jour de DECISIONS.md avec un nouvel ADR.
+
+Priorité à définir par Jocelyn — ce n'est pas un incident actif (les scripts
+fonctionnent), mais un écart de conformité aux garde-fous du projet.
+
+## [T8] extract_fundamental_signals.py — script orphelin, appelle Mistral, non intégré au workflow
+
+Appelle Mistral (`mistral-small-latest`) et peuple
+`company_fundamentals.signal_fondamental`, colonne lue en aval par
+`generate_decisions.py` (donc potentiellement influente sur les décisions
+ACHAT/SURVEILLER/EVITER affichées). N'apparaît dans aucun workflow YAML —
+absent de tout déclenchement automatique. Dernier commit (`a8145ec`)
+suggère une exécution manuelle ponctuelle (45 tickers), pas un job récurrent.
+
+Risque : `signal_fondamental` reste figé sans alerte si le script n'est pas
+relancé manuellement — non couvert par `health_check.py`.
+
+Décision à prendre : (a) intégrer au workflow avec une cadence définie,
+(b) documenter comme processus manuel volontaire, ou (c) déprécier si
+remplacé fonctionnellement par `fundamental_analyzer.py`.
