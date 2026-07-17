@@ -265,3 +265,72 @@ Commits : 120008a
 
 *Rapport brut, sans conclusion — interprétation réservée à Jocelyn.*
 
+
+## T7 — Centralisation config/params.py
+
+**Date d'exécution :** 13/07/2026
+
+**Fichier créé :** `config/params.py` (+ `config/__init__.py`) — `TAUX_ACTUALISATION = 0.08`, `POIDS_PER = 0.70`, `POIDS_DIVIDENDE = 0.30`.
+
+**Fichier modifié :** `calculate_target_price.py` uniquement (script confirmé actif en prod — seul appelant dans `.github/workflows/brvm-analysis.yml:117`). Diff minimal : `TAUX_REQUIS` devient un alias de `TAUX_ACTUALISATION` importé ; `0.70`/`0.30` remplacés par `POIDS_PER`/`POIDS_DIVIDENDE` dans `calculer_cours_cible()`.
+
+### Inventaire préalable (grep `0\.08\|0\.70\|0\.30`, hors venv)
+
+| Fichier | Ligne | Contexte | Statut |
+|---|---|---|---|
+| `calculate_target_price.py` | 96 | `TAUX_REQUIS = 0.08` | **Modifié (T7)** |
+| `calculate_target_price.py` | 291 | `cours_cible = 0.70 * cours_per + 0.30 * cours_gordon` | **Modifié (T7)** |
+| `calculate_target_price_v3.py` | 278 | `marge = 0.15 if qualite >= 3 else 0.30` | Hors périmètre — voir note ci-dessous |
+| `calculate_target_price_v3 (1).py` | 224, 261 | `rdt_cible = 0.08`, `marge = 0.15 if qualite >= 3 else 0.30` | Hors périmètre — voir note ci-dessous |
+| `generate_decisions.py` | 112, 234, 293 | poids scoring technique (TG/BF/ML/NE, ratio_tech/ratio_fund, rsi/trend/vol) | → BACKLOG |
+| `generate_decisions_backup.py` | 105-106 | poids scoring (backup, non actif) | → BACKLOG |
+| `opportunity_scorer.py` | 52 | `WEIGHT_FUND = 0.30` | → BACKLOG |
+| `opportunity_scorer_all.py` | 26 | `WEIGHT_FUND = 0.30` | → BACKLOG |
+| `opportunity_scorer_v2.py` | 25 | `WEIGHT_FUND = 0.30` | → BACKLOG |
+| `report_generator.py` | 1144, 1147 | `risk_score += vol_score * 0.30` | → BACKLOG |
+| `backtest_honest_v2.py` | 196 | grille de test `[0.30, 0.40, 0.50]` | → BACKLOG (script de backtest, pas de prod) |
+| `backtest_step5.py` | 38-41 | poids scoring (rsi/trend/vol_regime) | → BACKLOG (script de backtest, pas de prod) |
+
+**Note — `calculate_target_price_v3.py` / `calculate_target_price_v3 (1).py` :** vérifiés non actifs. Absents de `.github/workflows/*.yml` (seul `calculate_target_price.py` y est appelé). `calculate_target_price_v3.py` n'a qu'un commit (`78ff24a`, session du 04/06/2026) et n'est importé par aucun autre script. `"calculate_target_price_v3 (1).py"` (avec espace et suffixe `(1)`) n'a aucun historique git — doublon local probable. Les deux sont laissés inchangés dans cette tâche ; leur suppression ou clarification est un item BACKLOG distinct, pas un item T7.
+
+**Occurrences dans `opportunity_scorer*.py`, `generate_decisions*.py`, `report_generator.py`, `backtest_*.py` :** ce sont des pondérations de scoring technique/fondamental (V1, backtests), sans rapport avec le modèle cours cible V2 ciblé par T7. Match grep purement numérique (mêmes valeurs 0.30/0.70 réutilisées pour d'autres pondérations). Non modifiées — reportées en BACKLOG.md comme demandé par la spec.
+
+### Test de non-régression
+
+`tools/test_t7_nonregression.py` (jetable, non committé — capturé par `.gitignore` `test_*.py`) : `calculer_cours_cible()` testée en isolation (fonction pure) sur 5 cas couvrant les 3 branches (PER+Gordon, PER seul, Gordon seul, cas nul), comparant l'ancien calcul (constantes en dur) et le nouveau (constantes importées de `config/params.py`).
+
+| Ticker témoin | Cas | Avant | Après | Écart |
+|---|---|---|---|---|
+| SONATEL | PER+Gordon | 18435.0 | 18435.0 | 0.0 |
+| ECOBANK | PER seul | 3100.0 | 3100.0 | 0.0 |
+| NESTLE_CI | Gordon seul | 1500.0 | 1500.0 | 0.0 |
+| XYZTEST | ni l'un ni l'autre (None) | None | None | — |
+| BOAC | PER+Gordon | 993.35 | 993.35 | ~1.1e-13 (bruit flottant, non significatif) |
+
+✅ **Résultat : 5/5 cas identiques au centime — non-régression confirmée.**
+
+### Rafraîchissement PER sectoriels
+
+**Écart avec la spec d'origine :** la spec T7 (Phase 7 du plan v1.2) demande une comparaison aux 5 anciennes catégories du skill (Banque 12.4x, Agro 10.2x, Industrie 13.2x, Telecom 13.3x, Distribution 16.1x). Cette nomenclature a été remplacée par les 7 catégories officielles BRVM depuis la migration du 20/06/2026 (cf. docstring `calculate_target_price.py`, ADR-010) — la comparaison telle que spécifiée n'est plus applicable telle quelle.
+
+`update_sector_per.py` est un script de **saisie interactive manuelle** (prompts `input()` par secteur, source = Tableau de Bord BOA du jour) — non exécuté dans cette tâche (pas de Tableau de Bord du jour disponible en session).
+
+À la place : lecture directe de l'état actuel de `sector_per_history` (7 catégories officielles) :
+
+| Secteur | P/E 2024 | Date de relevé |
+|---|---|---|
+| CONSOMMATION_DE_BASE | 6.5 | 2026-06-21 |
+| CONSOMMATION_DISCRETIONNAIRE | 10.0 | 2026-06-21 |
+| ENERGIE | 5.1 | 2026-06-21 |
+| INDUSTRIELS | 3.5 | 2026-06-21 |
+| SERVICES_FINANCIERS | 14.7 | 2026-06-21 |
+| SERVICES_PUBLICS | 6.0 | 2026-06-21 |
+| TELECOMMUNICATIONS | 14.7 | 2026-06-21 |
+
+Ces 7 valeurs sont identiques à `PER_FALLBACK` dans `calculate_target_price.py` — aucun écart entre la source vivante et le fallback à ce jour. Dernier relevé : **21/06/2026**, soit >3 semaines — prochaine saisie mensuelle à prévoir prochainement par Jocelyn via `update_sector_per.py`.
+
+### Critères d'acceptation
+
+- ✅ `cours_cible` identiques avant/après (5 cas testés, écarts sous le centime)
+- ✅ Écarts PER documentés (aucun écart : source vivante = fallback à ce jour ; nomenclature spec obsolète notée)
+- ✅ Aucune autre modification que `calculate_target_price.py` + création `config/params.py`
