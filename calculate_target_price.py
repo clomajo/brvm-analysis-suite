@@ -93,7 +93,9 @@ PER_FALLBACK = {
     "AUTRE": 11.0,  # ticker non mappé à un secteur connu
 }
 
-TAUX_REQUIS = 0.08  # 8% — maintenu, cf. ADR-009 (origine non traçable, pas de base de remplacement fiable)
+from config.params import TAUX_ACTUALISATION, POIDS_PER, POIDS_DIVIDENDE
+
+TAUX_REQUIS = TAUX_ACTUALISATION  # cf. config/params.py (T7) — ADR-009, origine non traçable
 
 
 def get_secteur(ticker):
@@ -288,7 +290,7 @@ def calculer_cours_cible(eps, dividende, secteur, per_par_secteur):
         cours_gordon = dividende / TAUX_REQUIS
 
     if cours_per and cours_gordon:
-        cours_cible = 0.70 * cours_per + 0.30 * cours_gordon
+        cours_cible = POIDS_PER * cours_per + POIDS_DIVIDENDE * cours_gordon
         methode = "PER70+Gordon30"
     elif cours_per:
         cours_cible = cours_per

@@ -358,3 +358,28 @@ Prototype DDM/PE hybride testé. Rejeté (ADR-033). Modèle pragmatique identifi
 - [ ] SMBC : identifier avis de dividende (statut brut/net + montant), aucune donnée trouvée à ce jour
 - [ ] NTLC, NSBC : re-vérifier une fois l'avis exercice 2025 publié par la BRVM (non disponible au 13/07/2026)
 - [ ] Vérifier si les montants de dividende déjà stockés dans `corporate_events` (DIVIDEND_HISTORY) reflètent le brut ou le net selon le ticker — risque de double-comptage ou d'omission de l'IRVM dans les calculs de rendement historiques
+
+## [T7] Constantes de scoring non centralisées (hors périmètre T7)
+
+Repérées lors de l'inventaire T7 (grep `0\.08\|0\.70\|0\.30`), non modifiées
+car sans rapport avec le modèle cours cible V2 :
+
+- `generate_decisions.py` (lignes 112, 234, 293) : poids scoring technique/fondamental
+- `opportunity_scorer.py`, `opportunity_scorer_all.py`, `opportunity_scorer_v2.py` :
+  `WEIGHT_FUND = 0.30` (3 versions du même scorer —à consolider, cf. aussi T8)
+- `report_generator.py` (lignes 1144, 1147) : `vol_score * 0.30`
+- `generate_decisions_backup.py`, `backtest_honest_v2.py`, `backtest_step5.py` :
+  scripts backup/backtest, pas de prod active
+
+Action potentielle future : centraliser aussi ces poids dans un fichier config
+dédié (ex. `config/scoring_params.py`), si une refonte V1/scoring est engagée.
+Priorité basse — aucune de ces valeurs n'est actuellement documentée comme
+non-traçable ou problématique (contrairement à TAUX_ACTUALISATION/ADR-009).
+
+## [T7] Doublon de fichiers calculate_target_price_v3
+
+`calculate_target_price_v3.py` et `"calculate_target_price_v3 (1).py"` existent
+à la racine, non actifs (absents de `.github/workflows/*.yml`), non importés
+ailleurs. Le second n'a aucun historique git (probable doublon de téléchargement
+local). Action à décider : supprimer, ou clarifier s'ils doivent remplacer
+`calculate_target_price.py` un jour. Non traité dans T7 (hors périmètre).
