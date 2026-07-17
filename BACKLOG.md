@@ -425,3 +425,56 @@ relancé manuellement — non couvert par `health_check.py`.
 Décision à prendre : (a) intégrer au workflow avec une cadence définie,
 (b) documenter comme processus manuel volontaire, ou (c) déprécier si
 remplacé fonctionnellement par `fundamental_analyzer.py`.
+
+## [BLOQUANT] Frontend affiche la mauvaise analyse fondamentale sur 35/46 tickers (76%)
+
+**Découvert :** 16/07/2026, via inspection visuelle de la page SNTS en prod
+(badge "LIVE" affichant un rapport T1 2025 daté d'un an alors qu'un rapport
+T1 2026 existe et a été analysé plus tôt).
+
+**Cause racine confirmée** (`src/App.jsx:188`, fonction `fetchFundamentalAnalysis`,
+repo `brvm-analytics`) :
+
+```js
+`company_id=eq.${companyId}&select=report_title,report_date,analysis_summary,created_at,updated_at&order=updated_at.desc&limit=1`
+```
+
+Le tri se fait sur `updated_at` (quand la ligne a été modifiée en base —
+donc quand l'IA a *traité* le PDF) et non sur `report_date` (quand le
+rapport a été *publié*). La contrainte `UNIQUE(report_url)` avec upsert
+(`fundamental_analyzer.py::_save_to_db`) met à jour `analysis_timestamp`
+(qui alimente `updated_at`) à chaque nouvelle passe sur un même rapport —
+y compris un vieux rapport ré-analysé par erreur ou par un run étendu.
+Résultat : un vieux rapport ré-touché récemment "gagne" l'affichage
+devant un rapport plus récent jamais retouché depuis son premier passage.
+
+**Mesure d'ampleur** (script one-off, 16/07/2026, comparaison
+`sorted by updated_at.desc` vs `sorted by report_date.desc` par ticker) :
+
+- 46 tickers ont au moins une analyse en base
+- **35 tickers (76%) affichent actuellement une analyse dont le
+  `report_date` n'est PAS le plus récent disponible** pour ce ticker
+- Écarts observés : de quelques mois (SEMC, SICC) à **plus de 3 ans**
+  (UNLC : affiche un rapport de mars 2022 alors qu'un rapport de
+  décembre 2023 existe déjà en base)
+- Cas emblématique SNTS : affiche T1 2025 (analysé le 15/07/2026) alors
+  que T1 2026 est disponible et analysé depuis le 01/07/2026
+
+**Correction proposée** (à valider par Jocelyn avant exécution — hors
+périmètre de cette découverte, nécessite une tâche dédiée) :
+
+```js
+`...&order=report_date.desc&limit=1`
+```
+
+Remplacer `updated_at.desc` par `report_date.desc` dans la requête
+`fetchFundamentalAnalysis` (`src/App.jsx:188`). Changement d'une seule
+ligne, mais impact direct sur l'app en production (76% des tickers
+affichés changeraient de contenu) — nécessite : (1) vérification que
+`report_date` est fiable/non-null pour toutes les lignes concernées,
+(2) test sur quelques tickers avant déploiement, (3) probablement un
+commit séparé sur le repo `brvm-analytics` (frontend), pas
+`brvm-analysis-suite`.
+
+**Priorité : haute** — impacte la crédibilité de l'information affichée
+aux utilisateurs sur la majorité des tickers couverts.
