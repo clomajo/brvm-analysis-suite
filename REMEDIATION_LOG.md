@@ -381,3 +381,46 @@ Item détaillé porté en BACKLOG.md — voir "[T8] Violation ADR-004".
 - ✅ `docs/audit_ai_providers.csv` produit avec les colonnes exactes imposées
 - ✅ `cout_estime_mensuel` laissé à Jocelyn (nb appels/mois × tokens estimés fournis en `frequence_appels`/`max_tokens`, à croiser avec les tarifs providers)
 - ✅ Zéro modification de code — audit uniquement
+
+## Vérification multi-horizon du signal ACHAT V1 (J+20 à J+90)
+
+**Date d'exécution :** 18/07/2026
+
+**Contexte :** `verify_decisions.py` ne vérifie officiellement qu'à J+20 (changé depuis J+90 le 30/05/2026, commit `07f46c6`, justifié à l'époque par l'ADR-019 original — "90 jours croise trop d'événements exogènes qui masquent le signal initial"). Cet ADR a depuis été écrasé par une collision de numérotation le 28/06/2026 (un autre sujet a réutilisé le numéro ADR-019) — sa justification originale reste consultable dans l'historique git (`git log -p -- DECISIONS.md`) mais a disparu de la version courante de `DECISIONS.md`. Item BACKLOG à créer séparément pour restaurer cet ADR sous un nouveau numéro.
+
+Face à la question de savoir si le signal V1 reste bon au-delà de J+20, un calcul ad hoc a été fait directement depuis `historical_data` (pas depuis `brvm_decisions_results`, qui ne couvre que J+20/21/30/43 par construction du script existant), pour tous les signaux ACHAT ayant atteint chaque horizon en âge à la date du calcul.
+
+### Méthode
+
+- Source des signaux : `brvm_decisions` filtré sur `signal = 'ACHAT'` (1305 signaux au total, depuis le 03/04/2026)
+- Prix : `historical_data`, recherche du prix le plus proche (fenêtre ±7 jours) à la date du signal et à `date_signal + horizon`
+- "Correct" = variation de prix strictement positive (`variation_pct > 0`) entre la date du signal et la date cible
+- Un signal n'est inclus dans un horizon que si son âge réel (aujourd'hui − date du signal) est ≥ à cet horizon
+
+### Résultats
+
+| Horizon | n | Hit rate | Médiane | Moyenne |
+|---|---|---|---|---|
+| J+20 (vérifié par `verify_decisions.py`, table `brvm_decisions_results`) | 843 | 65.6% | +3.6% | +5.6% |
+| J+30 (calcul ad hoc) | 768 | 68.2% | +5.4% | +7.3% |
+| J+45 (calcul ad hoc) | 484 | 69.2% | +8.7% | +11.9% |
+| J+60 (calcul ad hoc) | 306 | 66.0% | +6.2% | +12.7% |
+| J+90 (calcul ad hoc) | 132 | **81.8%** | **+11.4%** | **+24.0%** |
+
+Pour référence, sur les mêmes 2712 lignes de `brvm_decisions_results` (majoritairement J+20/21/30/43), la ventilation par type de signal :
+
+| Signal | n | % correct | Médiane var% | Moyenne var% |
+|---|---|---|---|---|
+| ACHAT | 843 | 65.6% | +3.6% | +5.6% |
+| SURVEILLER | 1608 | 49.0% | +2.2% | +3.6% |
+| EVITER | 261 | 46.0% | +3.0% | +2.7% |
+
+### Lecture
+
+Le signal ACHAT montre un hit rate croissant avec l'horizon (65.6% à J+20 → 81.8% à J+90), avec une médiane et une moyenne également croissantes. C'est le résultat le plus solide obtenu à ce jour sur l'ensemble des vérifications de performance menées sur le projet (T6 sur V2 cours cible : IC95% incluant 0 sur n=25 ; dividend capture : pas de source committée, cf. T5c) :
+- Échantillon nettement plus large (843 à 132 selon l'horizon, contre 25-26 pour V2/dividend capture)
+- Progression cohérente avec l'horizon, pas un point isolé
+
+**Réserve méthodologique :** l'échantillon à J+90 (n=132) ne couvre que les signaux les plus anciens (avril-mai 2026) — une fenêtre calendaire plus étroite que J+20 (avril-juillet). Si le marché BRVM a connu une tendance haussière particulièrement marquée sur cette période spécifique, une partie du hit rate élevé à J+90 pourrait refléter ce momentum général plutôt que la seule qualité du signal — le même biais de confusion identifié aujourd'hui pour le groupe BOA et SNTS (mouvements de marché communs indépendants du signal testé). Aucun contrôle pour ce facteur n'a été fait dans ce calcul ad hoc.
+
+**Ce calcul est ad hoc et non committé comme script de production.** Si ces résultats doivent être présentés formellement (ex. à des clients potentiels), une tâche dédiée devrait committer ce script dans `tools/`, avec la même rigueur que T6 (bootstrap, walk-forward, contrôle du facteur de tendance de marché générale sur la période).
