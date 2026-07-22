@@ -1,0 +1,164 @@
+EXPLORATION FACTUELLE — FENÊTRE ±60J AUTOUR DU PAIEMENT DE DIVIDENDE
+======================================================================
+123/150 cycles exploitables sur 49 tickers
+
+Variation totale (J-60 à J+60)  : médiane=+2.9%, moyenne=+6.2% (n=123)
+Variation avant (J-60 à J-1)     : médiane=+2.5%, moyenne=+3.5% (n=92)
+Variation après (J0 à J+60)      : médiane=+0.2%, moyenne=+2.8% (n=118)
+Ratio volume après/avant          : médiane=0.97x, moyenne=1.24x (n=120)
+
+Détail par cycle exploitable :
+----------------------------------------------------------------------
+BICC     FY2021   paiement=2022-07-15 div=NoneF (None) | avant=+4.2% après=-0.2% total=+11.7% vol_ratio=0.87x
+BICC     FY2022   paiement=2023-07-31 div=NoneF (None) | avant=N/A après=+1.4% total=+2.9% vol_ratio=1.71x
+BICC     FY2023   paiement=2024-06-27 div=NoneF (None) | avant=+44.1% après=-0.1% total=+34.6% vol_ratio=3.16x
+BICC     FY2024   paiement=2025-05-23 div=NoneF (None) | avant=+4.6% après=-4.6% total=+3.1% vol_ratio=1.61x
+BICC     FY2025   paiement=2026-07-06 div=NoneF (None) | avant=+17.5% après=-4.4% total=+12.4% vol_ratio=1.38x
+BNBC     FY2022   paiement=2023-07-24 div=NoneF (None) | avant=N/A après=-8.2% total=-2.0% vol_ratio=1.44x
+BOAB     FY2021   paiement=2022-05-25 div=273.0F (DIVIDEND_HISTORY) | avant=-9.8% après=+5.0% total=-6.8% vol_ratio=0.91x
+BOAB     FY2022   paiement=2023-05-25 div=353.0F (DIVIDEND_HISTORY) | avant=-8.1% après=+5.1% total=-2.5% vol_ratio=3.18x
+BOAB     FY2023   paiement=2024-05-27 div=468.0F (DIVIDEND_HISTORY) | avant=N/A après=-4.3% total=-2.0% vol_ratio=0.74x
+BOAB     FY2024   paiement=2025-06-03 div=585.0F (DIVIDEND_HISTORY) | avant=-8.3% après=+0.3% total=-7.3% vol_ratio=3.49x
+BOAB     FY2025   paiement=2026-05-15 div=585.0F (DIVIDEND) | avant=+22.4% après=-6.5% total=+14.5% vol_ratio=0.67x
+BOABF    FY2021   paiement=2022-05-04 div=224.0F (DIVIDEND_HISTORY) | avant=-4.5% après=-4.3% total=-9.4% vol_ratio=0.79x
+BOABF    FY2022   paiement=2023-05-05 div=352.0F (DIVIDEND_HISTORY) | avant=-0.9% après=+8.9% total=+8.0% vol_ratio=1.21x
+BOABF    FY2023   paiement=2024-05-06 div=428.0F (DIVIDEND_HISTORY) | avant=N/A après=+0.4% total=-5.4% vol_ratio=1.56x
+BOABF    FY2024   paiement=2025-04-22 div=397.0F (DIVIDEND_HISTORY) | avant=N/A après=-6.3% total=+4.4% vol_ratio=0.43x
+BOABF    FY2025   paiement=2026-04-23 div=397.0F (DIVIDEND) | avant=+21.7% après=+3.2% total=+21.0% vol_ratio=0.62x
+BOAC     FY2021   paiement=2022-04-28 div=270.0F (DIVIDEND_HISTORY) | avant=-3.1% après=N/A total=-6.7% vol_ratio=0.24x
+BOAC     FY2022   paiement=2023-04-28 div=342.0F (DIVIDEND_HISTORY) | avant=+13.7% après=+11.0% total=+30.1% vol_ratio=1.58x
+BOAC     FY2023   paiement=2024-04-29 div=459.0F (DIVIDEND_HISTORY) | avant=N/A après=+8.8% total=+3.3% vol_ratio=0.75x
+BOAC     FY2024   paiement=2025-05-20 div=595.0F (DIVIDEND_HISTORY) | avant=-0.3% après=+0.2% total=-2.0% vol_ratio=1.21x
+BOAC     FY2025   paiement=2026-05-06 div=594.53F (DIVIDEND) | avant=+2.9% après=+7.1% total=+7.0% vol_ratio=0.52x
+BOAM     FY2023   paiement=2024-05-21 div=237.0F (DIVIDEND_HISTORY) | avant=N/A après=+1.6% total=-0.3% vol_ratio=0.64x
+BOAM     FY2024   paiement=2025-06-03 div=305.0F (DIVIDEND_HISTORY) | avant=+6.2% après=+30.4% total=+41.2% vol_ratio=1.46x
+BOAM     FY2025   paiement=2026-06-03 div=305.04F (DIVIDEND) | avant=+6.7% après=N/A total=+22.8% vol_ratio=1.37x
+BOAN     FY2021   paiement=2022-05-12 div=355.0F (DIVIDEND_HISTORY) | avant=+9.6% après=-8.1% total=+0.6% vol_ratio=2.08x
+BOAN     FY2022   paiement=2023-05-25 div=381.0F (DIVIDEND_HISTORY) | avant=-9.3% après=+5.6% total=-4.2% vol_ratio=0.61x
+BOAN     FY2023   paiement=2024-05-31 div=209.0F (DIVIDEND_HISTORY) | avant=-9.8% après=-3.6% total=-13.7% vol_ratio=0.72x
+BOAN     FY2024   paiement=2025-06-03 div=NoneF (None) | avant=-4.1% après=-5.2% total=-9.4% vol_ratio=2.36x
+BOAS     FY2021   paiement=2022-06-01 div=125.0F (DIVIDEND_HISTORY) | avant=-6.0% après=-2.8% total=-4.0% vol_ratio=1.03x
+BOAS     FY2022   paiement=2023-06-01 div=200.0F (DIVIDEND_HISTORY) | avant=+17.1% après=+12.0% total=+31.1% vol_ratio=1.11x
+BOAS     FY2023   paiement=2024-06-27 div=350.0F (DIVIDEND_HISTORY) | avant=+6.6% après=+24.7% total=+33.9% vol_ratio=1.41x
+BOAS     FY2024   paiement=2025-06-02 div=450.0F (DIVIDEND_HISTORY) | avant=N/A après=+11.4% total=+12.5% vol_ratio=0.85x
+BOAS     FY2025   paiement=2026-06-01 div=450.0F (DIVIDEND) | avant=+10.2% après=+1.3% total=+12.4% vol_ratio=1.45x
+CABC     FY2021   paiement=2022-08-02 div=69.0F (DIVIDEND_HISTORY) | avant=+4.9% après=-1.4% total=+6.4% vol_ratio=1.04x
+CABC     FY2022   paiement=2023-08-02 div=80.0F (DIVIDEND_HISTORY) | avant=+14.4% après=-5.7% total=+15.9% vol_ratio=0.56x
+CABC     FY2025   paiement=2026-06-01 div=152.02F (DIVIDEND) | avant=-9.9% après=+4.3% total=-6.0% vol_ratio=0.75x
+CBIBF    FY2021   paiement=2022-07-06 div=525.0F (DIVIDEND_HISTORY) | avant=-7.3% après=-2.3% total=-9.5% vol_ratio=1.57x
+CBIBF    FY2022   paiement=2023-07-06 div=790.0F (DIVIDEND_HISTORY) | avant=+3.5% après=+0.8% total=+4.4% vol_ratio=0.74x
+CBIBF    FY2023   paiement=2024-07-05 div=555.0F (DIVIDEND_HISTORY) | avant=+9.5% après=-4.0% total=+5.3% vol_ratio=1.18x
+CBIBF    FY2024   paiement=2025-07-07 div=900.0F (DIVIDEND_HISTORY) | avant=N/A après=-1.5% total=-1.0% vol_ratio=0.69x
+CBIBF    FY2025   paiement=2026-06-19 div=900.0F (DIVIDEND) | avant=+33.3% après=+27.2% total=+69.5% vol_ratio=1.15x
+CFAC     FY2021   paiement=2022-08-02 div=29.0F (DIVIDEND_HISTORY) | avant=+6.2% après=+1.8% total=+6.2% vol_ratio=0.46x
+CFAC     FY2022   paiement=2023-09-15 div=16.0F (DIVIDEND_HISTORY) | avant=+7.1% après=-12.2% total=-6.5% vol_ratio=1.32x
+CFAC     FY2023   paiement=2024-08-30 div=7.0F (DIVIDEND_HISTORY) | avant=+0.0% après=N/A total=-7.3% vol_ratio=3.93x
+CFAC     FY2024   paiement=2025-08-19 div=55.0F (DIVIDEND_HISTORY) | avant=+0.8% après=+118.5% total=+121.8% vol_ratio=3.56x
+CIEC     FY2021   paiement=2022-07-25 div=158.0F (DIVIDEND_HISTORY) | avant=N/A après=+0.7% total=-2.2% vol_ratio=0.94x
+CIEC     FY2022   paiement=2023-07-31 div=171.0F (DIVIDEND_HISTORY) | avant=N/A après=-9.1% total=-2.2% vol_ratio=2.64x
+CIEC     FY2023   paiement=2024-07-30 div=158.0F (DIVIDEND_HISTORY) | avant=+2.1% après=+13.7% total=+16.8% vol_ratio=0.76x
+CIEC     FY2024   paiement=2025-07-31 div=374.0F (DIVIDEND_HISTORY) | avant=-6.0% après=-0.2% total=-4.2% vol_ratio=1.38x
+CIEC     FY2025   paiement=2026-07-01 div=234.0F (DIVIDEND) | avant=+63.1% après=-2.3% total=+59.9% vol_ratio=0.63x
+ECOC     FY2021   paiement=2022-04-29 div=549.0F (DIVIDEND_HISTORY) | avant=N/A après=-4.2% total=+0.0% vol_ratio=5.87x
+ECOC     FY2022   paiement=2023-05-30 div=594.0F (DIVIDEND_HISTORY) | avant=N/A après=+9.5% total=+16.8% vol_ratio=0.79x
+ECOC     FY2023   paiement=2024-05-30 div=708.0F (DIVIDEND_HISTORY) | avant=+5.9% après=+0.0% total=+5.9% vol_ratio=0.69x
+ECOC     FY2024   paiement=2025-05-30 div=781.0F (DIVIDEND_HISTORY) | avant=N/A après=+4.0% total=+17.6% vol_ratio=1.66x
+ECOC     FY2025   paiement=2026-05-22 div=888.0F (DIVIDEND) | avant=+0.0% après=-1.8% total=-1.8% vol_ratio=1.95x
+ETIT     FY2021   paiement=2022-06-20 div=NoneF (None) | avant=N/A après=+12.5% total=+5.9% vol_ratio=0.88x
+ETIT     FY2022   paiement=2023-06-08 div=NoneF (None) | avant=+5.9% après=+0.0% total=+5.9% vol_ratio=0.59x
+FTSC     FY2023   paiement=2024-09-30 div=1727.0F (DIVIDEND_HISTORY) | avant=N/A après=+25.0% total=+24.1% vol_ratio=2.94x
+FTSC     FY2024   paiement=2025-09-30 div=NoneF (None) | avant=-18.5% après=-11.1% total=-22.2% vol_ratio=0.91x
+NEIC     FY2022   paiement=2023-09-22 div=NoneF (None) | avant=-5.8% après=-8.5% total=-13.8% vol_ratio=0.90x
+NEIC     FY2023   paiement=2024-06-25 div=NoneF (None) | avant=+12.8% après=-6.1% total=+2.7% vol_ratio=0.26x
+NSBC     FY2022   paiement=2023-07-07 div=455.0F (DIVIDEND_HISTORY) | avant=+3.3% après=+7.7% total=+11.2% vol_ratio=1.46x
+NSBC     FY2023   paiement=2024-07-08 div=671.0F (DIVIDEND_HISTORY) | avant=N/A après=+5.5% total=+13.6% vol_ratio=1.14x
+NSBC     FY2024   paiement=2025-07-09 div=676.0F (DIVIDEND_HISTORY) | avant=+8.2% après=+3.6% total=+15.1% vol_ratio=0.69x
+NTLC     FY2021   paiement=2022-08-02 div=728.0F (DIVIDEND_HISTORY) | avant=-1.6% après=+4.5% total=+1.4% vol_ratio=2.84x
+NTLC     FY2022   paiement=2023-08-08 div=675.0F (DIVIDEND_HISTORY) | avant=N/A après=-8.2% total=+2.5% vol_ratio=0.63x
+NTLC     FY2023   paiement=2024-08-20 div=722.0F (DIVIDEND_HISTORY) | avant=-4.2% après=-0.7% total=-4.9% vol_ratio=1.58x
+NTLC     FY2024   paiement=2025-08-18 div=370.0F (DIVIDEND_HISTORY) | avant=N/A après=+9.8% total=+20.7% vol_ratio=0.77x
+ONTBF    FY2021   paiement=2022-06-15 div=288.0F (DIVIDEND_HISTORY) | avant=-7.5% après=+1.3% total=-6.9% vol_ratio=0.53x
+ONTBF    FY2022   paiement=2023-06-26 div=266.0F (DIVIDEND_HISTORY) | avant=N/A après=+6.6% total=+2.0% vol_ratio=0.83x
+ONTBF    FY2023   paiement=2024-07-31 div=195.0F (DIVIDEND_HISTORY) | avant=+7.8% après=+15.9% total=+25.0% vol_ratio=0.92x
+ONTBF    FY2024   paiement=2025-07-21 div=145.0F (DIVIDEND_HISTORY) | avant=N/A après=+2.3% total=+2.9% vol_ratio=0.70x
+ONTBF    FY2025   paiement=2026-06-15 div=145.32F (DIVIDEND) | avant=+0.7% après=-5.0% total=-4.3% vol_ratio=1.61x
+ORAC     FY2022   paiement=2023-06-15 div=780.0F (DIVIDEND_HISTORY) | avant=+4.4% après=+6.4% total=+9.4% vol_ratio=0.93x
+ORAC     FY2023   paiement=2024-06-03 div=660.0F (DIVIDEND_HISTORY) | avant=N/A après=+16.5% total=+22.8% vol_ratio=0.98x
+ORAC     FY2024   paiement=2025-06-11 div=704.0F (DIVIDEND_HISTORY) | avant=+7.8% après=-10.5% total=-3.5% vol_ratio=2.41x
+ORAC     FY2025   paiement=2026-06-08 div=800.0F (DIVIDEND) | avant=+10.7% après=-0.7% total=+7.7% vol_ratio=2.10x
+PALC     FY2021   paiement=2022-08-31 div=NoneF (None) | avant=-10.4% après=-1.9% total=-12.8% vol_ratio=1.57x
+PALC     FY2022   paiement=2023-07-19 div=NoneF (None) | avant=-9.8% après=-13.3% total=-21.9% vol_ratio=0.60x
+PALC     FY2023   paiement=2024-07-26 div=NoneF (None) | avant=-4.2% après=-18.6% total=-20.0% vol_ratio=1.45x
+PALC     FY2024   paiement=2025-09-10 div=NoneF (None) | avant=+3.0% après=-6.3% total=-2.3% vol_ratio=1.82x
+PALC     FY2025   paiement=2026-06-29 div=NoneF (None) | avant=+11.4% après=+0.2% total=+10.0% vol_ratio=1.99x
+PRSC     FY2021   paiement=2022-08-30 div=224.0F (DIVIDEND_HISTORY) | avant=-2.7% après=-2.7% total=-4.0% vol_ratio=0.43x
+PRSC     FY2022   paiement=2023-09-13 div=183.0F (DIVIDEND_HISTORY) | avant=+7.8% après=-38.3% total=-34.2% vol_ratio=0.64x
+SDSC     FY2021   paiement=2022-06-23 div=NoneF (None) | avant=+20.4% après=-2.1% total=+17.9% vol_ratio=0.54x
+SDSC     FY2022   paiement=2023-11-20 div=NoneF (None) | avant=N/A après=-2.4% total=-8.5% vol_ratio=0.30x
+SDSC     FY2023   paiement=2024-12-12 div=NoneF (None) | avant=+3.1% après=+3.6% total=+10.3% vol_ratio=0.28x
+SDSC     FY2024   paiement=2025-08-29 div=NoneF (None) | avant=+0.4% après=+1.3% total=+3.0% vol_ratio=1.64x
+SHEC     FY2021   paiement=2022-10-28 div=53.0F (DIVIDEND_HISTORY) | avant=+1.8% après=-9.7% total=-7.1% vol_ratio=1.82x
+SHEC     FY2022   paiement=2023-12-28 div=57.0F (DIVIDEND_HISTORY) | avant=-5.6% après=+4.7% total=-3.1% vol_ratio=0.88x
+SIBC     FY2021   paiement=2022-06-30 div=NoneF (None) | avant=-4.6% après=+8.2% total=+2.8% vol_ratio=1.87x
+SIBC     FY2022   paiement=2023-08-11 div=NoneF (None) | avant=+4.0% après=+2.0% total=+6.8% vol_ratio=0.99x
+SIBC     FY2023   paiement=2024-07-31 div=NoneF (None) | avant=+6.0% après=+0.0% total=+10.9% vol_ratio=1.18x
+SIBC     FY2024   paiement=2025-07-31 div=NoneF (None) | avant=+1.0% après=+14.7% total=+12.3% vol_ratio=0.53x
+SIBC     FY2025   paiement=2026-07-31 div=NoneF (None) | avant=N/A après=N/A total=+3.4% vol_ratio=N/A
+SLBC     FY2021   paiement=2022-08-12 div=NoneF (None) | avant=-6.9% après=-22.2% total=-27.6% vol_ratio=0.26x
+SLBC     FY2023   paiement=2024-08-14 div=1074.0F (DIVIDEND_HISTORY) | avant=+0.0% après=+118.6% total=+118.6% vol_ratio=N/A
+SLBC     FY2024   paiement=2025-07-29 div=1872.0F (DIVIDEND_HISTORY) | avant=+9.5% après=-2.9% total=+9.2% vol_ratio=0.28x
+SMBC     FY2021   paiement=2022-08-24 div=720.0F (DIVIDEND_HISTORY) | avant=-16.7% après=+16.4% total=-5.0% vol_ratio=1.44x
+SMBC     FY2022   paiement=2023-08-31 div=1080.0F (DIVIDEND_HISTORY) | avant=+16.6% après=+8.7% total=+26.8% vol_ratio=0.56x
+SMBC     FY2023   paiement=2024-09-30 div=616.0F (DIVIDEND_HISTORY) | avant=N/A après=-29.7% total=-25.1% vol_ratio=1.83x
+SMBC     FY2024   paiement=2025-09-15 div=704.0F (DIVIDEND_HISTORY) | avant=N/A après=+7.0% total=+11.9% vol_ratio=1.39x
+SNTS     FY2021   paiement=2022-05-18 div=1500.0F (DIVIDEND_HISTORY) | avant=-3.2% après=-1.6% total=-6.5% vol_ratio=1.02x
+SNTS     FY2022   paiement=2023-05-17 div=1575.0F (DIVIDEND_HISTORY) | avant=-5.6% après=+4.5% total=-1.4% vol_ratio=1.78x
+SNTS     FY2025   paiement=2026-05-25 div=1740.0F (DIVIDEND) | avant=+0.3% après=+12.3% total=+12.6% vol_ratio=0.65x
+SOGC     FY2021   paiement=2022-07-21 div=554.0F (DIVIDEND_HISTORY) | avant=-4.5% après=-4.5% total=-9.2% vol_ratio=0.97x
+SOGC     FY2022   paiement=2023-07-17 div=207.0F (DIVIDEND_HISTORY) | avant=N/A après=-12.8% total=-21.3% vol_ratio=0.43x
+SOGC     FY2023   paiement=2024-08-06 div=528.0F (DIVIDEND_HISTORY) | avant=+15.8% après=-2.6% total=+11.9% vol_ratio=0.94x
+SOGC     FY2024   paiement=2025-07-15 div=502.0F (DIVIDEND_HISTORY) | avant=+8.0% après=+8.7% total=+13.9% vol_ratio=1.42x
+SPHC     FY2021   paiement=2022-08-04 div=294.0F (DIVIDEND_HISTORY) | avant=+7.5% après=-3.2% total=+0.0% vol_ratio=1.20x
+SPHC     FY2022   paiement=2023-09-29 div=65.0F (DIVIDEND_HISTORY) | avant=-9.7% après=-25.9% total=-37.5% vol_ratio=0.59x
+SPHC     FY2023   paiement=2024-08-12 div=324.0F (DIVIDEND_HISTORY) | avant=N/A après=+41.9% total=+69.7% vol_ratio=0.85x
+SPHC     FY2024   paiement=2025-07-17 div=430.0F (DIVIDEND_HISTORY) | avant=+0.8% après=+12.7% total=+13.7% vol_ratio=0.51x
+STAC     FY2021   paiement=2022-07-18 div=NoneF (None) | avant=N/A après=-2.6% total=-3.4% vol_ratio=2.61x
+STBC     FY2021   paiement=2022-07-21 div=540.0F (DIVIDEND_HISTORY) | avant=+0.0% après=-5.0% total=-5.0% vol_ratio=2.74x
+STBC     FY2022   paiement=2023-07-27 div=675.0F (DIVIDEND_HISTORY) | avant=+5.5% après=-8.8% total=-3.8% vol_ratio=0.69x
+STBC     FY2023   paiement=2024-07-29 div=2090.0F (DIVIDEND_HISTORY) | avant=N/A après=+6.9% total=+3.5% vol_ratio=0.64x
+STBC     FY2024   paiement=2025-08-29 div=1707.0F (DIVIDEND_HISTORY) | avant=+5.9% après=+4.7% total=+10.2% vol_ratio=0.55x
+STBC     FY2025   paiement=2026-08-28 div=NoneF (None) | avant=N/A après=N/A total=-2.5% vol_ratio=N/A
+TTLC     FY2021   paiement=2022-08-25 div=176.0F (DIVIDEND_HISTORY) | avant=-0.7% après=+2.3% total=+1.6% vol_ratio=1.36x
+TTLC     FY2022   paiement=2023-09-21 div=200.0F (DIVIDEND_HISTORY) | avant=-3.4% après=-13.9% total=-16.8% vol_ratio=0.21x
+TTLC     FY2023   paiement=2024-09-17 div=196.0F (DIVIDEND_HISTORY) | avant=+11.3% après=+4.4% total=+14.5% vol_ratio=0.50x
+TTLC     FY2024   paiement=2025-09-03 div=140.0F (DIVIDEND_HISTORY) | avant=-8.6% après=-2.5% total=-10.9% vol_ratio=1.30x
+
+Cycles NON exploitables (27) :
+----------------------------------------------------------------------
+ABJC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+BICB     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+BRVM30   (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+BRVMC    (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+CABC     FY2023   — seulement 0 jours avec prix sur la fenêtre ±60j
+CABC     FY2024   — seulement 0 jours avec prix sur la fenêtre ±60j
+LNBB     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+ORGT     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+PRSC     FY2023   — seulement 0 jours avec prix sur la fenêtre ±60j
+PRSC     FY2024   — seulement 0 jours avec prix sur la fenêtre ±60j
+SAFC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+SCRC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+SDCC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+SEMC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+SGBC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+SHEC     FY2023   — seulement 0 jours avec prix sur la fenêtre ±60j
+SHEC     FY2024   — seulement 0 jours avec prix sur la fenêtre ±60j
+SICC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+SIVC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+SMBC     FY2025   — seulement 2 jours avec prix sur la fenêtre ±60j
+SNTS     FY2023   — seulement 0 jours avec prix sur la fenêtre ±60j
+SNTS     FY2024   — seulement 0 jours avec prix sur la fenêtre ±60j
+SOGC     FY2025   — seulement 0 jours avec prix sur la fenêtre ±60j
+TTLC     FY2025   — seulement 0 jours avec prix sur la fenêtre ±60j
+TTLS     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+UNLC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker
+UNXC     (aucun cycle) — aucun DIVIDEND_PAYMENT trouvé pour ce ticker

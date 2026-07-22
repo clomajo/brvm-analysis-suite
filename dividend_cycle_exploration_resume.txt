@@ -1,0 +1,162 @@
+EXPLORATION FACTUELLE — CYCLE DIVIDENDE (ANNONCE -> PAIEMENT)
+======================================================================
+89/150 cycles exploitables sur 49 tickers
+
+Variation totale annonce->paiement : médiane=+0.8%, moyenne=+3.4%
+Chute réelle à l'ex-date (% du dividende) : médiane=13.9%, moyenne=29.2%
+
+Détail par cycle exploitable :
+----------------------------------------------------------------------
+BOAB     FY2021   annonce=2022-04-13 ex=2022-05-23 paiement=2022-05-25 div=273.0F (DIVIDEND_HISTORY) | var_totale=-10.7% chute_ex=0.0%
+BOAB     FY2022   annonce=2023-04-14 ex=2023-05-23 paiement=2023-05-25 div=353.0F (DIVIDEND_HISTORY) | var_totale=-6.4% chute_ex=75.8%
+BOAB     FY2023   annonce=2024-04-12 ex=2024-05-23 paiement=2024-05-27 div=468.0F (DIVIDEND_HISTORY) | var_totale=+1.0% chute_ex=31.5%
+BOAB     FY2024   annonce=2025-04-02 ex=2025-05-30 paiement=2025-06-03 div=585.0F (DIVIDEND_HISTORY) | var_totale=-8.7% chute_ex=0.0%
+BOAB     FY2025   annonce=2026-04-30 ex=2026-05-14 paiement=2026-05-15 div=585.0F (DIVIDEND) | var_totale=+5.7% chute_ex=1.7%
+BOABF    FY2021   annonce=2022-03-29 ex=2022-04-29 paiement=2022-05-04 div=224.0F (DIVIDEND_HISTORY) | var_totale=-4.1% chute_ex=0.0%
+BOABF    FY2022   annonce=2023-03-30 ex=2023-05-03 paiement=2023-05-05 div=352.0F (DIVIDEND_HISTORY) | var_totale=-1.5% chute_ex=28.4%
+BOABF    FY2023   annonce=2024-03-28 ex=2024-05-02 paiement=2024-05-06 div=428.0F (DIVIDEND_HISTORY) | var_totale=-7.8% chute_ex=0.0%
+BOABF    FY2024   annonce=2025-03-17 ex=2025-04-17 paiement=2025-04-22 div=397.0F (DIVIDEND_HISTORY) | var_totale=-9.6% chute_ex=73.0%
+BOABF    FY2025   annonce=2026-03-23 ex=2026-04-22 paiement=2026-04-23 div=397.0F (DIVIDEND) | var_totale=+0.1% chute_ex=3.8%
+BOAC     FY2021   annonce=2022-03-31 ex=2022-04-26 paiement=2022-04-28 div=270.0F (DIVIDEND_HISTORY) | var_totale=-1.9% chute_ex=13.9%
+BOAC     FY2022   annonce=2023-03-29 ex=2023-04-26 paiement=2023-04-28 div=342.0F (DIVIDEND_HISTORY) | var_totale=-2.1% chute_ex=73.8%
+BOAC     FY2023   annonce=2024-03-28 ex=2024-04-25 paiement=2024-04-29 div=459.0F (DIVIDEND_HISTORY) | var_totale=-5.9% chute_ex=27.8%
+BOAC     FY2024   annonce=2025-04-16 ex=2025-05-16 paiement=2025-05-20 div=595.0F (DIVIDEND_HISTORY) | var_totale=-0.2% chute_ex=22.7%
+BOAC     FY2025   annonce=2026-04-15 ex=2026-05-05 paiement=2026-05-06 div=594.53F (DIVIDEND) | var_totale=+1.1% chute_ex=57.2%
+BOAM     FY2023   annonce=2024-04-23 ex=2024-05-16 paiement=2024-05-21 div=237.0F (DIVIDEND_HISTORY) | var_totale=-2.5% chute_ex=35.2%
+BOAM     FY2024   annonce=2025-04-10 ex=2025-05-30 paiement=2025-06-03 div=305.0F (DIVIDEND_HISTORY) | var_totale=+4.0% chute_ex=0.0%
+BOAM     FY2025   annonce=2026-04-14 ex=2026-06-02 paiement=2026-06-03 div=305.04F (DIVIDEND) | var_totale=+2.4% chute_ex=82.0%
+BOAN     FY2021   annonce=2022-03-30 ex=2022-05-10 paiement=2022-05-12 div=355.0F (DIVIDEND_HISTORY) | var_totale=+5.5% chute_ex=16.7%
+BOAN     FY2022   annonce=2023-03-30 ex=2023-05-23 paiement=2023-05-25 div=381.0F (DIVIDEND_HISTORY) | var_totale=-8.3% chute_ex=74.6%
+BOAN     FY2023   annonce=2024-04-04 ex=2024-05-29 paiement=2024-05-31 div=209.0F (DIVIDEND_HISTORY) | var_totale=-9.2% chute_ex=121.1%
+BOAS     FY2021   annonce=2022-04-15 ex=2022-05-30 paiement=2022-06-01 div=125.0F (DIVIDEND_HISTORY) | var_totale=+0.8% chute_ex=0.0%
+BOAS     FY2022   annonce=2023-03-31 ex=2023-05-30 paiement=2023-06-01 div=200.0F (DIVIDEND_HISTORY) | var_totale=+17.3% chute_ex=0.0%
+BOAS     FY2023   annonce=2024-04-18 ex=2024-06-25 paiement=2024-06-27 div=350.0F (DIVIDEND_HISTORY) | var_totale=+7.7% chute_ex=55.2%
+BOAS     FY2024   annonce=2025-04-08 ex=2025-05-28 paiement=2025-06-02 div=450.0F (DIVIDEND_HISTORY) | var_totale=-6.8% chute_ex=24.4%
+BOAS     FY2025   annonce=2026-04-30 ex=2026-05-29 paiement=2026-06-01 div=450.0F (DIVIDEND) | var_totale=+8.6% chute_ex=10.0%
+CABC     FY2021   annonce=2022-04-07 ex=2022-07-29 paiement=2022-08-02 div=69.0F (DIVIDEND_HISTORY) | var_totale=+0.0% chute_ex=65.2%
+CABC     FY2025   annonce=2026-04-27 ex=2026-05-29 paiement=2026-06-01 div=152.02F (DIVIDEND) | var_totale=-2.8% chute_ex=-32.9%
+CBIBF    FY2021   annonce=2022-04-07 ex=2022-07-04 paiement=2022-07-06 div=525.0F (DIVIDEND_HISTORY) | var_totale=-9.2% chute_ex=0.0%
+CBIBF    FY2022   annonce=2023-04-17 ex=2023-07-04 paiement=2023-07-06 div=790.0F (DIVIDEND_HISTORY) | var_totale=+3.6% chute_ex=0.6%
+CBIBF    FY2023   annonce=2024-04-12 ex=2024-07-03 paiement=2024-07-05 div=555.0F (DIVIDEND_HISTORY) | var_totale=+15.1% chute_ex=81.1%
+CBIBF    FY2024   annonce=2025-04-29 ex=2025-07-03 paiement=2025-07-07 div=900.0F (DIVIDEND_HISTORY) | var_totale=+0.6% chute_ex=43.9%
+CBIBF    FY2025   annonce=2026-04-16 ex=2026-06-18 paiement=2026-06-19 div=900.0F (DIVIDEND) | var_totale=+42.7% chute_ex=-35.0%
+CFAC     FY2021   annonce=2022-06-21 ex=2022-07-29 paiement=2022-08-02 div=29.0F (DIVIDEND_HISTORY) | var_totale=-3.5% chute_ex=69.0%
+CFAC     FY2022   annonce=2023-06-27 ex=2023-09-13 paiement=2023-09-15 div=16.0F (DIVIDEND_HISTORY) | var_totale=+11.8% chute_ex=156.2%
+CFAC     FY2023   annonce=2024-06-27 ex=2024-08-28 paiement=2024-08-30 div=7.0F (DIVIDEND_HISTORY) | var_totale=+2.2% chute_ex=-357.1%
+CIEC     FY2021   annonce=2022-06-20 ex=2022-07-21 paiement=2022-07-25 div=158.0F (DIVIDEND_HISTORY) | var_totale=-5.1% chute_ex=-3.2%
+CIEC     FY2022   annonce=2023-06-20 ex=2023-07-27 paiement=2023-07-31 div=171.0F (DIVIDEND_HISTORY) | var_totale=+5.8% chute_ex=11.7%
+CIEC     FY2023   annonce=2024-06-26 ex=2024-07-26 paiement=2024-07-30 div=158.0F (DIVIDEND_HISTORY) | var_totale=-4.9% chute_ex=63.3%
+CIEC     FY2025   annonce=2026-06-24 ex=2026-06-30 paiement=2026-07-01 div=234.0F (DIVIDEND) | var_totale=+6.4% chute_ex=-38.5%
+ECOC     FY2021   annonce=2022-04-05 ex=2022-04-26 paiement=2022-04-29 div=549.0F (DIVIDEND_HISTORY) | var_totale=-6.1% chute_ex=51.0%
+ECOC     FY2022   annonce=2023-04-26 ex=2023-05-25 paiement=2023-05-30 div=594.0F (DIVIDEND_HISTORY) | var_totale=-1.9% chute_ex=33.7%
+ECOC     FY2023   annonce=2024-04-25 ex=2024-05-28 paiement=2024-05-30 div=708.0F (DIVIDEND_HISTORY) | var_totale=+5.8% chute_ex=15.5%
+ECOC     FY2024   annonce=2025-04-29 ex=2025-05-27 paiement=2025-05-30 div=781.0F (DIVIDEND_HISTORY) | var_totale=+12.7% chute_ex=103.1%
+ECOC     FY2025   annonce=2026-04-24 ex=2026-05-21 paiement=2026-05-22 div=888.0F (DIVIDEND) | var_totale=+1.9% chute_ex=0.0%
+FTSC     FY2023   annonce=2024-06-20 ex=2024-09-26 paiement=2024-09-30 div=1727.0F (DIVIDEND_HISTORY) | var_totale=+8.7% chute_ex=2.7%
+NSBC     FY2022   annonce=2023-05-19 ex=2023-07-05 paiement=2023-07-07 div=455.0F (DIVIDEND_HISTORY) | var_totale=+7.5% chute_ex=2.2%
+NSBC     FY2023   annonce=2024-05-23 ex=2024-07-04 paiement=2024-07-08 div=671.0F (DIVIDEND_HISTORY) | var_totale=+6.0% chute_ex=2.2%
+NSBC     FY2024   annonce=2025-05-26 ex=2025-07-07 paiement=2025-07-09 div=676.0F (DIVIDEND_HISTORY) | var_totale=+12.4% chute_ex=0.0%
+NTLC     FY2021   annonce=2022-05-20 ex=2022-07-29 paiement=2022-08-02 div=728.0F (DIVIDEND_HISTORY) | var_totale=-2.9% chute_ex=88.6%
+NTLC     FY2022   annonce=2023-05-12 ex=2023-08-03 paiement=2023-08-08 div=675.0F (DIVIDEND_HISTORY) | var_totale=+9.1% chute_ex=29.6%
+NTLC     FY2023   annonce=2024-06-11 ex=2024-08-16 paiement=2024-08-20 div=722.0F (DIVIDEND_HISTORY) | var_totale=-4.3% chute_ex=0.0%
+NTLC     FY2024   annonce=2025-06-12 ex=2025-08-13 paiement=2025-08-18 div=370.0F (DIVIDEND_HISTORY) | var_totale=+7.0% chute_ex=110.8%
+ONTBF    FY2021   annonce=2022-05-12 ex=2022-06-13 paiement=2022-06-15 div=288.0F (DIVIDEND_HISTORY) | var_totale=-8.6% chute_ex=0.0%
+ONTBF    FY2022   annonce=2023-05-09 ex=2023-06-22 paiement=2023-06-26 div=266.0F (DIVIDEND_HISTORY) | var_totale=-4.3% chute_ex=-3.2%
+ONTBF    FY2023   annonce=2024-06-24 ex=2024-07-29 paiement=2024-07-31 div=195.0F (DIVIDEND_HISTORY) | var_totale=+6.5% chute_ex=0.0%
+ONTBF    FY2024   annonce=2025-05-28 ex=2025-07-17 paiement=2025-07-21 div=145.0F (DIVIDEND_HISTORY) | var_totale=+1.8% chute_ex=20.7%
+ONTBF    FY2025   annonce=2026-04-29 ex=2026-06-12 paiement=2026-06-15 div=145.32F (DIVIDEND) | var_totale=+4.3% chute_ex=0.0%
+ORAC     FY2022   annonce=2023-04-13 ex=2023-06-13 paiement=2023-06-15 div=780.0F (DIVIDEND_HISTORY) | var_totale=+1.1% chute_ex=50.0%
+ORAC     FY2023   annonce=2024-04-16 ex=2024-05-30 paiement=2024-06-03 div=660.0F (DIVIDEND_HISTORY) | var_totale=+5.8% chute_ex=105.3%
+ORAC     FY2024   annonce=2025-04-10 ex=2025-06-05 paiement=2025-06-11 div=704.0F (DIVIDEND_HISTORY) | var_totale=+3.6% chute_ex=0.7%
+ORAC     FY2025   annonce=2026-05-18 ex=2026-06-05 paiement=2026-06-08 div=800.0F (DIVIDEND) | var_totale=+7.4% chute_ex=0.0%
+PRSC     FY2021   annonce=2022-06-30 ex=2022-08-26 paiement=2022-08-30 div=224.0F (DIVIDEND_HISTORY) | var_totale=+4.4% chute_ex=-8.9%
+PRSC     FY2022   annonce=2023-06-26 ex=2023-09-11 paiement=2023-09-13 div=183.0F (DIVIDEND_HISTORY) | var_totale=+14.2% chute_ex=0.0%
+SHEC     FY2021   annonce=2022-09-22 ex=2022-10-26 paiement=2022-10-28 div=53.0F (DIVIDEND_HISTORY) | var_totale=-1.1% chute_ex=0.0%
+SHEC     FY2022   annonce=2023-11-21 ex=2023-12-26 paiement=2023-12-28 div=57.0F (DIVIDEND_HISTORY) | var_totale=-10.8% chute_ex=0.0%
+SLBC     FY2023   annonce=2024-05-31 ex=2024-09-12 paiement=2025-07-29 div=1074.0F (DIVIDEND_HISTORY) | var_totale=+128.2% chute_ex=-31.1%
+SLBC     FY2024   annonce=2025-05-21 ex=2025-07-25 paiement=2025-07-29 div=1872.0F (DIVIDEND_HISTORY) | var_totale=+10.5% chute_ex=38.5%
+SMBC     FY2021   annonce=2022-06-21 ex=2022-08-22 paiement=2022-08-24 div=720.0F (DIVIDEND_HISTORY) | var_totale=-17.1% chute_ex=0.0%
+SMBC     FY2023   annonce=2024-06-14 ex=2024-09-26 paiement=2024-09-30 div=616.0F (DIVIDEND_HISTORY) | var_totale=+14.8% chute_ex=172.1%
+SNTS     FY2021   annonce=2022-04-28 ex=2022-05-16 paiement=2022-05-18 div=1500.0F (DIVIDEND_HISTORY) | var_totale=-7.7% chute_ex=0.0%
+SNTS     FY2022   annonce=2023-04-18 ex=2023-05-15 paiement=2023-05-17 div=1575.0F (DIVIDEND_HISTORY) | var_totale=-5.1% chute_ex=0.0%
+SNTS     FY2025   annonce=2026-04-16 ex=2026-05-22 paiement=2026-05-25 div=1740.0F (DIVIDEND) | var_totale=+0.0% chute_ex=-2.9%
+SOGC     FY2021   annonce=2022-06-15 ex=2022-07-19 paiement=2022-07-21 div=554.0F (DIVIDEND_HISTORY) | var_totale=-3.5% chute_ex=36.1%
+SOGC     FY2022   annonce=2023-06-13 ex=2023-07-13 paiement=2023-07-17 div=207.0F (DIVIDEND_HISTORY) | var_totale=-12.5% chute_ex=132.9%
+SOGC     FY2023   annonce=2024-05-24 ex=2024-08-02 paiement=2024-08-06 div=528.0F (DIVIDEND_HISTORY) | var_totale=+24.0% chute_ex=26.5%
+SOGC     FY2024   annonce=2025-05-20 ex=2025-07-11 paiement=2025-07-15 div=502.0F (DIVIDEND_HISTORY) | var_totale=+2.7% chute_ex=96.6%
+SPHC     FY2021   annonce=2022-06-13 ex=2022-08-02 paiement=2022-08-04 div=294.0F (DIVIDEND_HISTORY) | var_totale=-0.1% chute_ex=3.4%
+SPHC     FY2022   annonce=2023-06-12 ex=2023-09-26 paiement=2023-09-29 div=65.0F (DIVIDEND_HISTORY) | var_totale=-16.9% chute_ex=300.0%
+SPHC     FY2023   annonce=2024-06-04 ex=2024-08-08 paiement=2024-08-12 div=324.0F (DIVIDEND_HISTORY) | var_totale=+26.1% chute_ex=0.0%
+SPHC     FY2024   annonce=2025-04-08 ex=2025-07-15 paiement=2025-07-17 div=430.0F (DIVIDEND_HISTORY) | var_totale=+38.5% chute_ex=27.9%
+STBC     FY2021   annonce=2022-06-28 ex=2022-07-19 paiement=2022-07-21 div=540.0F (DIVIDEND_HISTORY) | var_totale=+1.7% chute_ex=25.9%
+STBC     FY2022   annonce=2023-06-30 ex=2023-07-25 paiement=2023-07-27 div=675.0F (DIVIDEND_HISTORY) | var_totale=+7.4% chute_ex=23.7%
+STBC     FY2023   annonce=2024-06-21 ex=2024-07-25 paiement=2024-07-29 div=2090.0F (DIVIDEND_HISTORY) | var_totale=-3.1% chute_ex=10.0%
+STBC     FY2024   annonce=2025-07-30 ex=2025-08-27 paiement=2025-08-29 div=1707.0F (DIVIDEND_HISTORY) | var_totale=-3.1% chute_ex=108.4%
+TTLC     FY2021   annonce=2022-06-16 ex=2022-08-23 paiement=2022-08-25 div=176.0F (DIVIDEND_HISTORY) | var_totale=-7.2% chute_ex=2.8%
+TTLC     FY2022   annonce=2023-06-15 ex=2023-09-19 paiement=2023-09-21 div=200.0F (DIVIDEND_HISTORY) | var_totale=+0.5% chute_ex=72.5%
+TTLC     FY2023   annonce=2024-06-21 ex=2024-09-13 paiement=2024-09-17 div=196.0F (DIVIDEND_HISTORY) | var_totale=+13.8% chute_ex=102.0%
+TTLC     FY2024   annonce=2025-06-19 ex=2025-09-01 paiement=2025-09-03 div=140.0F (DIVIDEND_HISTORY) | var_totale=-5.2% chute_ex=0.0%
+
+Cycles NON exploitables (61) :
+----------------------------------------------------------------------
+ABJC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+BICB     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+BICC     FY2021   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+BICC     FY2022   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+BICC     FY2023   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+BICC     FY2024   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+BICC     FY2025   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+BNBC     FY2022   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+BOAN     FY2024   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+BRVM30   (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+BRVMC    (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+CABC     FY2022   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+CABC     FY2023   — prix manquant sur une des 4 dates clés (annonce/veille-ex/ex/paiement)
+CABC     FY2024   — prix manquant sur une des 4 dates clés (annonce/veille-ex/ex/paiement)
+CFAC     FY2024   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+CIEC     FY2024   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+ETIT     FY2021   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+ETIT     FY2022   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+FTSC     FY2024   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+LNBB     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+NEIC     FY2022   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+NEIC     FY2023   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+ORGT     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+PALC     FY2021   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+PALC     FY2022   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+PALC     FY2023   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+PALC     FY2024   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+PALC     FY2025   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+PRSC     FY2023   — prix manquant sur une des 4 dates clés (annonce/veille-ex/ex/paiement)
+PRSC     FY2024   — prix manquant sur une des 4 dates clés (annonce/veille-ex/ex/paiement)
+SAFC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+SCRC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+SDCC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+SDSC     FY2021   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SDSC     FY2022   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SDSC     FY2023   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SDSC     FY2024   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SEMC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+SGBC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+SHEC     FY2023   — prix manquant sur une des 4 dates clés (annonce/veille-ex/ex/paiement)
+SHEC     FY2024   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+SIBC     FY2021   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SIBC     FY2022   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SIBC     FY2023   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SIBC     FY2024   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SIBC     FY2025   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SICC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+SIVC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+SLBC     FY2021   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SMBC     FY2022   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+SMBC     FY2024   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+SMBC     FY2025   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+SNTS     FY2023   — prix manquant sur une des 4 dates clés (annonce/veille-ex/ex/paiement)
+SNTS     FY2024   — prix manquant sur une des 4 dates clés (annonce/veille-ex/ex/paiement)
+SOGC     FY2025   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+STAC     FY2021   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+STBC     FY2025   — montant dividende introuvable (ni DIVIDEND ni DIVIDEND_HISTORY)
+TTLC     FY2025   — pas d'AG trouvée dans la fenêtre 5-120j avant EX_DIVIDEND
+TTLS     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+UNLC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
+UNXC     (aucun cycle) — aucun événement dividende (AG/EX_DIVIDEND) trouvé pour ce ticker
