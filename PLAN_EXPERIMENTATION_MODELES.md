@@ -314,3 +314,137 @@ Sinon conserver l'entrée actuelle. INTERDIT d'inventer une 4e règle.
 **Rappel final :** une expérience ne modifie jamais la prod. Une
 promotion = une tâche Classe B + ADR + validation écrite, maximum une
 toutes les 4 semaines, mesurée ensuite par la colonne alpha (T16).
+
+---
+
+# E2.6 — Identification du mécanisme dividende (H1 / H2 / H3)
+
+**Classe A — expérience offline, lecture seule.**
+
+**Gate : E2.6 précède désormais E2.4 et E2.5.** Ces deux expériences
+supposent un mécanisme identifié ; elles restent gelées tant que E2.6
+n'a pas rendu son verdict.
+
+## Contexte
+
+T5c étape 0 (commit `d771ece`) a produit 89 cycles annonce → ex-date →
+paiement sur 49 tickers. Chute médiane à l'ex-date : 13,9% du dividende
+(jamais 48% sur aucune découpe testée), erratique (0% dans un cas sur
+trois, >100% ailleurs). Cycle non homogène : délai AG→ex de 30-40 j
+pour les BOA, 62-104 j pour NTLC/SMBC.
+
+Le chiffre de juin (93% WR, +8,3% net médian) n'est reproductible depuis
+aucun artefact du repo. Cette expérience ne cherche PAS à le retrouver.
+Elle détermine s'il existe un mécanisme stable et attribuable.
+
+## Trois hypothèses concurrentes
+
+- **H1 — Dérive post-annonce.** Le cours dérive à la hausse entre l'AG
+  et le paiement, indépendamment du détachement. Motif NSBC (+7,5% /
+  +6,0% / +12,4% en var_totale, chute_ex 2,2% / 2,2% / 0,0%). L'edge
+  serait un hold sur la fenêtre.
+- **H2 — Sous-réaction à l'ex-date.** Hypothèse d'origine. Déjà
+  affaiblie (médiane 13,9%) ; à vérifier sur sous-groupe ex ante.
+- **H3 — Pas de mécanisme (hypothèse nulle).** Le rendement de juin
+  venait du marché haussier (+18%). H3 doit être battue explicitement.
+
+## Données
+
+- `dividend_cycle_exploration.csv` (commit `d771ece`) — 89 cycles
+- `v_historical_prices` via REST GET (pagination Range par 1000)
+- Répertoire de travail : `tools/experiments/E2_6/`
+- Aucune écriture en base, aucune modification de script existant
+
+## Spécification
+
+### Étape 1 — Alpha par cycle (test principal)
+
+Pour chaque cycle, fenêtre [date_annonce, date_paiement] :
+1. `rendement_cycle` = variation du titre, dividende inclus s'il est
+   encaissé dans la fenêtre (brut : ni frais ni IRVM ici).
+2. `benchmark_cycle` = moyenne simple des rendements de tous les
+   tickers ayant un prix valide aux deux bornes, **ticker analysé
+   exclu**. Prix valide = dernier cours ≤ 3 jours ouvrés de la borne.
+3. `alpha_cycle = rendement_cycle − benchmark_cycle`.
+4. Sortie `E2_6_alpha_par_cycle.csv` : ticker, fiscal_year,
+   date_annonce, date_ex, date_paiement, duree_jours, dividende,
+   yield_pct, rendement_cycle, benchmark_cycle, alpha_cycle,
+   chute_ex_pct, statut_cotation_ex.
+
+### Étape 2 — Désambiguïsation des chute_ex = 0.0%
+
+Classer `statut_cotation_ex` :
+- `COTE_SANS_VARIATION` : cours présent à la date ex ET au dernier jour
+  coté avant, les deux égaux.
+- `NON_COTE` : aucun cours à la date ex, ou dernier cours antérieur de
+  plus de 3 jours ouvrés.
+- `COTE_AVEC_VARIATION` : tous les autres cas.
+
+Les `NON_COTE` sont **exclus des statistiques H2** (chute non mesurable)
+et **conservés pour H1** (rendement de détention valide). Reporter les
+effectifs des trois catégories.
+
+### Étape 3 — Trois découpes autorisées, aucune autre
+
+Pour chacune : n, alpha médian, % d'alpha positifs.
+1. **Par ticker** (≥ 3 cycles ; les autres agrégés en « n<3 », non
+   interprétés).
+2. **Par année civile de l'ex-date.**
+3. **Par tercile de yield** (cycles avec yield disponible).
+
+Toute découpe supplémentaire = nouvelle expérience validée par Jocelyn.
+
+### Étape 4 — Test H2 sur sous-groupe ex ante
+
+Critère d'appartenance connu AVANT l'ex-date. Trois candidats, et
+uniquement ceux-là :
+- (a) délai AG→ex ≤ 45 jours (profil BOA)
+- (b) yield dans le tercile supérieur
+- (c) volume_20j avant l'annonce ≥ médiane de l'échantillon
+
+Pour chacun : chute_ex médiane, n, % de cycles à chute < 30%.
+**INTERDIT** de construire un sous-groupe à partir du résultat.
+
+## Règles d'interprétation (textuelles)
+
+Appliquer dans l'ordre, s'arrêter à la première qui déclenche :
+
+- **H1 retenue** si alpha médian global ≥ +2 pts ET ≥ 60% des tickers
+  à n≥3 ont un alpha médian positif ET alpha médian positif sur chacune
+  des 4 années.
+  → « H1 confirmée — dérive post-annonce. Mécanisme candidat pour T5c :
+  hold annonce→paiement. Règle d'entrée à cadrer avec Jocelyn. »
+
+- **H2 retenue** si H1 non retenue ET un sous-groupe ex ante présente
+  une chute_ex médiane < 30% avec n ≥ 12 (NON_COTE exclus).
+  → « H2 confirmée sur sous-groupe [critère] — sous-réaction
+  exploitable. Critère d'éligibilité à figer en ADR avant backtest. »
+
+- **H3 retenue** sinon.
+  → « H3 retenue — aucun mécanisme dividende identifiable. Le chiffre
+  de juin (93% WR) est réputé non reproduit. T5c se conclut sans
+  backtest ; E2.4 et E2.5 restent gelées. Décision : Jocelyn. »
+
+- **Cas limite** — H1 échoue sur un seul de ses trois critères, OU un
+  sous-groupe H2 atteint n ≥ 12 avec chute médiane entre 30 et 35% :
+  **escalade au modèle avancé, aucune conclusion écrite.**
+
+## Interdits spécifiques
+
+- Ne pas modifier `tools/explore_dividend_cycle.py` ni ses sorties.
+- Ne pas élargir la fenêtre AG, ne pas ajouter de cycles.
+- Ne pas calculer frais, IRVM, fill rate — hors périmètre.
+- Ne pas proposer de règle d'entrée ou de sortie.
+- Ne pas tester d'hypothèse H4 improvisée.
+- Si un résultat surprend, il est rapporté tel quel. **Aucun paramètre
+  ajusté pour rapprocher un chiffre d'une valeur attendue.**
+
+## Critères d'acceptation
+
+1. `E2_6_alpha_par_cycle.csv` produit, 89 lignes (ou écart justifié).
+2. Effectifs des trois `statut_cotation_ex` reportés.
+3. Les trois découpes produites, aucune autre.
+4. Les trois sous-groupes ex ante testés.
+5. Une règle d'interprétation appliquée textuellement, ou escalade.
+6. Résultat consigné dans `EXPERIMENTS_LOG.md`.
+7. Aucune écriture hors `tools/experiments/E2_6/` et `EXPERIMENTS_LOG.md`.
