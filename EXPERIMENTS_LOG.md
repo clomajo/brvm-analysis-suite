@@ -21,3 +21,27 @@
 H1 confirmee — derive post-annonce. Mecanisme candidat pour T5c : hold annonce->paiement. Regle d'entree a cadrer avec Jocelyn.
 
 **Artefacts**: `tools/experiments/E2_6/E2_6_alpha_par_cycle.csv` (89 lignes)
+
+
+## E2.7-A — Grille entree/sortie, rotation dediee
+**Date d'execution**: 2026-07-27 16:39
+**Classe**: A (offline, lecture seule)
+**Cycles exploitables source**: 89
+
+**Tableau 4x3 (entree x sortie), n et alpha median par case**:
+
+| entree\\sortie | -5 | +0 | +5 |
+|---|---|---|---|
+| -5 | n=89, α=2.9561 | n=89, α=7.4852 | n=89, α=6.1095 |
+| +0 | n=89, α=3.3758 | n=89, α=7.3331 | n=89, α=5.3603 |
+| +5 | n=88, α=2.2289 | n=89, α=5.6113 | n=89, α=4.4859 |
+| +10 | n=87, α=2.4656 | n=88, α=5.9071 | n=89, α=3.8474 |
+
+**Reference (J0, paiement)**: n=89, alpha_median=7.3331, rang=2/12, top_tercile=True
+
+**Combinaisons positives**: 12/12
+
+**VERDICT: GRILLE_ROBUSTE**
+Grille robuste. La fenetre E2.6 (annonce->paiement) est un choix raisonnable, pas une coincidence. Pas de changement de regle recommande.
+
+**Artefacts**: `tools/experiments/E2_7A/E2_7A_alpha_par_combinaison.csv` (1064 lignes)
