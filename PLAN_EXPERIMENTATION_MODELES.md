@@ -448,3 +448,479 @@ Appliquer dans l'ordre, s'arrêter à la première qui déclenche :
 5. Une règle d'interprétation appliquée textuellement, ou escalade.
 6. Résultat consigné dans `EXPERIMENTS_LOG.md`.
 7. Aucune écriture hors `tools/experiments/E2_6/` et `EXPERIMENTS_LOG.md`.
+
+# E2.7-A — Grille entree/sortie, rotation dediee
+
+**Classe A — experience offline, lecture seule. Gate : depend d'E2.6 (H1 confirmee, commit 67a39b6).**
+
+## Contexte
+
+E2.6 a confirme H1 (derive post-annonce) sur la fenetre [date_annonce,
+date_paiement], alpha median +7.33 pts, 89 cycles, 4 annees (2022-2025).
+E2.7-A teste si un point d'entree/sortie different de la fenetre brute
+ameliore ou degrade cet alpha, pour une strategie de ROTATION DEDIEE
+(achat specifique pour le cycle dividende, revente ensuite — pas un
+hold long terme).
+
+## Grilles (fixees, aucune autre combinaison testee)
+
+- **Entree** (relatif a date_annonce) : J-5, J0 (=date_annonce, reference
+  E2.6), J+5, J+10
+- **Sortie** (relatif a date_paiement) : paiement-5j, paiement (reference
+  E2.6), paiement+5j
+
+12 combinaisons au total. Toute combinaison hors de cette grille = nouvelle
+experience validee par Jocelyn d'abord.
+
+## Donnees
+
+- `dividend_cycle_exploration.csv` (commit d771ece), cycles exploitables=True
+- `v_historical_prices` via REST GET (pagination Range par 1000)
+- Univers : **tous les 49 tickers**, aucun filtre prealable
+- Repertoire de travail : `tools/experiments/E2_7A/`
+- Aucune ecriture en base, aucune modification de script existant
+
+## Specification
+
+### Etape 1 — Alpha par cycle x combinaison
+
+Pour chacune des 12 combinaisons (entree_offset, sortie_offset) :
+1. `date_entree` = date_annonce + entree_offset (jours calendaires)
+2. `date_sortie` = date_paiement + sortie_offset
+3. Si date_sortie <= date_entree pour un cycle donne : cycle exclu de
+   CETTE combinaison uniquement, comptabilise et reporte (n exclus).
+4. `rendement_cycle` = variation du titre entre dernier cours <= 5j avant
+   date_entree et dernier cours <= 5j avant date_sortie, dividende inclus
+   s'il est encaisse dans la fenetre [date_entree, date_sortie]. Brut :
+   ni frais ni IRVM.
+5. `benchmark_cycle` = moyenne simple des rendements de tous les tickers
+   (hors ticker analyse) ayant un prix valide aux deux bornes (meme
+   regle de tolerance qu'E2.6 : <=3 jours ouvres).
+6. `alpha_cycle = rendement_cycle - benchmark_cycle`
+
+Sortie `E2_7A_alpha_par_combinaison.csv` : ticker, fiscal_year,
+entree_offset, sortie_offset, date_entree, date_sortie, rendement_cycle,
+benchmark_cycle, alpha_cycle.
+
+### Etape 2 — Robustesse par combinaison (PAS de selection du max)
+
+Pour chacune des 12 combinaisons, sur l'ensemble des cycles valides :
+n, alpha median, % de cycles positifs.
+
+Produire un tableau recapitulatif 4x3 (entree x sortie) avec ces trois
+chiffres par case.
+
+### Etape 3 — Comparaison a la reference E2.6
+
+Reference = combinaison (J0, paiement), c'est-a-dire exactement la
+fenetre testee dans E2.6. Pour les 11 autres combinaisons, calculer
+l'ecart d'alpha median par rapport a cette reference.
+
+## Regles d'interpretation (textuelles)
+
+Appliquer dans l'ordre, s'arreter a la premiere qui declenche :
+
+- **Grille robuste, reference validee** si au moins 9 des 12
+  combinaisons ont un alpha median positif ET la combinaison de
+  reference (J0, paiement) reste dans le tercile superieur des 12
+  combinaisons (classees par alpha median).
+  -> « Grille robuste. La fenetre E2.6 (annonce->paiement) est un choix
+  raisonnable, pas une coincidence. Ecart-type inter-combinaisons a
+  rapporter mais pas de changement de regle recommande. »
+
+- **Amelioration localisee** si la reference n'est PAS dans le tercile
+  superieur, mais qu'une combinaison specifique domine avec un alpha
+  median superieur d'au moins 3 points a la reference ET n >= 15 pour
+  cette combinaison ET c'est la seule dans ce cas (pas de quasi-egalite
+  avec 2+ combinaisons).
+  -> « Combinaison [X] preferable a la reference E2.6 de [ecart] points
+  (n=[n]). A considerer pour la regle d'entree/sortie, decision Jocelyn.
+  Prudence : une seule experience, pas de validation croisee out-of-
+  sample a ce stade. »
+
+- **Grille instable (cas limite)** sinon — y compris si plusieurs
+  combinaisons sont proches du maximum sans dominance claire.
+  -> « Grille instable — aucune combinaison ne domine clairement.
+  Signal probablement bruite sur n=89 cycles bruts repartis en 12 cases.
+  Escalade au modele avance, aucune conclusion ecrite sur le choix
+  entree/sortie. »
+
+## Interdits specifiques
+
+- Ne pas choisir "la meilleure case" sans passer par la regle
+  d'interpretation ci-dessus.
+- Ne pas tester de combinaison hors grille.
+- Ne pas calculer frais, IRVM — hors perimetre (E2.7-A mesure le
+  mecanisme brut, pas la rentabilite nette).
+- Si un resultat surprend, il est rapporte tel quel.
+
+## Criteres d'acceptation
+
+1. `E2_7A_alpha_par_combinaison.csv` produit, 12 combinaisons x jusqu'a
+   89 cycles chacune (avec exclusions reportees par combinaison).
+2. Tableau recapitulatif 4x3 produit et affiche.
+3. Comparaison a la reference E2.6 produite pour les 11 autres cases.
+4. Une regle d'interpretation appliquee textuellement, ou escalade.
+5. Resultat consigne dans `EXPERIMENTS_LOG.md`.
+6. Aucune ecriture hors `tools/experiments/E2_7A/` et `EXPERIMENTS_LOG.md`.
+
+---
+
+# E2.7-B — Timing d'entree, detention longue
+
+**Classe A — experience offline, lecture seule. Gate : depend d'E2.6 (H1 confirmee, commit 67a39b6).**
+
+## Contexte
+
+Meme mecanisme (H1, derive post-annonce) mais objectif different de
+E2.7-A : ici, on suppose que le titre est/sera detenu LONG TERME de
+toute facon (pas de sortie liee au cycle dividende). La question est
+uniquement : entrer pres d'une date d'annonce de dividende bat-il un
+point d'entree choisi au hasard dans l'annee, sur la meme duree de
+detention ?
+
+## Grilles (fixees, aucune autre combinaison testee)
+
+- **Entree** (relatif a date_annonce) : J-5, J0 (=date_annonce), J+5, J+10
+- **Duree de detention** : 35j, 47j, 70j (Q1 / mediane / Q3 de
+  `duree_jours` mesures sur les 89 cycles d'E2.6 — pas de valeur
+  importee d'ailleurs). Le max observe (424j) est ecarte comme outlier,
+  non retenu dans la grille.
+
+12 combinaisons (4 offsets x 3 durees) au total. Toute combinaison hors
+de cette grille = nouvelle experience validee par Jocelyn d'abord.
+
+## Reference aleatoire
+
+Pour chaque ticker et chaque duree de la grille (35j, 47j, 70j) :
+moyenne des rendements sur TOUTES les fenetres glissantes de cette duree
+disponibles dans l'historique du ticker (pas uniquement autour des dates
+de dividende), echantillonnees tous les 10 jours calendaires pour
+limiter le volume de calcul. Trois references par ticker, une par duree.
+
+## Donnees
+
+- Memes sources qu'E2.7-A (CSV dividendes + REST v_historical_prices)
+- Univers : tous les 49 tickers
+- Repertoire de travail : `tools/experiments/E2_7B/`
+- Aucune ecriture en base, aucune modification de script existant
+
+## Specification
+
+### Etape 1 — Rendement par cycle x offset x duree
+
+Pour chacune des 12 combinaisons (offset, duree), pour chaque cycle
+dividende exploitable :
+1. `date_entree` = date_annonce + offset
+2. `date_sortie_calc` = date_entree + duree (jours calendaires)
+3. `rendement_cycle` = variation du titre entre dernier cours <=5j avant
+   date_entree et dernier cours <=5j avant date_sortie_calc, dividende(s)
+   inclus s'il y en a dans la fenetre (peut inclure le dividende source
+   ET un dividende suivant si la fenetre le capture — a signaler si ca
+   arrive, ne pas exclure).
+
+Sortie `E2_7B_rendement_par_combinaison.csv` : ticker, fiscal_year,
+offset, duree, date_entree, date_sortie_calc, rendement_cycle.
+
+### Etape 2 — Reference aleatoire par ticker x duree
+
+Pour chaque ticker ayant au moins un cycle dividende exploitable, pour
+chacune des 3 durees (35j, 47j, 70j) : rendement moyen sur toutes les
+fenetres glissantes de cette duree, echantillonnees tous les 10 jours
+calendaires sur toute la periode ou le ticker a des prix disponibles.
+
+Sortie `E2_7B_reference_aleatoire.csv` : ticker, duree, n_fenetres,
+rendement_moyen.
+
+### Etape 3 — Ecart par combinaison (offset x duree)
+
+Pour chacune des 12 combinaisons : ecart moyen = moyenne, sur tous les
+cycles de cette combinaison, de (rendement_cycle - reference_aleatoire
+du ticker/duree correspondant). Reporter n, ecart moyen, ecart median,
+% de cycles ou l'entree-dividende bat la reference aleatoire.
+
+Produire un tableau recapitulatif 4x3 (offset x duree), meme format que
+le tableau d'E2.7-A.
+
+## Regles d'interpretation (textuelles)
+
+Appliquer dans l'ordre, s'arreter a la premiere qui declenche :
+
+- **Timing dividende confirme** si au moins 9 des 12 combinaisons ont un
+  ecart median positif ET, parmi les 4 offsets, au moins 2 des 3 durees
+  associees a l'offset le plus proche de l'annonce (J0 ou J-5) ont un %
+  de cycles battant la reference >=55%.
+  -> « Timing d'entree autour de l'annonce de dividende ameliore le
+  rendement vs entree aleatoire, de facon robuste a travers les durees
+  testees. Combinaison(s) a discuter avec Jocelyn : [lister les
+  meilleures]. »
+
+- **Pas d'effet timing detectable** si moins de 6 des 12 combinaisons
+  ont un ecart median positif, ou si l'ecart existe mais le % de cycles
+  gagnants est <55% pour la quasi-totalite des combinaisons (effet
+  moyen tire par quelques gros cycles, pas un edge fiable).
+  -> « Aucun effet de timing fiable detecte au-dela du mecanisme deja
+  documente par E2.6. Pour une strategie de detention longue, le moment
+  d'entree autour d'une annonce de dividende n'apporte pas d'avantage
+  mesurable et robuste a travers les durees testees. »
+
+- **Cas limite** — entre 6 et 8 combinaisons positives, ou resultats
+  contradictoires entre offsets/durees (ex: J0/35j positif et fiable,
+  J+10/70j negatif et fiable, pas de tendance coherente).
+  -> « Resultats incoherents entre combinaisons — escalade au modele
+  avance, aucune conclusion ecrite. »
+
+## Interdits specifiques
+
+- Ne pas choisir "la meilleure case" de la grille 4x3 sans passer par
+  la regle d'interpretation ci-dessus.
+- Ne pas tester de combinaison hors grille (offsets et durees fixes).
+- Ne pas calculer frais, IRVM — hors perimetre.
+- Ne pas exclure de cycles pour "nettoyer" un resultat qui deçoit.
+
+## Criteres d'acceptation
+
+1. `E2_7B_rendement_par_combinaison.csv` et
+   `E2_7B_reference_aleatoire.csv` produits.
+2. Tableau recapitulatif 4x3 (offset x duree) produit et affiche.
+3. Une regle d'interpretation appliquee textuellement, ou escalade.
+4. Resultat consigne dans `EXPERIMENTS_LOG.md`.
+5. Aucune ecriture hors `tools/experiments/E2_7B/` et `EXPERIMENTS_LOG.md`.
+
+# E2.7-A — Grille entree/sortie, rotation dediee
+
+**Classe A — experience offline, lecture seule. Gate : depend d'E2.6 (H1 confirmee, commit 67a39b6).**
+
+## Contexte
+
+E2.6 a confirme H1 (derive post-annonce) sur la fenetre [date_annonce,
+date_paiement], alpha median +7.33 pts, 89 cycles, 4 annees (2022-2025).
+E2.7-A teste si un point d'entree/sortie different de la fenetre brute
+ameliore ou degrade cet alpha, pour une strategie de ROTATION DEDIEE
+(achat specifique pour le cycle dividende, revente ensuite — pas un
+hold long terme).
+
+## Grilles (fixees, aucune autre combinaison testee)
+
+- **Entree** (relatif a date_annonce) : J-5, J0 (=date_annonce, reference
+  E2.6), J+5, J+10
+- **Sortie** (relatif a date_paiement) : paiement-5j, paiement (reference
+  E2.6), paiement+5j
+
+12 combinaisons au total. Toute combinaison hors de cette grille = nouvelle
+experience validee par Jocelyn d'abord.
+
+## Donnees
+
+- `dividend_cycle_exploration.csv` (commit d771ece), cycles exploitables=True
+- `v_historical_prices` via REST GET (pagination Range par 1000)
+- Univers : **tous les 49 tickers**, aucun filtre prealable
+- Repertoire de travail : `tools/experiments/E2_7A/`
+- Aucune ecriture en base, aucune modification de script existant
+
+## Specification
+
+### Etape 1 — Alpha par cycle x combinaison
+
+Pour chacune des 12 combinaisons (entree_offset, sortie_offset) :
+1. `date_entree` = date_annonce + entree_offset (jours calendaires)
+2. `date_sortie` = date_paiement + sortie_offset
+3. Si date_sortie <= date_entree pour un cycle donne : cycle exclu de
+   CETTE combinaison uniquement, comptabilise et reporte (n exclus).
+4. `rendement_cycle` = variation du titre entre dernier cours <= 5j avant
+   date_entree et dernier cours <= 5j avant date_sortie, dividende inclus
+   s'il est encaisse dans la fenetre [date_entree, date_sortie]. Brut :
+   ni frais ni IRVM.
+5. `benchmark_cycle` = moyenne simple des rendements de tous les tickers
+   (hors ticker analyse) ayant un prix valide aux deux bornes (meme
+   regle de tolerance qu'E2.6 : <=3 jours ouvres).
+6. `alpha_cycle = rendement_cycle - benchmark_cycle`
+
+Sortie `E2_7A_alpha_par_combinaison.csv` : ticker, fiscal_year,
+entree_offset, sortie_offset, date_entree, date_sortie, rendement_cycle,
+benchmark_cycle, alpha_cycle.
+
+### Etape 2 — Robustesse par combinaison (PAS de selection du max)
+
+Pour chacune des 12 combinaisons, sur l'ensemble des cycles valides :
+n, alpha median, % de cycles positifs.
+
+Produire un tableau recapitulatif 4x3 (entree x sortie) avec ces trois
+chiffres par case.
+
+### Etape 3 — Comparaison a la reference E2.6
+
+Reference = combinaison (J0, paiement), c'est-a-dire exactement la
+fenetre testee dans E2.6. Pour les 11 autres combinaisons, calculer
+l'ecart d'alpha median par rapport a cette reference.
+
+## Regles d'interpretation (textuelles)
+
+Appliquer dans l'ordre, s'arreter a la premiere qui declenche :
+
+- **Grille robuste, reference validee** si au moins 9 des 12
+  combinaisons ont un alpha median positif ET la combinaison de
+  reference (J0, paiement) reste dans le tercile superieur des 12
+  combinaisons (classees par alpha median).
+  -> « Grille robuste. La fenetre E2.6 (annonce->paiement) est un choix
+  raisonnable, pas une coincidence. Ecart-type inter-combinaisons a
+  rapporter mais pas de changement de regle recommande. »
+
+- **Amelioration localisee** si la reference n'est PAS dans le tercile
+  superieur, mais qu'une combinaison specifique domine avec un alpha
+  median superieur d'au moins 3 points a la reference ET n >= 15 pour
+  cette combinaison ET c'est la seule dans ce cas (pas de quasi-egalite
+  avec 2+ combinaisons).
+  -> « Combinaison [X] preferable a la reference E2.6 de [ecart] points
+  (n=[n]). A considerer pour la regle d'entree/sortie, decision Jocelyn.
+  Prudence : une seule experience, pas de validation croisee out-of-
+  sample a ce stade. »
+
+- **Grille instable (cas limite)** sinon — y compris si plusieurs
+  combinaisons sont proches du maximum sans dominance claire.
+  -> « Grille instable — aucune combinaison ne domine clairement.
+  Signal probablement bruite sur n=89 cycles bruts repartis en 12 cases.
+  Escalade au modele avance, aucune conclusion ecrite sur le choix
+  entree/sortie. »
+
+## Interdits specifiques
+
+- Ne pas choisir "la meilleure case" sans passer par la regle
+  d'interpretation ci-dessus.
+- Ne pas tester de combinaison hors grille.
+- Ne pas calculer frais, IRVM — hors perimetre (E2.7-A mesure le
+  mecanisme brut, pas la rentabilite nette).
+- Si un resultat surprend, il est rapporte tel quel.
+
+## Criteres d'acceptation
+
+1. `E2_7A_alpha_par_combinaison.csv` produit, 12 combinaisons x jusqu'a
+   89 cycles chacune (avec exclusions reportees par combinaison).
+2. Tableau recapitulatif 4x3 produit et affiche.
+3. Comparaison a la reference E2.6 produite pour les 11 autres cases.
+4. Une regle d'interpretation appliquee textuellement, ou escalade.
+5. Resultat consigne dans `EXPERIMENTS_LOG.md`.
+6. Aucune ecriture hors `tools/experiments/E2_7A/` et `EXPERIMENTS_LOG.md`.
+
+---
+
+# E2.7-B — Timing d'entree, detention longue
+
+**Classe A — experience offline, lecture seule. Gate : depend d'E2.6 (H1 confirmee, commit 67a39b6).**
+
+## Contexte
+
+Meme mecanisme (H1, derive post-annonce) mais objectif different de
+E2.7-A : ici, on suppose que le titre est/sera detenu LONG TERME de
+toute facon (pas de sortie liee au cycle dividende). La question est
+uniquement : entrer pres d'une date d'annonce de dividende bat-il un
+point d'entree choisi au hasard dans l'annee, sur la meme duree de
+detention ?
+
+## Grilles (fixees, aucune autre combinaison testee)
+
+- **Entree** (relatif a date_annonce) : J-5, J0 (=date_annonce), J+5, J+10
+- **Duree de detention** : 35j, 47j, 70j (Q1 / mediane / Q3 de
+  `duree_jours` mesures sur les 89 cycles d'E2.6 — pas de valeur
+  importee d'ailleurs). Le max observe (424j) est ecarte comme outlier,
+  non retenu dans la grille.
+
+12 combinaisons (4 offsets x 3 durees) au total. Toute combinaison hors
+de cette grille = nouvelle experience validee par Jocelyn d'abord.
+
+## Reference aleatoire
+
+Pour chaque ticker et chaque duree de la grille (35j, 47j, 70j) :
+moyenne des rendements sur TOUTES les fenetres glissantes de cette duree
+disponibles dans l'historique du ticker (pas uniquement autour des dates
+de dividende), echantillonnees tous les 10 jours calendaires pour
+limiter le volume de calcul. Trois references par ticker, une par duree.
+
+## Donnees
+
+- Memes sources qu'E2.7-A (CSV dividendes + REST v_historical_prices)
+- Univers : tous les 49 tickers
+- Repertoire de travail : `tools/experiments/E2_7B/`
+- Aucune ecriture en base, aucune modification de script existant
+
+## Specification
+
+### Etape 1 — Rendement par cycle x offset x duree
+
+Pour chacune des 12 combinaisons (offset, duree), pour chaque cycle
+dividende exploitable :
+1. `date_entree` = date_annonce + offset
+2. `date_sortie_calc` = date_entree + duree (jours calendaires)
+3. `rendement_cycle` = variation du titre entre dernier cours <=5j avant
+   date_entree et dernier cours <=5j avant date_sortie_calc, dividende(s)
+   inclus s'il y en a dans la fenetre (peut inclure le dividende source
+   ET un dividende suivant si la fenetre le capture — a signaler si ca
+   arrive, ne pas exclure).
+
+Sortie `E2_7B_rendement_par_combinaison.csv` : ticker, fiscal_year,
+offset, duree, date_entree, date_sortie_calc, rendement_cycle.
+
+### Etape 2 — Reference aleatoire par ticker x duree
+
+Pour chaque ticker ayant au moins un cycle dividende exploitable, pour
+chacune des 3 durees (35j, 47j, 70j) : rendement moyen sur toutes les
+fenetres glissantes de cette duree, echantillonnees tous les 10 jours
+calendaires sur toute la periode ou le ticker a des prix disponibles.
+
+Sortie `E2_7B_reference_aleatoire.csv` : ticker, duree, n_fenetres,
+rendement_moyen.
+
+### Etape 3 — Ecart par combinaison (offset x duree)
+
+Pour chacune des 12 combinaisons : ecart moyen = moyenne, sur tous les
+cycles de cette combinaison, de (rendement_cycle - reference_aleatoire
+du ticker/duree correspondant). Reporter n, ecart moyen, ecart median,
+% de cycles ou l'entree-dividende bat la reference aleatoire.
+
+Produire un tableau recapitulatif 4x3 (offset x duree), meme format que
+le tableau d'E2.7-A.
+
+## Regles d'interpretation (textuelles)
+
+Appliquer dans l'ordre, s'arreter a la premiere qui declenche :
+
+- **Timing dividende confirme** si au moins 9 des 12 combinaisons ont un
+  ecart median positif ET, parmi les 4 offsets, au moins 2 des 3 durees
+  associees a l'offset le plus proche de l'annonce (J0 ou J-5) ont un %
+  de cycles battant la reference >=55%.
+  -> « Timing d'entree autour de l'annonce de dividende ameliore le
+  rendement vs entree aleatoire, de facon robuste a travers les durees
+  testees. Combinaison(s) a discuter avec Jocelyn : [lister les
+  meilleures]. »
+
+- **Pas d'effet timing detectable** si moins de 6 des 12 combinaisons
+  ont un ecart median positif, ou si l'ecart existe mais le % de cycles
+  gagnants est <55% pour la quasi-totalite des combinaisons (effet
+  moyen tire par quelques gros cycles, pas un edge fiable).
+  -> « Aucun effet de timing fiable detecte au-dela du mecanisme deja
+  documente par E2.6. Pour une strategie de detention longue, le moment
+  d'entree autour d'une annonce de dividende n'apporte pas d'avantage
+  mesurable et robuste a travers les durees testees. »
+
+- **Cas limite** — entre 6 et 8 combinaisons positives, ou resultats
+  contradictoires entre offsets/durees (ex: J0/35j positif et fiable,
+  J+10/70j negatif et fiable, pas de tendance coherente).
+  -> « Resultats incoherents entre combinaisons — escalade au modele
+  avance, aucune conclusion ecrite. »
+
+## Interdits specifiques
+
+- Ne pas choisir "la meilleure case" de la grille 4x3 sans passer par
+  la regle d'interpretation ci-dessus.
+- Ne pas tester de combinaison hors grille (offsets et durees fixes).
+- Ne pas calculer frais, IRVM — hors perimetre.
+- Ne pas exclure de cycles pour "nettoyer" un resultat qui deçoit.
+
+## Criteres d'acceptation
+
+1. `E2_7B_rendement_par_combinaison.csv` et
+   `E2_7B_reference_aleatoire.csv` produits.
+2. Tableau recapitulatif 4x3 (offset x duree) produit et affiche.
+3. Une regle d'interpretation appliquee textuellement, ou escalade.
+4. Resultat consigne dans `EXPERIMENTS_LOG.md`.
+5. Aucune ecriture hors `tools/experiments/E2_7B/` et `EXPERIMENTS_LOG.md`.
