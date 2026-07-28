@@ -156,6 +156,20 @@ def verify_decisions():
         print(f"  {status} {ticker:<8} | {signal:<10} | {variation_pct:+6.1f}% "
               f"| {prix_signal:.0f} → {prix_verification:.0f} FCFA")
 
+    # 5b. Calcul du benchmark et de l'alpha (T16)
+    # benchmark_return = moyenne simple des variation_pct de TOUS les tickers
+    # vérifiés aujourd'hui (même tolérance ±5j déjà utilisée par get_price_at_date,
+    # donc aucun nouveau calcul de prix — on réutilise variation_pct existant).
+    if results:
+        benchmark_return = round(
+            sum(r["variation_pct"] for r in results) / len(results), 2
+        )
+        for r in results:
+            r["benchmark_return"] = benchmark_return
+            r["alpha"] = round(r["variation_pct"] - benchmark_return, 2)
+
+        print(f"\n📐 Benchmark du jour (moyenne {len(results)} tickers) : {benchmark_return:+.2f}%")
+
     # 6. Upsert dans brvm_decisions_results
     if results:
         supabase.table("brvm_decisions_results").upsert(
