@@ -121,3 +121,55 @@ prudence, pas comme piliers du verdict global. Les resultats les plus
 solides viennent des tickers a 4-5 cycles (ONTBF, ORAC, ECOC, BOAS,
 BOAC), globalement positifs ; NTLC (5 cycles, -4.63) est la principale
 exception negative robuste.
+
+
+## T5c-A / E2.8 — Backtest strategie de rotation dediee dividend capture
+**Date d'execution**: 2026-07-28 17:42
+**Classe**: A (offline, lecture seule)
+**Strategie**: achat/revente par cycle dividende, pas de detention longue.
+Combinaison unique (entree = jour de bourse le plus proche de l'annonce,
+sortie = jour de bourse le plus proche du paiement), reprise de la
+reference E2.6/E2.7-A (GRILLE_ROBUSTE, aucune variante superieure trouvee).
+**Univers**: etendu complet, 25 tickers avec >=1 cycle
+dividende exploitable, sans filtre de liquidite ni de nombre minimum de
+cycles (NTLC inclus).
+**Calcul**: BRUT (ni frais ni IRVM — decision de session, sensibilite a
+traiter a posteriori).
+**Cycles exploitables source**: 89 ; cycles valides: 89 ; exclus: 0
+
+**Robustesse globale**: n=89, rendement_median=9.7449%,
+alpha_median=7.386 pts, %gagnants=89.9%,
+%alpha_positif=79.8%
+
+**Robustesse par ticker** (19 tickers a >=3 cycles, 6 a <3 cycles) :
+
+| Ticker | n_cycles | rendement_median | alpha_median | %gagnants |
+|---|---|---|---|---|
+| FTSC | 1 | 232.863 | 220.608 | 100.0 |
+| SLBC | 2 | 81.239 | 45.0366 | 100.0 |
+| SPHC | 4 | 22.282 | 19.0886 | 75.0 |
+| NSBC | 3 | 17.6034 | 14.9884 | 100.0 |
+| PRSC | 2 | 15.605 | 14.0996 | 100.0 |
+| CBIBF | 5 | 13.5169 | 13.8034 | 80.0 |
+| STBC | 4 | 14.468 | 13.4319 | 100.0 |
+| BOAM | 3 | 16.2 | 11.2995 | 100.0 |
+| ECOC | 5 | 9.1822 | 10.7052 | 100.0 |
+| BOAS | 5 | 15.0 | 10.1813 | 100.0 |
+| ONTBF | 5 | 9.6415 | 8.3752 | 100.0 |
+| BOAC | 5 | 8.1557 | 7.5098 | 100.0 |
+| BOAB | 5 | 5.0202 | 7.2148 | 80.0 |
+| ORAC | 4 | 10.7775 | 6.3416 | 100.0 |
+| SNTS | 3 | 4.9051 | 5.7218 | 100.0 |
+| CIEC | 4 | 6.9741 | 4.9016 | 100.0 |
+| BOABF | 5 | 4.2098 | 4.2378 | 80.0 |
+| SOGC | 4 | 7.4458 | 4.1348 | 75.0 |
+| BOAN | 3 | 1.7149 | 4.0031 | 66.7 |
+| TTLC | 4 | 5.0217 | 3.2065 | 100.0 |
+| NTLC | 4 | 8.8673 | 3.1446 | 100.0 |
+| CABC | 2 | 3.8589 | 1.1724 | 100.0 |
+| SMBC | 2 | 6.4866 | 1.1265 | 50.0 |
+| SHEC | 2 | 0.4533 | -0.0284 | 50.0 |
+| CFAC | 3 | 3.2836 | -0.1445 | 66.7 |
+
+**Artefacts**: `tools/experiments/E2_8_rotation/E2_8_rotation_par_cycle.csv` (89 lignes),
+`tools/experiments/E2_8_rotation/E2_8_rotation_par_ticker.csv` (25 lignes)
