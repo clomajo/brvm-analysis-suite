@@ -917,3 +917,42 @@ scrapé conservé — comportement attendu et volontaire.
 **Limitations connues (voir BACKLOG.md)** : taux courtage SGI non confirmé par source primaire ; SMBC sans donnée ; NTLC/NSBC exercice 2025 non publiés ; possible désynchronisation brut/net dans `corporate_events` déjà stocké.
 
 **Statut** : T5a clôturée avec limitations documentées. T5b peut démarrer avec ces valeurs, sous réserve de correction ultérieure si les gaps se résolvent.
+## ADR-035 — Colonne alpha dans la vérification quotidienne (T16)
+
+**Date :** 28/07/2026
+
+**Statut :** Accepté, en production (commit `4368e2e`, branche `remediation-2026-07`)
+
+### Contexte
+
+`verify_decisions.py` mesurait uniquement le rendement brut de chaque signal à J+20 (`variation_pct`). "Battre le marché" n'était mesuré nulle part — un signal ACHAT à +3% était compté comme un succès même si l'ensemble du marché BRVM avait fait +8% ce jour-là. Cette absence rendait toute comparaison honnête entre V1 et V2, ou entre stratégies, structurellement incomplète : un hit rate élevé peut refléter un marché haussier général plutôt que la qualité du signal (biais déjà identifié dans l'entrée du 18/07/2026 sur le J+90, groupe BOA/SNTS).
+
+T16 était identifiée comme prérequis de toutes les expérimentations (E1.*, E2.*) et de toute comparaison V1/V2 rigoureuse, avant même T5c dans l'ordre de priorité recommandé initialement — réalisée après T5c dans les faits, sans que cela pose de problème pratique (les expériences `tools/experiments/` calculent leur propre alpha en interne, indépendamment de cette colonne).
+
+### Décision
+
+1. **Schéma** — deux colonnes ajoutées à `brvm_decisions_results` via SQL Editor (conforme ADR-026, mass DB corrections via SQL Editor uniquement) :
+   ```sql
+   ALTER TABLE brvm_decisions_results
+      ADD COLUMN benchmark_return numeric,
+      ADD COLUMN alpha numeric;
+   ```
+
+2. **Définition du benchmark** — `benchmark_return` = moyenne simple (non pondérée) des `variation_pct` de **tous les tickers vérifiés le même jour**, dans le même run de `verify_decisions.py`. Pas un indice BRVM officiel, pas de pondération par capitalisation — un proxy de marché local à l'échantillon quotidien de signaux vérifiés.
+
+3. **Alpha** — `alpha = variation_pct − benchmark_return`, calculé et injecté par ligne après la boucle de vérification, avant l'upsert.
+
+4. **Tolérance de prix** — aucune nouvelle logique introduite. Le calcul réutilise directement `variation_pct`, déjà calculé par `get_price_at_date()` avec sa tolérance existante de ±5 jours calendaires. La spec initiale envisageait une tolérance dédiée de ±3 jours ouvrés pour le benchmark spécifiquement ; décision prise de ne pas la complexifier — simplicité et cohérence avec le code existant priorisées sur une conformité littérale à la spec écrite initiale (décision de session, 28/07/2026).
+
+5. **Portée** — patch strictement additif à `verify_decisions.py` (aucune signature de fonction modifiée, aucun paramètre ajouté). Aucun script consommateur externe cassé (seul appelant en prod = GitHub Actions, workflow quotidien après `generate_decisions.py`).
+
+### Conséquences
+
+- **Pas de backfill sur l'historique.** Les lignes de `brvm_decisions_results` antérieures au 28/07/2026 ont `benchmark_return`/`alpha` = `NULL`. Un backfill rétroactif serait une tâche séparée (calcul day-by-day sur l'historique complet), non traitée ici.
+- **Limite connue** : si un seul ticker est vérifié un jour donné, `benchmark_return` = son propre `variation_pct` et `alpha` = 0 pour ce ticker — mathématiquement correct mais non informatif ce jour-là. Cas marginal, pas bloquant.
+- **`benchmark_return` n'est pas un indice de référence externe** (pas le BRVM Composite officiel) — c'est la moyenne des signaux vérifiés ce jour-là, qui peut différer du marché global si l'échantillon de signaux du jour est biaisé sectoriellement. À garder en tête pour toute lecture future de la colonne `alpha`.
+- **Débloque** : badge proof-level frontend (T16 était listé comme prérequis), toute future comparaison V1/V2 alpha-ajustée, et la règle de cadence "une promotion de modèle en prod toutes les 4 semaines, mesurée par la colonne alpha" mentionnée dans les principes du projet.
+
+### Validation
+
+Testé en conditions réelles le 28/07/2026 : 47 tickers vérifiés, `benchmark_return` = +2.79%, upsert confirmé en base (vérifié par requête directe post-exécution). Aucune régression sur le hit rate global cumulé (54.3%, cohérent avec l'historique).
