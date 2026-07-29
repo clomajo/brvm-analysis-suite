@@ -424,3 +424,53 @@ Le signal ACHAT montre un hit rate croissant avec l'horizon (65.6% à J+20 → 8
 **Réserve méthodologique :** l'échantillon à J+90 (n=132) ne couvre que les signaux les plus anciens (avril-mai 2026) — une fenêtre calendaire plus étroite que J+20 (avril-juillet). Si le marché BRVM a connu une tendance haussière particulièrement marquée sur cette période spécifique, une partie du hit rate élevé à J+90 pourrait refléter ce momentum général plutôt que la seule qualité du signal — le même biais de confusion identifié aujourd'hui pour le groupe BOA et SNTS (mouvements de marché communs indépendants du signal testé). Aucun contrôle pour ce facteur n'a été fait dans ce calcul ad hoc.
 
 **Ce calcul est ad hoc et non committé comme script de production.** Si ces résultats doivent être présentés formellement (ex. à des clients potentiels), une tâche dédiée devrait committer ce script dans `tools/`, avec la même rigueur que T6 (bootstrap, walk-forward, contrôle du facteur de tendance de marché générale sur la période).
+---
+
+## T9 — Test de falsification : V2 vs benchmarks réels
+
+**Date d'exécution :** 28/07/2026
+
+**Contexte :** V2 (cours cible) sait générer des signaux ACHAT, mais son seul benchmark à ce jour était le comportement du titre lui-même (perf_j90 brute), jamais comparé à une alternative réelle. T9 (Phase 11 du plan de remédiation, débloquée par la clôture de T5c) teste si V2 bat (A) la stratégie dividende naïve déjà validée empiriquement (E2.6/E2.7-A/T5c-A) et (B) les recommandations BOA déjà présentes en base. Prérequis explicite de la gate Phase 13 (T11/T12/T13), aux côtés de T6.
+
+### Méthode
+
+Script `tools/falsification_v2.py`, lecture seule REST, aucune modification du pipeline de production.
+
+- **Volet A — stratégie naïve dividende** : tickers {BOAB, BOAC, ECOC, SMBC, NSBC, NTLC}, yield ≥ 8% au moment de l'achat, achat J-19 avant ex-date, sortie J+90, rendement = variation de prix + dividende encaissé. FY2022-FY2025.
+- **Volet B — recommandations BOA** : table `boa_recommendations`, `action = BUY`, rendement J+90 depuis `date_start`, uniquement les recos dont la fenêtre J+90 est entièrement écoulée à la date d'exécution.
+- **Volet C — V2** : réplique la logique de sélection de `backtest_value.py` (commit `49a64b6`, fichier source non modifié) — décote_pct > 15% → ACHAT, PER sectoriel, filtres cap 150-500 Mds / ROE > 15% / PB < 2.5, même horizon J+90.
+
+**Piège de schéma découvert en cours d'exécution** : `corporate_events.event_type = 'EX_DIVIDEND'` porte la date précise de l'ex-dividende mais **jamais** `amount`/`yield_pct` (toujours `NULL`) ; ces valeurs vivent séparément dans `event_type = 'DIVIDEND_HISTORY'`, avec un `event_date` différent (fin d'exercice, pas l'ex-date). Jointure obligatoire par `fiscal_year` entre les deux `event_type` pour reconstituer un trade complet — sans cette jointure, le Volet A retournait 0 trade silencieusement.
+
+**Deux bugs de réplique trouvés et corrigés en cours de session** (détectés par écart n=23 vs 25 attendu sur le Volet C, diagnostiqués en comparant signal par signal avec un run manuel de `backtest_value.py`) :
+1. Bornes ROE/PB strictes au lieu de larges (`roe > ROE_MIN and pb < PB_MAX` au lieu de `not(roe < ROE_MIN) and not(pb > PB_MAX)`) — excluait à tort ONTBF FY2023/FY2024 où `pb_ratio == 2.5` exactement (la borne).
+2. `market_cap` récupéré par ligne `fiscal_year` au lieu d'un seul `market_cap` par ticker appliqué à tout l'historique (comportement réel de l'original : seul FY2025 a `market_cap` peuplé en base).
+
+Après correction, le Volet C reproduit exactement les 25 signaux et la médiane 7.8% du run manuel de `backtest_value.py`.
+
+### Résultats
+
+| Volet | n | Médiane | Moyenne | % positifs | Pire cas |
+|---|---|---|---|---|---|
+| A (naïve dividende) | 15 | **13.14%** | 15.45% | **100.0%** | +4.14% |
+| B (recos BOA) | 57 | 11.34% | 15.09% | 80.7% | -32.15% |
+| C (V2) | 25 | 7.81% | 6.41% | 68.0% | -27.87% |
+
+### Verdict (règle d'interprétation appliquée textuellement)
+
+Condition testée : médiane C ≤ médiane A **ET** % positifs C ≤ % positifs A → *"V2 non différencié de la stratégie naïve — GELER la Phase 13, envisager la simplification du pipeline."*
+
+**7.81% ≤ 13.14% et 68.0% ≤ 100.0% : condition remplie.**
+
+**VERDICT : V2 NON DIFFÉRENCIÉ de la stratégie naïve — GELER la Phase 13, envisager la simplification du pipeline.**
+
+### Lecture
+
+Résultat cohérent avec T6 (IC95% bootstrap J+90 = [-1.6%, +14.3%], borne basse négative, "V2 statistiquement non prouvé") — deux tests indépendants (stress statistique interne et falsification contre benchmarks externes) pointent dans la même direction. La machinerie de valorisation (décote EPS × PER sectoriel) n'apporte pas d'edge démontrable par rapport à une règle mécanique simple ("acheter avant l'ex-date d'un dividende ≥8%, revendre à J+90").
+
+**Réserves méthodologiques, à garder en tête :**
+- Volet A repose sur seulement **15 trades** (6 tickers, FY2022-FY2025) — échantillon petit, bien que 100% positif soit un signal fort et cohérent avec les résultats E2.6/E2.7-A/T5c-A déjà obtenus séparément sur la même stratégie.
+- Les trois volets ne couvrent pas exactement le même univers de tickers ni les mêmes fenêtres temporelles — comparaison indicative, pas un appariement strict signal par signal.
+- Volet B (recos BOA) a un pire cas très négatif (-32.15%) malgré une médiane élevée — distribution possiblement plus dispersée, non creusée ici.
+
+**Conséquence pratique directe** : la Phase 13 (T11 sizing continu, T12 découplage signal_valeur/signal_timing, T13 tests de pondération cours cible) reste **gelée** — son gate exigeait "T9 conclut edge confirmé ET T6 sans alerte overfitting". Aucune des deux conditions n'est remplie. Pas de changement de code de production suite à cette tâche (lecture seule, conforme à la spec).
