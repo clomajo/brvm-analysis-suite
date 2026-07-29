@@ -956,3 +956,35 @@ T16 était identifiée comme prérequis de toutes les expérimentations (E1.*, E
 ### Validation
 
 Testé en conditions réelles le 28/07/2026 : 47 tickers vérifiés, `benchmark_return` = +2.79%, upsert confirmé en base (vérifié par requête directe post-exécution). Aucune régression sur le hit rate global cumulé (54.3%, cohérent avec l'historique).
+## ADR-036 — Règle de sortie V2 (T10, Volet A)
+
+**Date :** 28/07/2026
+
+**Statut :** Accepté — figé avant toute position réelle sur signaux V2
+
+### Contexte
+
+V2 (cours cible) sait générer des signaux ACHAT, mais aucune règle de sortie ni aucun seuil de suspension (kill-switch) n'existait avant cette décision. Le plan de remédiation (Phase 12, T10) impose que ces deux volets soient figés **avant** l'accumulation de positions réelles sur signaux V2 — pas après les premières pertes. C'est la seule tâche du plan dont l'échéance est dictée par le portefeuille personnel de Jocelyn, pas par l'ordre du plan.
+
+### Décision
+
+Trois règles de sortie, appliquées dans cet ordre de priorité (la première condition atteinte déclenche la sortie) :
+
+1. **Sortie cible** — le cours atteint ≥ 95% du `cours_cible` du jour (recalculé au refresh courant, pas figé à la date d'achat).
+2. **Sortie temps** — J+90 depuis la date d'achat, si aucune des autres conditions n'a déclenché avant. Horizon aligné sur celui du backtest V2 (T5b, T6, E2.*).
+3. **Sortie fondamentale** — le ticker sort des critères de sélection V2 (ROE, collapse EPS) au refresh suivant → sortie au prochain point de liquidité disponible (pas de vente forcée immédiate, la BRVM étant peu liquide).
+
+**Pas de stop-loss prix serré.** Décision explicite de ne pas utiliser de stop-loss classique. Rationale : sur la BRVM, l'exécution d'un stop est illusoire du fait de l'illiquidité structurelle de la majorité des tickers — un ordre stop peut ne trouver aucune contrepartie au moment voulu, ou s'exécuter à un prix très dégradé par rapport au seuil visé. La protection contre les pertes extrêmes vient plutôt de deux mécanismes complémentaires :
+- Le **sizing** (T11, sous gate Phase 13 — pas encore actif) : limiter la mise par signal selon la qualité du signal et la liquidité du titre.
+- Le **kill-switch** (T10, Volet B) : suspension des nouveaux achats V2 si la performance récente des signaux se dégrade, indépendamment des positions déjà ouvertes.
+
+### Conséquences
+
+- Ces règles de sortie sont **manuelles à ce stade** — aucune automatisation d'ordres n'existe ni n'est prévue dans le périmètre actuel du projet. Elles servent de référence de décision pour Jocelyn, pas de déclencheur automatique.
+- La sortie fondamentale dépend de la fraîcheur du refresh V2 — si le pipeline de scoring a un délai ou une panne silencieuse (cf. T1/`health_check.py`), la détection de sortie fondamentale peut être retardée. Aucune action corrective spécifique prise ici ; couvert indirectement par T1.
+- L'absence de stop-loss signifie que le risque de perte maximale par position n'est plafonné que par la sortie temps (J+90) et la surveillance manuelle — pas par un mécanisme automatique de coupure de perte. Ce choix est assumé au vu de l'illiquidité BRVM, mais reste un risque à garder en tête tant que le sizing (T11) n'est pas actif.
+- Débloque la suite du Volet B (script `killswitch_check.py`) et, à terme, T11 (sizing continu) une fois la Phase 13 gate levée (T6 + T9 favorables).
+
+### Prochaine étape
+
+Volet B — script `tools/killswitch_check.py` (délégable, Classe A ou B selon le protocole du plan), constantes par défaut à confirmer : `N_MIN=15`, `SEUIL_POSITIFS=0.50`, `SEUIL_MEDIANE=0.0`.
