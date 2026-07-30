@@ -474,3 +474,19 @@ Résultat cohérent avec T6 (IC95% bootstrap J+90 = [-1.6%, +14.3%], borne basse
 - Volet B (recos BOA) a un pire cas très négatif (-32.15%) malgré une médiane élevée — distribution possiblement plus dispersée, non creusée ici.
 
 **Conséquence pratique directe** : la Phase 13 (T11 sizing continu, T12 découplage signal_valeur/signal_timing, T13 tests de pondération cours cible) reste **gelée** — son gate exigeait "T9 conclut edge confirmé ET T6 sans alerte overfitting". Aucune des deux conditions n'est remplie. Pas de changement de code de production suite à cette tâche (lecture seule, conforme à la spec).
+
+---
+
+## T16-backfill — Rétro-remplissage alpha/benchmark_return (30/07/2026)
+
+**Statut : CLOS.** Écart de conformité v1.4 levé — couverture 100% (3135/3135) contre ≥95% exigés.
+
+Artefacts : `backfill_alpha.sql` (requête `UPDATE ... FROM` unique, transactionnelle, exécutée via SQL Editor), `tools/backfill_alpha.py` (harnais de vérification en lecture seule, rejouable). ADR-039.
+
+**Décision structurante** : clé de cohorte `(signal_date, verification_date)` au lieu de `verification_date` seul. Motif : le 16/05/2026 est un jour de rattrapage mêlant deux cohortes (36 lignes du 03/04, 47 du 16/04) aux fenêtres de détention différentes — benchmarks séparés 3.64 et 1.41. Identique à la prod sur les 65 autres jours.
+
+**Contrôles** : couverture 100% / invariant moyenne(alpha)=0 sur 67 cohortes (écart max 0.004894, résidu d'arrondi) / **0 divergence** sur les 47 lignes de prod du 28/07 laissées comme témoin (benchmark recalculé +2.79%, identique). Le troisième contrôle établit que l'historique rétro-calculé est homogène aux valeurs de production.
+
+**Débloque** : kill-switch T10-B (67 cohortes au lieu d'un jour unique — le déclenchement du 28/07 est à réévaluer sur cette base), relecture de T9 en alpha, badge proof-level frontend.
+
+**Précaution** : snapshot JSON complet (3135 lignes) pris hors repo avant écriture — Supabase Free n'a pas de sauvegarde automatique.

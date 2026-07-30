@@ -478,3 +478,5 @@ commit séparé sur le repo `brvm-analytics` (frontend), pas
 
 **Priorité : haute** — impacte la crédibilité de l'information affichée
 aux utilisateurs sur la majorité des tickers couverts.
+
+- **Aligner `verify_decisions.py` sur la clé de cohorte du backfill** (issu d'ADR-039) : la prod groupe le benchmark par `verification_date` seul, l'historique par `(signal_date, verification_date)`. Sans effet aujourd'hui, mais au prochain jour de rattrapage la prod écrira un benchmark mélangeant deux fenêtres de détention, incohérent avec l'historique. Correctif d'une ligne, mais modification de production → tâche séparée.

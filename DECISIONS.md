@@ -1041,3 +1041,46 @@ Aucune valeur de plafond tranchée dans cette tâche — décision Jocelyn à pr
 **Conséquences :** Résultats de vérification plus rapides et plus propres. Modifier aussi l'affichage "Valide jusqu'au" sur les DecisionCards post-dégel.
 
 **Note complémentaire (30/07/2026) :** cette décision reste la justification en vigueur du comportement actuel de `verify_decisions.py` (`VERIFICATION_WINDOW = 20`, cf. commentaire dans le code source). L'entrée du 18/07/2026 dans `REMEDIATION_LOG.md` (calcul ad hoc multi-horizons J+20 à J+90) a depuis nuancé ce choix — le hit rate continue de croître au-delà de J+20 (81.8% à J+90 sur un échantillon plus restreint, n=132), mais cette découverte n'a pas encore donné lieu à une révision formelle de cet ADR ; elle reste documentée comme observation ad hoc distincte, avec ses propres réserves méthodologiques (biais de tendance de marché non contrôlé).
+
+---
+
+## ADR-039 — Backfill historique de la colonne alpha (T16-backfill)
+
+**Date :** 30/07/2026
+
+**Statut :** Accepté, exécuté en base (`backfill_alpha.sql` + `tools/backfill_alpha.py`, branche `remediation-2026-07`)
+
+### Contexte
+
+ADR-035 laissait explicitement ouvert le backfill historique : les 3088 lignes de `brvm_decisions_results` antérieures au 28/07/2026 avaient `alpha`/`benchmark_return` = `NULL`, contre une couverture ≥95% exigée par la spec v1.4. Conséquence pratique immédiate : le kill-switch T10-B, dont le critère repose sur l'alpha, ne disposait que d'une seule journée de données (n=47 au 28/07) et s'est déclenché sur ce qui a été documenté comme un probable artefact de faible n. Sans backfill, T10-B ne pouvait pas être considéré comme opérationnel.
+
+### Décision
+
+1. **Clé de cohorte — divergence assumée avec la production.** Le backfill groupe par `(signal_date, verification_date)`, alors que `verify_decisions.py` groupe par jour de vérification seul. Justification : le 16/05/2026 est un jour de rattrapage où deux cohortes de signaux distinctes ont été vérifiées ensemble (36 lignes du 03/04, 47 lignes du 16/04), soit deux fenêtres de détention différentes. Grouper par jour seul aurait produit un benchmark unique ne correspondant à aucune des deux cohortes ; les benchmarks séparés valent respectivement 3.64 et 1.41 — l'écart n'est pas négligeable. Les 65 autres jours n'ont qu'une seule `signal_date` : sur eux, les deux clés donnent un résultat rigoureusement identique.
+
+2. **Définition inchangée** — `benchmark_return` = moyenne simple des `variation_pct` de la cohorte, tous signaux confondus (ACHAT/SURVEILLER/VENDRE) ; `alpha = variation_pct − benchmark_return`. Arrondi à 2 décimales sur les deux colonnes, aligné sur la précision de `variation_pct`.
+
+3. **Périmètre** — filtre `alpha IS NULL` : les 47 lignes du 28/07 écrites par `verify_decisions.py` ne sont pas retouchées et servent de **témoin de conformité** (voir Validation).
+
+4. **Exécution** — une unique requête `UPDATE ... FROM` transactionnelle via SQL Editor (conforme ADR-026), pas de génération de 3088 `UPDATE` unitaires : atomicité, aucun état partiel possible. `tools/backfill_alpha.py` est un harnais de **vérification en lecture seule**, rejouable, n'écrivant rien.
+
+5. **Sauvegarde préalable** — snapshot JSON complet de la table (3135 lignes) pris avant écriture, hors repo. Supabase Free n'offre aucune sauvegarde automatique : un UPDATE de masse sans snapshot serait irrécupérable.
+
+### Conséquences
+
+- **Couverture 100%** (3135/3135), au-delà des 95% exigés. L'écart de conformité stricte à la spec v1.4 documenté dans ADR-035 est levé.
+- **Débloque T10-B** : le kill-switch dispose désormais de 67 cohortes d'historique au lieu d'un jour unique. Le déclenchement du 28/07 doit être réévalué sur cette base avant toute conclusion sur V1.
+- **Débloque la relecture de T9 en alpha** : les trois volets de la falsification comparaient des médianes de rendement brut sur des fenêtres temporelles non appariées (réserve méthodologique explicitement notée dans `REMEDIATION_LOG.md`). L'alpha neutralise en partie ce biais.
+- **Débloque le badge proof-level frontend**, déjà listé comme dépendant de T16.
+- **Nouvel item backlog — désalignement production/historique.** `verify_decisions.py` groupe toujours par `verification_date` seul. Sans effet aujourd'hui, mais au prochain jour de rattrapage la production écrira un benchmark mélangé, incohérent avec l'historique backfillé. Correctif d'une ligne, mais modification de production : traité séparément, pas dans cette tâche.
+- **Limite héritée d'ADR-035, inchangée** : `benchmark_return` reste la moyenne des signaux vérifiés, pas un indice BRVM officiel. L'alpha mesure donc "battre l'échantillon vérifié du jour", pas "battre le BRVM Composite". Les chiffres ne sont pas comparables à une performance publiée contre indice.
+- **Auto-inclusion assumée** : chaque ligne fait partie de son propre benchmark, ce qui contracte l'alpha d'un facteur ~46/47 (≈2%). Un leave-one-out serait plus pur mais divergerait des lignes de production ; l'uniformité a été priorisée sur la pureté.
+- **Cohorte du 03/04 asymétrique** : 36 tickers au lieu de 47, son benchmark porte donc sur un sous-ensemble de l'univers. Reconstruire les 11 manquants depuis `historical_data` aurait ouvert un chemin de données neuf pour une seule cohorte sur 67 — écarté.
+
+### Validation
+
+Trois contrôles, exécutés en SQL puis revalidés indépendamment via REST par `tools/backfill_alpha.py` :
+
+1. **Couverture** — 3135/3135 = 100.00%, 0 NULL restant.
+2. **Invariant mathématique** — la moyenne des `alpha` d'une cohorte doit valoir exactement 0 par construction. Vérifié sur les 67 cohortes : écart maximal à zéro = 0.004894, soit le résidu d'arrondi attendu (2 décimales réparties sur ~47 lignes). Un écart supérieur aurait signalé une erreur de regroupement.
+3. **Témoin de production** — confrontation de la formule aux 47 lignes du 28/07 écrites par `verify_decisions.py`, non retouchées par le backfill : benchmark recalculé = +2.79% (identique), **0 divergence** sur les 47 lignes, `benchmark_return` et `alpha` compris. C'est le contrôle décisif : il établit que les valeurs historiques rétro-calculées sont homogènes à celles produites en production, donc comparables entre elles.
