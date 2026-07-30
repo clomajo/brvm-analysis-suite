@@ -636,6 +636,8 @@ Investigation jusqu'à la cause racine :
 
 ## ADR-019 : Analyse fondamentale bloquée — contrainte SQL parasite + extraction titre
 
+> **Note (T17, 30/07/2026) :** ce numéro ADR-019 a écrasé, par collision de numérotation le 28/06/2026, un ADR antérieur du 26/05/2026 sur l'horizon de vérification (J+20 vs 90 jours). Ce texte original a été restauré sous **ADR-038** — voir cette entrée pour la décision sur `verify_decisions.py` et `VERIFICATION_WINDOW`.
+
 **Date :** 28/06/2026
 **Statut :** Accepté — implémenté
 
@@ -1024,3 +1026,18 @@ Aucune valeur de plafond tranchée dans cette tâche — décision Jocelyn à pr
 ### Item BACKLOG ajouté (priorité haute)
 
 **Modèles de valorisation différenciés par secteur.** V2 utilise un modèle unique (PER sectoriel × EPS + composante dividende) pour tous les secteurs, ne faisant varier que la valeur du PER de référence. La littérature financière établit que les praticiens utilisent des modèles structurellement différents par secteur — pour les banques spécifiquement, une combinaison P/E + P/B ou un modèle d'actualisation des dividendes est standard, le DCF classique étant jugé inadapté pour les institutions financières (bilan et régulation spécifiques). Ceci pourrait expliquer une partie de la sur-représentation des banques dans les signaux ACHAT de V2 : non pas une vraie sous-évaluation, mais un modèle structurellement plus favorable à ce secteur qu'aux autres. Piste à explorer : modèle P/E+P/B dédié pour SERVICES_FINANCIERS, cohérent avec la pratique observée sur le dividend capture (déjà concentré sur des banques et validé empiriquement par T5c-A/T5c-B/E2.6/E2.7-A). Non traité dans cette session — item de recherche, pas une correction immédiate.
+## ADR-038 — Horizon de vérification = J+20 (remplace 90 jours) [restauré — ex-ADR-019, écrasé par collision de numérotation le 28/06/2026]
+
+**Date :** 26/05/2026 (date de la décision originale)
+
+**Note de restauration (30/07/2026, T17) :** ce texte est la restauration intégrale de l'ADR-019 original, écrasé le 28/06/2026 lorsqu'un autre sujet ("Analyse fondamentale bloquée — contrainte SQL parasite + extraction titre") a réutilisé le même numéro. Contenu retrouvé via `git log -p -- DECISIONS.md`, commit `13a041c` (26/05/2026, "ADR-016 à ADR-019 — signal technique bruit, BOA V2, liquidité filtre, horizon J+20"). Texte reproduit sans modification depuis l'original. Voir l'ADR-019 actuel pour le renvoi croisé.
+
+**Contexte :** Backtest 10 ans montre signal s'améliorant de J+5=47.9% à J+30=56.7%. Régression live montre pic BOA à J+20.
+
+**Décision :** Modifier `verify_decisions.py` pour vérifier à J+20 au lieu de 90 jours post-dégel.
+
+**Raison :** 90 jours croise trop d'événements exogènes (AG, ex-dividendes, chocs macro) qui masquent le signal initial. Le signal fondamental BOA peak à J+20 — c'est l'horizon de convergence naturel sur le BRVM.
+
+**Conséquences :** Résultats de vérification plus rapides et plus propres. Modifier aussi l'affichage "Valide jusqu'au" sur les DecisionCards post-dégel.
+
+**Note complémentaire (30/07/2026) :** cette décision reste la justification en vigueur du comportement actuel de `verify_decisions.py` (`VERIFICATION_WINDOW = 20`, cf. commentaire dans le code source). L'entrée du 18/07/2026 dans `REMEDIATION_LOG.md` (calcul ad hoc multi-horizons J+20 à J+90) a depuis nuancé ce choix — le hit rate continue de croître au-delà de J+20 (81.8% à J+90 sur un échantillon plus restreint, n=132), mais cette découverte n'a pas encore donné lieu à une révision formelle de cet ADR ; elle reste documentée comme observation ad hoc distincte, avec ses propres réserves méthodologiques (biais de tendance de marché non contrôlé).
