@@ -988,3 +988,39 @@ Trois règles de sortie, appliquées dans cet ordre de priorité (la première c
 ### Prochaine étape
 
 Volet B — script `tools/killswitch_check.py` (délégable, Classe A ou B selon le protocole du plan), constantes par défaut à confirmer : `N_MIN=15`, `SEUIL_POSITIFS=0.50`, `SEUIL_MEDIANE=0.0`.
+## ADR-037 — Concentration sectorielle de V2 (T14)
+
+**Date :** 30/07/2026
+
+**Statut :** Constat documenté — aucun changement de pipeline dans cette tâche (lecture seule, conforme à la spec T14)
+
+### Contexte
+
+Hypothèse à vérifier (Phase 11 du plan de remédiation) : V2 (cours cible) serait en réalité un "long banques UEMOA avec timing dividende" plutôt qu'une sélection de valeur diversifiée. Script `tools/diagnostic_concentration_sectorielle.py`, mapping sectoriel repris de `calculate_target_price.py` (`SECTEUR_OFFICIEL`, 7 catégories officielles BRVM — distinct du mapping simplifié de `backtest_value.py` et du mapping `companies.sector`, qui coexistent tous deux dans le repo sans être synchronisés entre eux).
+
+### Résultats
+
+| Volet | n | Secteur dominant | % | Seuil 60% |
+|---|---|---|---|---|
+| (a) 25 signaux ACHAT du backtest V2 (FY2021-FY2024) | 25 | SERVICES_FINANCIERS | 68.0% | Dépassé |
+| (b) Signaux ACHAT actuels de `target_prices` (30/07/2026) | 3 | TELECOMMUNICATIONS | 66.7% | Dépassé (non interprétable, voir réserve) |
+
+**Réserve sur le Volet (b) :** n=3 seulement. Avec un échantillon aussi restreint, tout secteur ayant 2 signaux sur 3 dépasse mécaniquement le seuil de 60%, indépendamment de toute concentration structurelle réelle du modèle. Ce chiffre reflète l'état instantané de `target_prices` au 30/07/2026, pas une mesure fiable de biais sectoriel — à ne pas comparer au même niveau de confiance que le Volet (a).
+
+**Le Volet (a) est le résultat robuste** : sur l'échantillon complet et stable des 25 signaux historiques du backtest, 17 proviennent du secteur Services Financiers (banques), soit 68% — nettement au-dessus des 60% du seuil défini par le plan, et aussi au-dessus des ~34% que représente ce secteur dans l'univers total de tickers mappés (16/47), ce qui exclut un simple effet de composition du marché.
+
+### Décision (règle appliquée textuellement, plan de remédiation T14)
+
+**"V2 = exposition sectorielle concentrée ; plafond d'exposition par secteur à fixer par Jocelyn (proposition de départ : 50% du capital alloué à V2)."**
+
+Aucune valeur de plafond tranchée dans cette tâche — décision Jocelyn à prendre séparément, hors périmètre de ce diagnostic (lecture seule).
+
+### Conséquences
+
+- Confirme et précise l'hypothèse de départ : V2 n'est pas un modèle diversifié, il surpondère structurellement les Services Financiers.
+- Cohérent avec T9 (V2 ne bat pas la stratégie dividende naïve, elle-même concentrée sur 6 tickers dont une majorité de banques) — deux résultats indépendants pointant vers la même réalité : la performance apparente de V2 pourrait être en grande partie un effet sectoriel bancaire plutôt qu'un edge de sélection général.
+- Un plafond d'exposition par secteur (T14) devient d'autant plus pertinent si une décision de production sur V2 est prise à l'avenir, malgré le gel actuel de la Phase 13 (cf. T9).
+
+### Item BACKLOG ajouté (priorité haute)
+
+**Modèles de valorisation différenciés par secteur.** V2 utilise un modèle unique (PER sectoriel × EPS + composante dividende) pour tous les secteurs, ne faisant varier que la valeur du PER de référence. La littérature financière établit que les praticiens utilisent des modèles structurellement différents par secteur — pour les banques spécifiquement, une combinaison P/E + P/B ou un modèle d'actualisation des dividendes est standard, le DCF classique étant jugé inadapté pour les institutions financières (bilan et régulation spécifiques). Ceci pourrait expliquer une partie de la sur-représentation des banques dans les signaux ACHAT de V2 : non pas une vraie sous-évaluation, mais un modèle structurellement plus favorable à ce secteur qu'aux autres. Piste à explorer : modèle P/E+P/B dédié pour SERVICES_FINANCIERS, cohérent avec la pratique observée sur le dividend capture (déjà concentré sur des banques et validé empiriquement par T5c-A/T5c-B/E2.6/E2.7-A). Non traité dans cette session — item de recherche, pas une correction immédiate.
