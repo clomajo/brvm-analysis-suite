@@ -1137,3 +1137,71 @@ Une première tentative de preuve par les prix (`tools/diag_decalage_fiscal_year
 ### Preuve retenue
 
 Documentaire, pas statistique : concordance des avis officiels BRVM, des avis de crédit du courtier et des lignes `DIVIDEND` de la base, sur quatre tickers indépendants.
+
+---
+
+## ADR-041 — `company_fundamentals.dividend_per_share` mélange brut et net (constat de bug)
+
+**Date :** 31/07/2026
+
+**Statut :** Constat accepté, correction non faite (décision de convention en attente de Jocelyn)
+
+### Contexte
+
+Découvert le 31/07/2026 en vérifiant si le décalage d'ADR-040 touchait la production. Il ne la touche pas — `calculate_target_price.py` lit `company_fundamentals`, pas `corporate_events`. Mais l'examen a révélé un défaut distinct, lui en production.
+
+### Constat
+
+**Deux scripts écrivent la même colonne avec des conventions incompatibles :**
+
+| script | source | `fiscal_year` écrit | convention montant | dans le workflow |
+|---|---|---|---|---|
+| `scrape_all_v4.py` | stockanalysis.com | FY2021→FY2025 (exercice comptable) | **brut** | oui |
+| `scrape_boc_pdf.py` | Bulletin Officiel de la Cote (BRVM) | `FY{année_civile}` = FY2026 | **net** (champ `rdt_net`, ligne 122) | oui |
+
+Le rapport entre les deux vaut exactement le taux d'IRVM du pays de l'émetteur. Sur 24 tickers comparables, **17 ont un résidu nul (±0.0%)** après division par le facteur `1/(1−taux)`, sur cinq taux distincts :
+
+| taux IRVM | pays | facteur | tickers à résidu nul |
+|---|---|---|---|
+| 12% | Côte d'Ivoire | +13.6% | BICC, CABC, CFAC, NTLC, SDCC, SIBC, SOGC, SPHC, TTLC, SGBC, STBC |
+| 10% | Sénégal | +11.1% | SNTS, BOAS, TTLS |
+| 12,5% | Burkina Faso | +14.3% | ONTBF |
+| 7% | Mali / Niger | +7.5% | BOAM, BOAN |
+
+Concordance sur cinq taux différents : l'explication n'est pas fortuite.
+
+**Sept exceptions**, toutes attribuables à un second effet superposé — un décalage d'exercice (le dividende a changé d'une année sur l'autre) :
+- résidus négatifs : BOAB −20.0%, BOAC −23.3%, ECOC −9.5%, PALC −2.1% (hausses réelles du dividende, confirmées pour BOAB 468→585 et BOAC 459→594.53 par les avis de crédit)
+- résidus positifs : BOABF +8.0%, ORAC +6.7%, CIEC +5.6% (variation dans le même sens que l'effet IRVM)
+
+### Ce qui n'est PAS un bug
+
+La formule du cours cible V2 applique Gordon au dividende (`dividende / TAUX_ACTUALISATION`, poids 30%). Utiliser le **brut** est la convention standard. La valeur actuellement retenue en production est donc du brut, ce qui est cohérent avec la formule.
+
+Mécanisme de sélection : `fetch_fundamentals()` (ligne 217) filtre sur `eps=not.is.null`. Les lignes FY2026 du BOC n'ont pas d'EPS, donc elles sont écartées et `latest` tombe sur la ligne FY2025 de stockanalysis. C'est un filtrage **accidentel** — il produit aujourd'hui le bon résultat sans que rien ne le garantisse.
+
+### Le vrai défaut
+
+Une même colonne porte deux conventions selon le dernier script ayant écrit, et aucun consommateur ne sait laquelle il lit. Les consommateurs identifiés sont `calculate_target_price.py`, `signaux_actifs.py` et `report_generator.py`.
+
+Le jour où le BOC renseigne un EPS, où l'ordre d'exécution du workflow change, ou où un upsert écrase l'autre, les cours cibles se déplacent d'environ 12% sans qu'aucune ligne de code n'ait été modifiée. **Risque latent, pas incident en cours.**
+
+Impact chiffré si la bascule survenait : la composante Gordon pèse 30% du cours cible, donc un passage brut→net déplacerait le cours cible d'environ −3,5%, dans le sens qui réduit la décote et donc le nombre de signaux ACHAT.
+
+### Options de correction (décision Jocelyn requise)
+
+Le choix porte sur la convention que la colonne doit porter. Aucune n'est appliquée à ce stade.
+
+1. **Colonne = brut, source unique stockanalysis.** `scrape_boc_pdf.py` cesse d'écrire `dividend_per_share` (il continue d'écrire `pe_ratio`, `dividend_yield`, `ex_dividend_date`). Le plus simple ; perd la donnée BOC, qui est pourtant la source primaire.
+2. **Deux colonnes distinctes** — `dividend_per_share_brut` et `dividend_per_share_net`, chaque script écrivant la sienne. Le plus propre ; nécessite un `ALTER TABLE`, une migration des données existantes et la mise à jour des trois consommateurs.
+3. **Colonne = net, conversion à la lecture.** Cohérent avec le rendement réellement encaissé, mais impose de connaître le taux d'IRVM par pays à chaque lecture et change la formule de Gordon.
+
+L'option 2 est la seule qui préserve les deux informations. Elle est aussi la plus coûteuse.
+
+Point connexe, indépendant de ce choix : `scrape_boc_pdf.py` ligne 111 (`fy = f"FY{trade_date.year}"`) étiquette le dividende par son **année de versement**, pas par l'exercice. Le dividende de l'exercice 2025, versé en mai 2026, est écrit en FY2026. À corriger quelle que soit l'option retenue.
+
+### Validation
+
+Analyse en lecture seule, aucune écriture en base ni en production. Test : pour chaque ticker, comparaison de la ligne effectivement retenue par `fetch_fundamentals()` (la plus récente avec EPS non-null) à la ligne FY2026 du BOC, résidu calculé après division par `1/(1−taux_IRVM_pays)`. Taux issus des sources publiques recoupées le 31/07/2026 et de l'avis BRVM N°228 (NESTLE CI, exercice 2025), qui mentionne explicitement 12% personnes physiques / 10% personnes morales.
+
+**Réserve** : la table de correspondance ticker→pays a été établie manuellement pour ce diagnostic et n'existe pas dans le repo. Elle mériterait d'être versionnée si l'option 3 est retenue.

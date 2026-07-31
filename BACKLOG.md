@@ -489,3 +489,10 @@ aux utilisateurs sur la majorité des tickers couverts.
 - **Vérifier `tools/explore_dividend_window60.py`** (mêmes appels à `DIVIDEND_HISTORY`, non audité).
 - **Tester l'absence d'ajustement du cours à l'ex-date** en contrôlant les volumes — mécanisme candidat du dividend capture, indépendant du bug.
 - **Sensibilité frais/IRVM** : reformulée. Les montants en base sont **nets** d'IRVM (vérifié sur SNTS/BOAB/ONTBF/BOAC contre avis de crédit), donc appliquer un IRVM double-taxerait. Reste à modéliser : les frais de courtage à l'achat et à la vente, absents des backtests.
+
+**Suite ADR-041 — `dividend_per_share` mélange brut et net (production) :**
+
+- **Décision de convention** (Jocelyn) : colonne brute source unique / deux colonnes séparées / colonne nette. Rien ne peut être corrigé avant ce choix.
+- **`scrape_boc_pdf.py` ligne 111** : `fy = f"FY{trade_date.year}"` étiquette par année de versement au lieu de l'exercice (dividende exercice 2025 versé mai 2026 → écrit FY2026). À corriger indépendamment de la décision de convention.
+- **Versionner la correspondance ticker→pays** si l'option « colonne nette » est retenue — nécessaire pour appliquer le bon taux d'IRVM, actuellement établie manuellement et absente du repo.
+- **Auditer les 10 scripts écrivant `dividend_per_share`** — 5 non trackés ou obsolètes (`scrape_fundamentals_v2.py`, `scrape_all_v3.py`, `fix_parser.py`, `backtest_dividend.py`, `calculate_target_price_v3.py`), aucun propriétaire unique de la colonne.
