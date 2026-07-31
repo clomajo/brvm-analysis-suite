@@ -49,7 +49,7 @@ description: >
 
 ### Pipeline (brvm-analysis-suite)
 - **Toujours utiliser Supabase REST API** — psycopg2 échoue en GitHub Actions (ADR-004)
-- **Ne pas modifier `generate_decisions.py`** avant le 01/07/2026 — modèle gelé (ADR-001)
+- **`generate_decisions.py`** : gel ADR-001 expiré (01/07/2026). Phase 13 gelée depuis par T9 — voir réserve ADR-040
 - **Features Mistral statiques** → ne pas intégrer dans les modèles GRU (ADR-015, testé et rejeté)
 - **GRU fiable J+1/J+2 uniquement** — afficher J+5+ comme indicatif seulement (ADR-014)
 - **load_dotenv() dans heredoc** → utiliser `load_dotenv(find_dotenv(usecwd=True))` sinon AssertionError
@@ -170,7 +170,7 @@ Score composite (0-100) =
 
 ---
 
-## Modèle V2 (parallèle silencieux — bascule 01/07/2026)
+## Modèle V2 (Phase 13 GELÉE depuis T9, 30/07/2026)
 
 ```
 Signal V2 = ACHAT si :
@@ -448,3 +448,54 @@ git add SKILL.md CHANGELOG.md BACKLOG.md DECISIONS.md ARCHITECTURE.md
 git commit -m "docs: mise à jour documentation session JJ/MM/YYYY"
 git push
 ```
+
+---
+
+## État au 31/07/2026 — à lire avant toute tâche
+
+### Plan de remédiation : clos
+T0→T17 intégralement terminées (ADR-039 lève le dernier écart). Le travail
+bascule sur le backlog général.
+
+### Deux bugs de données ouverts
+
+**ADR-040 — décalage d'un an sur `DIVIDEND_HISTORY.fiscal_year`.**
+`scrape_corporate_events.py:161` fait `str(int(year)-1)` à tort : sikafinance
+affiche déjà l'exercice, pas l'année de versement. Toute jointure
+`EX_DIVIDEND × DIVIDEND_HISTORY` sur `fiscal_year` produit un look-ahead d'un
+an. **Ne pas se fier aux résultats de E2.6, E2.7-A, E2.7-B, T5c-A ni du volet
+A de T9** tant que ce n'est pas corrigé. Le scraper tourne en GitHub Actions,
+donc le bug se reproduit à chaque run. Les lignes `event_type = 'DIVIDEND'`
+(source `sikafinance`) sont saines.
+
+**ADR-041 — `company_fundamentals.dividend_per_share` mélange brut et net.**
+`scrape_all_v4.py` écrit du brut (stockanalysis), `scrape_boc_pdf.py` du net
+(BOC BRVM). Le rapport vaut le taux d'IRVM du pays de l'émetteur. En
+production, `calculate_target_price.py` lit le brut — correct pour Gordon,
+mais par l'effet accidentel du filtre `eps=not.is.null`. Décision de
+convention en attente.
+
+### Vérité terrain disponible
+Les avis officiels BRVM de paiement de dividendes (avis N°xxx/BRVM/DG) et les
+avis de crédit du courtier sont la référence pour arbitrer toute question de
+montant ou de millésime. Exercice 2025 : SNTS 1740 (ex 22/05/2026), BOAB 585,
+ONTBF 145,3214, BOAC 594,53. Les avis BRVM publient aussi l'IRVM applicable
+par titre, en distinguant personnes physiques et morales.
+
+### Fait notable, non expliqué
+Le cours BRVM **ne s'ajuste pas** du montant du dividende à l'ex-date (ONTBF :
+chutes de +5/−8.5/−20/+30 pour des dividendes de 145 à 288 ; ECOC et ORAC
+2026 : chute nulle pour 781 et 704 FCFA). Ceci invalide `tools/diag_decalage_fiscal_year.py`
+et pourrait constituer le vrai mécanisme du dividend capture. À contrôler par
+les volumes (chutes à exactement 0.0 = cours possiblement figés).
+
+### Outil cassé
+`tools/killswitch_check.py` ne filtre pas sur `signal` et compare l'alpha à 0
+alors que la médiane structurelle de l'univers vaut −1.84. Voyant rouge
+permanent, ne mesure rien.
+
+### Corrections d'obsolescence
+Ce SKILL.md datait du 30/05/2026. Les blocs « Modèle V1 » et « Modèle V2 »
+ci-dessus décrivent l'intention initiale, pas l'état validé : la performance
+V2 annoncée (25 signaux, médiane +7.8%) est le backtest de `backtest_value.py`,
+que T9 juge non différencié d'une stratégie naïve — avec la réserve ADR-040.

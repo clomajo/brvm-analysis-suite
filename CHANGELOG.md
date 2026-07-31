@@ -386,3 +386,43 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - NTLC : correction prix historiques pré-2017-09-11 (÷20, split réel
   confirmé BRVM Avis N°164-2017/BRVM/DG). 361 lignes corrigées dans
   historical_data. Voir ADR-032.
+
+## 30-31/07/2026
+
+### FIX
+- **T16-backfill** : rétro-remplissage `alpha`/`benchmark_return` sur
+  `brvm_decisions_results`. Couverture 100% (3135/3135), 3088 lignes mises
+  à jour. Clé de cohorte `(signal_date, verification_date)` — le 16/05
+  mêlait deux cohortes aux fenêtres de détention différentes. Voir ADR-039.
+  Le plan de remédiation formel (T0→T17) est désormais intégralement clos.
+
+### CONSTAT — deux bugs documentés, non corrigés
+- **ADR-040** : `corporate_events.DIVIDEND_HISTORY.fiscal_year` retarde d'un
+  an (`scrape_corporate_events.py:161`, `str(int(year)-1)` erroné). La
+  jointure sur `fiscal_year` attribue à chaque ex-date le montant de l'année
+  suivante — look-ahead. **77 des 89 cycles** de
+  `dividend_cycle_exploration.csv` sont touchés, donc E2.6, E2.7-A, E2.7-B,
+  T5c-A et T9 volet A. Le filtre `yield >= 8%` de T9 ayant sélectionné les
+  trades sur le rendement de l'année suivante, le verdict de gel de la
+  Phase 13 est fragilisé (ne réhabilite pas V2 : T6 et T14 sont
+  indépendants). Preuve documentaire : avis BRVM exercice 2025 + avis de
+  crédit du courtier.
+- **ADR-041** : `company_fundamentals.dividend_per_share` mélange brut et
+  net selon le script qui écrit en dernier — `scrape_all_v4.py`
+  (stockanalysis) écrit du brut, `scrape_boc_pdf.py` (BOC BRVM) du net.
+  17 tickers sur 24 à résidu nul après division par le facteur IRVM du pays.
+  Pas d'erreur de calcul actuelle (Gordon s'applique au brut), mais risque
+  latent : le filtre `eps=not.is.null` écarte les lignes BOC par accident.
+  Décision de convention en attente.
+
+### DOCS
+- ADR-039, ADR-040, ADR-041 ajoutés à `DECISIONS.md`
+- `tools/backfill_alpha.py`, `tools/diag_decalage_montants.py`,
+  `tools/diag_decalage_fiscal_year.py` (ce dernier **invalidé** : le cours
+  BRVM ne s'ajuste pas du montant du dividende à l'ex-date — résultat
+  négatif conservé pour ne pas refaire l'erreur)
+
+### KNOWN ISSUE
+- `tools/killswitch_check.py` : aucun filtre sur `signal` (ligne 82) et
+  seuils fixés à 0 alors que la médiane structurelle de l'alpha d'univers
+  vaut -1.84. Se déclenche en permanence, ne mesure rien.
