@@ -173,3 +173,25 @@ alpha_median=7.386 pts, %gagnants=89.9%,
 
 **Artefacts**: `tools/experiments/E2_8_rotation/E2_8_rotation_par_cycle.csv` (89 lignes),
 `tools/experiments/E2_8_rotation/E2_8_rotation_par_ticker.csv` (25 lignes)
+
+---
+
+## 31/07/2026 — Découverte : décalage d'un an sur les montants de dividendes (ADR-040)
+
+**Portée : E2.6, E2.7-A, E2.7-B, T5c-A (E2_8_rotation), T9 volet A.**
+
+`corporate_events.DIVIDEND_HISTORY.fiscal_year` retarde d'un an sur la convention BRVM. `dividend_cycle_exploration.csv`, qui alimente toute la chaîne d'expériences dividende, associe donc à chaque ex-date le montant de l'année suivante. **77 des 89 cycles exploitables sont affectés.**
+
+Preuve documentaire (pas statistique) : avis officiels BRVM exercice 2025 + avis de crédit du courtier, concordants sur SNTS/BOAB/ONTBF/BOAC, contre les lignes `DIVIDEND_HISTORY` correspondantes. Détail complet dans ADR-040.
+
+**Impact différencié :**
+- *Mesure* — médiane +8.2%, moyenne +20.8% sur le montant. Soit ~+0.8 pt de rendement par cycle, contre un alpha médian T5c-A de +7.39 pts. Les chiffres publiés sont faux, la conclusion qualitative tient probablement.
+- *Sélection* — `yield_pct` décalé de même. Le filtre `yield_pct >= 8%` de T9 volet A a sélectionné les trades sur le rendement de l'année suivante : look-ahead sur le choix des positions, biais orienté (63% de surestimation). Le 100% de trades positifs du volet A devient suspect, et avec lui le verdict de gel de la Phase 13.
+
+**Ne remet pas en cause** : T6 (IC95% borne basse négative) et T14 (concentration sectorielle) sont indépendants et inchangés. V2 n'est pas réhabilité pour autant.
+
+**Résultat négatif conservé** : `tools/diag_decalage_fiscal_year.py` (preuve tentée par la chute de prix à l'ex-date) est **invalidé** — le cours BRVM ne s'ajuste pas du montant du dividende (ONTBF : chutes de +5/−8.5/−20/+30 pour des dividendes de 145 à 288 ; ECOC et ORAC 2026 : chute nulle pour 781 et 704 FCFA). Son score 60/40 ne mesure rien et ne doit pas être cité. Script conservé pour ne pas refaire l'erreur.
+
+**Piste ouverte par cet échec** : l'absence d'ajustement du cours à l'ex-date serait un mécanisme candidat pour expliquer le succès du dividend capture, indépendant du bug. À contrôler par les volumes (chutes à exactement 0.0 = cours possiblement figés).
+
+**Outils** : `tools/diag_decalage_montants.py` (quantification, lecture seule, rejouable).

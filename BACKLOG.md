@@ -480,3 +480,12 @@ commit séparé sur le repo `brvm-analytics` (frontend), pas
 aux utilisateurs sur la majorité des tickers couverts.
 
 - **Aligner `verify_decisions.py` sur la clé de cohorte du backfill** (issu d'ADR-039) : la prod groupe le benchmark par `verification_date` seul, l'historique par `(signal_date, verification_date)`. Sans effet aujourd'hui, mais au prochain jour de rattrapage la prod écrira un benchmark mélangeant deux fenêtres de détention, incohérent avec l'historique. Correctif d'une ligne, mais modification de production → tâche séparée.
+
+**Suite ADR-040 — décalage d'un an sur les montants de dividendes (une tâche par ligne) :**
+
+- **Corriger `tools/explore_dividend_cycle.py`** et régénérer `dividend_cycle_exploration.csv` : pour toute ligne issue de `DIVIDEND_HISTORY` d'exercice FY, le montant correct est celui de FY−1. Coût : 26 cycles non corrigeables (plus ancien de chaque ticker), ~29% de l'échantillon perdu. Alternative à évaluer : re-scraper depuis les avis BRVM officiels, qui sont la source primaire et publient l'IRVM par titre.
+- **Corriger la jointure de `tools/falsification_v2.py`** (lignes 133-145) et **rejouer T9 volet A**. Le verdict de gel de la Phase 13 en dépend.
+- **Rejouer T5c-A / E2.7-A / E2.7-B / E2.6** sur le CSV corrigé, une fois celui-ci régénéré.
+- **Vérifier `tools/explore_dividend_window60.py`** (mêmes appels à `DIVIDEND_HISTORY`, non audité).
+- **Tester l'absence d'ajustement du cours à l'ex-date** en contrôlant les volumes — mécanisme candidat du dividend capture, indépendant du bug.
+- **Sensibilité frais/IRVM** : reformulée. Les montants en base sont **nets** d'IRVM (vérifié sur SNTS/BOAB/ONTBF/BOAC contre avis de crédit), donc appliquer un IRVM double-taxerait. Reste à modéliser : les frais de courtage à l'achat et à la vente, absents des backtests.

@@ -1084,3 +1084,56 @@ Trois contrôles, exécutés en SQL puis revalidés indépendamment via REST par
 1. **Couverture** — 3135/3135 = 100.00%, 0 NULL restant.
 2. **Invariant mathématique** — la moyenne des `alpha` d'une cohorte doit valoir exactement 0 par construction. Vérifié sur les 67 cohortes : écart maximal à zéro = 0.004894, soit le résidu d'arrondi attendu (2 décimales réparties sur ~47 lignes). Un écart supérieur aurait signalé une erreur de regroupement.
 3. **Témoin de production** — confrontation de la formule aux 47 lignes du 28/07 écrites par `verify_decisions.py`, non retouchées par le backfill : benchmark recalculé = +2.79% (identique), **0 divergence** sur les 47 lignes, `benchmark_return` et `alpha` compris. C'est le contrôle décisif : il établit que les valeurs historiques rétro-calculées sont homogènes à celles produites en production, donc comparables entre elles.
+
+---
+
+## ADR-040 — Décalage d'un an de `DIVIDEND_HISTORY.fiscal_year` (constat de bug)
+
+**Date :** 31/07/2026
+
+**Statut :** Constat accepté, corrections non faites (tâches séparées, cf. BACKLOG)
+
+### Contexte
+
+Découvert le 31/07/2026 à l'occasion d'une analyse de sensibilité frais/IRVM, à partir de pièces justificatives fournies par Jocelyn : avis officiels BRVM de paiement de dividendes (N°111 SONATEL, N°121 BOA BÉNIN, N°137 ONATEL, N°228 NESTLÉ CI, exercice 2025) et avis de crédit du courtier BOA Capital Securities.
+
+### Constat
+
+`corporate_events.DIVIDEND_HISTORY` (source `sikafinance_history`, 936 lignes) étiquette `fiscal_year` avec **un an de retard**. `EX_DIVIDEND` (source `richbourse_calendar`) et `DIVIDEND` (source `sikafinance`, 46 lignes) suivent la convention BRVM correcte.
+
+Preuve : le même montant apparaît deux fois dans `dividend_cycle_exploration.csv`, à deux ex-dates distantes d'un an.
+
+| ticker | ligne DIVIDEND_HISTORY | ligne DIVIDEND | vérité terrain (avis de crédit) |
+|---|---|---|---|
+| SNTS | 1740.0 — ex 2025-05-20 | 1740.0 — ex 2026-05-22 | 17 400 pour 10 titres, reçu 29/05/2026 |
+| BOAB | 585.0 — ex 2025-05-30 | 585.0 — ex 2026-05-14 | 2 925 pour 5 titres, reçu 29/05/2026 |
+| ONTBF | 145.0 — ex 2025-07-17 | 145.32 — ex 2026-06-12 | 2 325 pour 16 titres, reçu 17/06/2026 |
+| BOAC | 595.0 — ex 2025-05-16 | 594.53 — ex 2026-05-05 | 5 945 pour 10 titres, reçu 11/05/2026 |
+
+Le dividende réellement détaché en mai 2025 par SONATEL était 1655, pas 1740.
+
+### Conséquences
+
+1. **Look-ahead d'un an.** `tools/falsification_v2.py` (T9 volet A, lignes 133-145) joint `EX_DIVIDEND × DIVIDEND_HISTORY` sur `fiscal_year` strictement égal — jointure documentée comme « obligatoire » dans le code, mais fausse. Chaque ex-date reçoit le montant de l'année suivante.
+
+2. **Propagation à toute la chaîne dividende.** `dividend_cycle_exploration.csv` (produit par `tools/explore_dividend_cycle.py`) porte le même défaut : **77 des 89 cycles exploitables** utilisent un montant décalé (12 seulement viennent de la source saine `DIVIDEND`). Ce CSV alimente E2.6, E2.7-A, E2.7-B et T5c-A (`E2_8_rotation`).
+
+3. **Ampleur — erreur de mesure modérée** : médiane +8.2%, moyenne +20.8%, 63% des cycles surestimés, étendue −77.9% à +398.5%. Le dividende pesant ~8-15% du prix, une erreur médiane de +8% vaut ~+0.8 pt de rendement par cycle, contre un alpha médian T5c-A de +7.39 pts. La conclusion qualitative de T5c-A/E2.7 tient donc probablement ; les chiffres publiés sont faux.
+
+4. **Ampleur — erreur de sélection, problème principal.** `yield_pct` est décalé comme le montant. Le filtre `yield_pct >= 8%` de T9 volet A a donc **sélectionné les trades sur le rendement de l'année suivante**. Ce n'est plus de l'imprécision de mesure mais du look-ahead sur le choix des positions, avec un biais orienté (63% de surestimation). Le volet A à 100% de trades positifs devient suspect.
+
+5. **Le verdict T9 est fragilisé.** *« V2 non différencié de la stratégie naïve — GELER la Phase 13 »* reposait sur la comparaison d'un bras naïf contaminé (médiane 13.14%, 100% positifs) contre V2 (7.81%, 68%). La comparaison est à refaire. **Ceci ne réhabilite pas V2** : T6 (IC95% borne basse négative) et T14 (concentration sectorielle 68% SERVICES_FINANCIERS) restent des résultats indépendants et inchangés.
+
+6. **12 cas graves** (|erreur| ≥ 50%), dont SPHC FY2023 (+398.5%), STBC FY2023 (+209.6%), SOGC FY2023 (+155.1%). SOGC, STBC et CBIBF figurent parmi les tickers « robustes » de T5c-A.
+
+7. **Correction possible mais coûteuse** : pour toute ligne `DIVIDEND_HISTORY` d'exercice FY, le montant correct est celui de FY−1. **26 cycles deviennent non corrigeables** (le plus ancien de chaque ticker n'a pas de FY−1) — soit ~29% de l'échantillon perdu.
+
+### Résultat négatif à conserver
+
+Une première tentative de preuve par les prix (`tools/diag_decalage_fiscal_year.py`) a été **invalidée** : elle supposait que le cours chute du montant du dividende à l'ex-date. Les données montrent que ce n'est pas le cas sur la BRVM (ONTBF : chutes de +5, −8.5, −20, +30 pour des dividendes de 145 à 288 ; ECOC 2026 et ORAC 2026 : chute exactement nulle pour 781 et 704 FCFA). Le score 60/40 obtenu ne mesure rien et ne doit pas être cité.
+
+**Piste ouverte par cet échec** : si le cours ne s'ajuste pas à l'ex-date, le dividende est encaissé sans la perte en capital qui le compenserait sur un marché efficient — ce serait un mécanisme candidat pour expliquer le succès du dividend capture, indépendant du bug de jointure. À vérifier en contrôlant les volumes (plusieurs chutes à exactement 0.0 suggèrent des cours figés faute de transaction).
+
+### Preuve retenue
+
+Documentaire, pas statistique : concordance des avis officiels BRVM, des avis de crédit du courtier et des lignes `DIVIDEND` de la base, sur quatre tickers indépendants.
