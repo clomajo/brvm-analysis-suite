@@ -195,3 +195,50 @@ Preuve documentaire (pas statistique) : avis officiels BRVM exercice 2025 + avis
 **Piste ouverte par cet échec** : l'absence d'ajustement du cours à l'ex-date serait un mécanisme candidat pour expliquer le succès du dividend capture, indépendant du bug. À contrôler par les volumes (chutes à exactement 0.0 = cours possiblement figés).
 
 **Outils** : `tools/diag_decalage_montants.py` (quantification, lecture seule, rejouable).
+
+## 04/08/2026 — Validation réelle V1 (portefeuille Sikafinance, 5 trades) + trade dividende ONTBF hors-scope
+
+**Contexte** : 6 achats réels exécutés via BOA Capital Securities (bordereaux, client 163163) entre 14/04 et 10/06/2026, suivis dans le portefeuille Sikafinance (portif/displayp?n=33609). Objectif : vérifier a posteriori la correspondance signal V1 ↔ décision d'achat, et calculer les rendements réels J+45/J+60/J+90 depuis `historical_data` (jointure via `company_id`, pas de colonne `symbol` directe sur `historical_data` ni sur `brvm_decisions` — colonne réelle : `ticker`).
+
+### Validation signal → achat (5 trades V1, ONTBF exclu — voir note)
+
+| Titre | Date opération | Signal ce jour | Score | Régime | Match ACHAT |
+|---|---|---|---|---|---|
+| SONATEL lot1 (SNTS) | 14/04/2026 | ACHAT | 73 | BULL | ✅ |
+| SONATEL lot2 (SNTS) | 17/04/2026 | SURVEILLER | 59 | BULL | ⚠️ non exact — ACHAT la veille (04-16, score 83) et le lendemain (04-18, score 63), probable lag d'exécution |
+| BOAB | 21/04/2026 | ACHAT | 74 | BULL | ✅ |
+| BOAC | 21/04/2026 | ACHAT | 81 | BULL | ✅ |
+| NTLC | 21/04/2026 | ACHAT | 73 | BULL | ✅ |
+
+**4/5 correspondance exacte jour J. 1/5 (SNTS lot2) décalage d'un jour, signal ACHAT présent immédiatement avant/après — cohérent avec un lag d'exécution (bulletin veille) plutôt qu'un vrai désaccord signal/décision.**
+
+### Résultats réels J+45 / J+60 / J+90 (depuis date d'achat réelle)
+
+| Titre | Achat | Entry (FCFA) | J+45 | J+60 | J+90 |
+|---|---|---|---|---|---|
+| SONATEL lot1 | 14/04 | 28 800 | -2.08% | -1.39% | **+7.29%** |
+| SONATEL lot2 | 17/04 | 27 500 | +3.45% | +3.27% | **+18.18%** |
+| BOAB | 21/04 | 8 000 | +9.94% | +10.62% | +8.75% |
+| BOAC | 21/04 | 8 695 | +1.67% | +7.53% | **+12.08%** |
+| NESTLE CI | 21/04 | 12 480 | +4.13% | +20.23% | **+26.60%** |
+| ONATEL BF* | 10/06 | 2 950 | -5.08% | n/a (09/08) | n/a (08/09) |
+
+*ONTBF = achat dividend capture, **hors scope V1** (signal SURVEILLER ce jour, 50/BULL — non pertinent, la décision d'achat n'était pas basée sur le signal V1). Rendement -5.08% à J+45 non net du dividende perçu — à ne pas interpréter comme échec avant confirmation du montant dividende encaissé.
+
+### Constats
+
+- **5/5 trades V1 complétés positifs à J+90**, médiane ≈ +12%, cohérent avec le pattern multi-horizon V1 déjà documenté (hit rate croissant avec l'horizon, J+90: 81.8% sur backtest commit `8ef56ad`). Échantillon réel (n=5) trop petit pour confirmer statistiquement mais directionnellement aligné.
+- **NTLC +26.60% à J+90** — meilleur performer. Notable car NTLC a un comportement contrasté en backtest (positif T5c-A rotation, négatif T5c-B long-hold) ; ce résultat buy-and-hold réel se rapproche du pattern T5c-A.
+- **SNTS lot1** creuse à J+45/60 avant forte reprise à J+90 — illustre la pertinence de l'absence de stop-loss (ADR-036, illiquidité BRVM) : une sortie prématurée sur drawdown intermédiaire aurait raté le rendement final.
+- **ONTBF** : rendement prix seul non interprétable sans le dividende — nécessite calcul net une fois le dividende confirmé encaissé, avant tout jugement sur la stratégie dividend capture.
+
+### Note technique (schéma)
+
+- `historical_data` n'a pas de colonne `symbol` — jointure via `company_id` (FK vers `companies.id`).
+- `brvm_decisions` n'a pas de colonne `symbol` — la colonne réelle est `ticker`.
+- Tickers bordereaux BOA (SNTS, BOAB, BOAC, NTLC, ONTBF) confirmés identiques à `companies.symbol` — pas de mapping supplémentaire nécessaire pour ce cas.
+
+### Action en attente
+
+- Calculer le rendement net ONTBF une fois le montant du dividende perçu confirmé.
+- J+60/J+90 ONTBF à recalculer après le 09/08 et le 08/09/2026 respectivement.
