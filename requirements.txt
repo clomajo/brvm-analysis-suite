@@ -1,4 +1,4 @@
-supabase==2.6.0
+supabase==2.30.0
 gotrue==2.5.0
 realtime==1.0.0
 storage3==0.7.0
