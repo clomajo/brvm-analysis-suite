@@ -516,7 +516,7 @@ Diagnostic débloqué par un log du corps de réponse avant `raise_for_status()`
 
 **Vérification** : run manuel #61 avec date explicite `2026-08-05` — vert, PDF téléchargé, parsé, écrit en base (42s).
 
-**Correction d'un diagnostic antérieur** : l'entrée BACKLOG attribuant cette panne à une « expiration du lien CDN » était erronée. Le commit `bc353bb` (20/05) n'avait rien restauré parce qu'il traitait un problème inexistant.
+**Correction d'un diagnostic antérieur** : `SESSION_2026-08-03_BOA.md` (ligne 33) attribuait la panne au commit `bc353bb` (20/05) et à un « lien CDN expiré » — hypothèse déjà signalée comme non confirmée faute d'accès aux logs Actions. Elle est désormais réfutée : le jeton CDN n'a jamais expiré, et `bc353bb` n'a rien restauré parce qu'il traitait un problème inexistant.
 
 ### Effet de bord
 

@@ -270,3 +270,7 @@ le pipeline — application d'un agrégat sectoriel à un EPS individuel.
 
 Mais si une source indépendante est souhaitée à terme pour valider le modèle, BOA ne peut
 pas jouer ce rôle.
+
+---
+
+**Mise à jour du 06/08/2026** — l'hypothèse « lien CDN expiré » (ligne 33) est **réfutée**. Cause réelle : le cron `parse_boa_letter.yml` se déclenchait à 14h00 UTC alors que le bulletin est publié entre 15h57 et 16h57 UTC. Le jeton CDN `zexxawdwssuc` n'a jamais expiré. Détail complet dans `REMEDIATION_LOG.md`, section « Incident production — workflows planifiés en échec (06/08/2026) ».
