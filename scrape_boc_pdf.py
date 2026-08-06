@@ -105,6 +105,8 @@ def parse_boc(data):
 
 def get_company_ids():
     r = requests.get(f"{URL_BASE}/rest/v1/companies?select=id,symbol",headers=HEADERS)
+    if not r.ok:
+        print(f"ERROR get_company_ids: status={r.status_code} body={r.text[:300]}")
     return {row["symbol"]:row["id"] for row in r.json()}
 
 def upsert_fundamentals(records, trade_date):
