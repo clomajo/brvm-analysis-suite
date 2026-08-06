@@ -2,9 +2,10 @@ name: Parse BOA Capital Letter
 
 on:
   schedule:
-    # 14h00 UTC = après clôture BRVM (14h00 Abidjan)
-    # Lundi à vendredi uniquement
-    - cron: '0 14 * * 1-5'
+    # 18h00 UTC : la Lettre quotidienne est publiee vers 16h00-17h00 UTC
+    # (mesure sur 30/07-05/08/2026 : 15h57 a 16h57). Marge ~1h.
+    # Lundi a vendredi uniquement
+    - cron: '0 18 * * 1-5'
   workflow_dispatch:
     inputs:
       date:
