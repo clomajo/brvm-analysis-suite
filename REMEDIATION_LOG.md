@@ -490,3 +490,34 @@ Artefacts : `backfill_alpha.sql` (requête `UPDATE ... FROM` unique, transaction
 **Débloque** : kill-switch T10-B (67 cohortes au lieu d'un jour unique — le déclenchement du 28/07 est à réévaluer sur cette base), relecture de T9 en alpha, badge proof-level frontend.
 
 **Précaution** : snapshot JSON complet (3135 lignes) pris hors repo avant écriture — Supabase Free n'a pas de sauvegarde automatique.
+
+---
+
+## Incident production — workflows planifiés en échec (06/08/2026)
+
+**Statut : CLOS.** Deux pannes indépendantes, découvertes ensemble, sans lien de cause entre elles.
+
+### Incident 1 — `BRVM Analysis Suite V25.0` (échecs quotidiens depuis ~28/07)
+
+Chaîne de trois causes empilées, chacune masquant la suivante :
+1. Clés Supabase legacy désactivées le 27/07 → secret GitHub migré en `sb_secret_...` (ADR-042).
+2. `supabase==2.6.0` ne reconnaît pas le nouveau format → bump 2.30.0 (`b74a83a`).
+3. Le bump casse la résolution pip : `realtime==1.0.0` et `storage3==0.7.0` incompatibles → bump 2.30.0 (`784da1e`).
+
+Diagnostic débloqué par un log du corps de réponse avant `raise_for_status()` dans `scrape_boc_pdf.py:get_company_ids()` (`6f9df46`) : le `TypeError: string indices must be integers` masquait un 401 dont le corps portait le message explicite de Supabase.
+
+**Vérification** : run planifié #206 (06/08, 04h10) vert sans intervention.
+
+### Incident 2 — `Parse BOA Capital Letter` (échecs quotidiens depuis le 30/04)
+
+**Cause racine : le cron se déclenchait avant la publication du bulletin.** `- cron: '0 14 * * 1-5'` demandait le PDF du jour J à 14h00 UTC ; mesure des en-têtes `Last-Modified` sur cinq séances (30/07, 31/07, 03/08, 04/08, 05/08) : publication entre **15h57 et 16h57 UTC**. Le job demandait un fichier qui n'existait pas encore, tous les jours. Correctif : cron à 18h00 UTC (`a5de3cb`), marge ~1h sur le pire cas observé.
+
+**Hypothèses écartées** (toutes testées, toutes fausses) : expiration du jeton CDN `zexxawdwssuc` (vivant, 200 sur toutes les dates testées de 30/04 à 05/08) ; blocage IP des runners Azure par Imperva (les en-têtes `X-CDN: Imperva` et cookies `incap_ses_*` sont présents sur *toute* réponse, y compris légitime — faux indice) ; filtrage User-Agent (le CDN ne discrimine pas) ; changement de convention de nommage.
+
+**Vérification** : run manuel #61 avec date explicite `2026-08-05` — vert, PDF téléchargé, parsé, écrit en base (42s).
+
+**Correction d'un diagnostic antérieur** : l'entrée BACKLOG attribuant cette panne à une « expiration du lien CDN » était erronée. Le commit `bc353bb` (20/05) n'avait rien restauré parce qu'il traitait un problème inexistant.
+
+### Effet de bord
+
+Le push du correctif cron a été refusé : le PAT en service (`BRVM_5`) porte le scope `repo` mais pas `workflow`, requis pour tout commit touchant `.github/workflows/`. Les deux jetons disposant de `workflow` (`BRVM`, `BRVM_4`) étaient expirés depuis avril et juillet — expiration silencieuse, jamais détectée. Nouveau jeton créé avec `repo` + `workflow`.

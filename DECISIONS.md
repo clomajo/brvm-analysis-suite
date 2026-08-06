@@ -1205,3 +1205,25 @@ Point connexe, indépendant de ce choix : `scrape_boc_pdf.py` ligne 111 (`fy = f
 Analyse en lecture seule, aucune écriture en base ni en production. Test : pour chaque ticker, comparaison de la ligne effectivement retenue par `fetch_fundamentals()` (la plus récente avec EPS non-null) à la ligne FY2026 du BOC, résidu calculé après division par `1/(1−taux_IRVM_pays)`. Taux issus des sources publiques recoupées le 31/07/2026 et de l'avis BRVM N°228 (NESTLE CI, exercice 2025), qui mentionne explicitement 12% personnes physiques / 10% personnes morales.
 
 **Réserve** : la table de correspondance ticker→pays a été établie manuellement pour ce diagnostic et n'existe pas dans le repo. Elle mériterait d'être versionnée si l'option 3 est retenue.
+
+---
+
+## ADR-042 — Migration des clés Supabase legacy vers le format `sb_secret_` / `sb_publishable_`
+
+**Date** : 06/08/2026
+**Statut** : appliqué côté pipeline, en attente côté frontend
+
+**Contexte.** Supabase a désactivé les clés API legacy (`anon`, `service_role`, format JWT) le **2026-07-27T21:46:45+00:00**. Le remplacement est un couple `sb_publishable_...` (navigateur, équivalent `anon`) / `sb_secret_...` (serveur, équivalent `service_role`). La désactivation est intervenue côté Supabase indépendamment de toute action locale : une rotation de clé *dans* le système legacy (effectuée la semaine du 27/07) ne suffit pas, c'est le format lui-même qui n'est plus honoré.
+
+**Symptôme.** Les deux workflows planifiés ont échoué en boucle. Deux signatures distinctes selon le mode d'accès :
+- appels REST directs (`requests`) → HTTP 401, corps `{"message":"Legacy API keys are disabled","hint":"..."}` ;
+- client `supabase-py` → `SupabaseException: Invalid API key`, levée dans `create_client()` avant tout appel réseau.
+
+**Décision.**
+1. Le secret GitHub `SUPABASE_SERVICE_ROLE_KEY` contient désormais une clé `sb_secret_...`. **Le nom du secret est conservé** malgré l'imprécision (ce n'est plus une clé `service_role`) : le renommer imposerait de modifier tous les workflows et tous les scripts en une fois. Dette assumée et tracée.
+2. `supabase-py` doit être ≥ 2.30.0 : les versions antérieures (2.6.0 en production) rejettent le nouveau format. Le bump entraîne `realtime` et `storage3` en 2.30.0 (voir REMEDIATION_LOG 06/08).
+3. Les appels REST directs (`apikey` + `Authorization: Bearer`) fonctionnent sans modification de code avec le nouveau format — ADR-004 (REST-only) reste valide et n'est pas remis en cause.
+
+**Reste à faire.** `VITE_SUPABASE_ANON_KEY` (Vercel, projet `brvm-analytics`, non modifiée depuis le 02/04/2026) est toujours une clé legacy `anon`. Le frontend fonctionne encore, donc la désactivation ne semble pas appliquée au rôle `anon` avec la même rigueur — mais la même panne silencieuse est possible à tout moment. Migration vers `sb_publishable_...` à planifier.
+
+**Leçon opérationnelle.** Une clé désactivée côté fournisseur ne produit aucune alerte : seuls les workflows planifiés échouent, et personne ne lit les échecs planifiés. `health_check.py` ne couvre pas ce cas.

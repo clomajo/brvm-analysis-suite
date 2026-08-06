@@ -496,3 +496,12 @@ aux utilisateurs sur la majorité des tickers couverts.
 - **`scrape_boc_pdf.py` ligne 111** : `fy = f"FY{trade_date.year}"` étiquette par année de versement au lieu de l'exercice (dividende exercice 2025 versé mai 2026 → écrit FY2026). À corriger indépendamment de la décision de convention.
 - **Versionner la correspondance ticker→pays** si l'option « colonne nette » est retenue — nécessaire pour appliquer le bon taux d'IRVM, actuellement établie manuellement et absente du repo.
 - **Auditer les 10 scripts écrivant `dividend_per_share`** — 5 non trackés ou obsolètes (`scrape_fundamentals_v2.py`, `scrape_all_v3.py`, `fix_parser.py`, `backtest_dividend.py`, `calculate_target_price_v3.py`), aucun propriétaire unique de la colonne.
+
+**Suite incident du 06/08/2026 (une tâche par ligne) :**
+
+- **Rattraper `boa_recommendations` du 30/04 au 05/08/2026** : les PDF sont tous encore servis par le CDN (vérifié : 200 sur l'ensemble de la plage), et `parse_boa_letter.py` accepte une date en argument. Une boucle sur les jours ouvrés manquants récupère ~3 mois de données. Attention : contrainte NOT NULL sur `action` — les tickers du groupe BOA sans action lisible échoueront comme lors de l'insertion partielle du 03/08 (27/30 lignes).
+- **Migrer `VITE_SUPABASE_ANON_KEY` (Vercel) vers `sb_publishable_...`** — toujours une clé legacy datée du 02/04/2026. Le frontend fonctionne encore mais la panne silencieuse est possible à tout moment (ADR-042).
+- **Retirer `gotrue==2.5.0` de `requirements.txt`** — renommé `supabase-auth` dans les versions récentes, tiré en double par `supabase==2.30.0`, et contraint `httpx` à 0.27.2 sans raison.
+- **Trancher le sort des deux blocs de log DIAG** ajoutés pour le diagnostic : `scrape_boc_pdf.py:get_company_ids()` (`6f9df46`) et `parse_boa_letter.py:download_pdf()` (`d5930bb`). Les conserver donne un corps de réponse exploitable au prochain incident ; les retirer restaure le code d'origine. Décision, pas urgence.
+- **Suivre l'expiration des PAT** : `BRVM_5` expire le 17/12/2026, le nouveau jeton à sa propre échéance. Deux jetons ont déjà expiré sans que personne ne le remarque (`BRVM` 14/04, `BRVM_4` 17/07) — l'échec ne se manifeste qu'au premier push sur un fichier de workflow.
+- **Couvrir les échecs de workflows planifiés dans `health_check.py`** : les deux incidents ont duré des semaines parce qu'un run planifié rouge n'alerte personne. `gh` CLI n'est pas installé localement (angle mort récurrent déjà tracé).
