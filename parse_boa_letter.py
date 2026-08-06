@@ -41,6 +41,10 @@ def download_pdf(url):
     import urllib3; urllib3.disable_warnings()
     log.info(f"Telechargement: {url}")
     r = requests.get(url, timeout=30, verify=False)
+    if not r.ok:
+        log.error(f"DIAG status={r.status_code}")
+        log.error(f"DIAG headers={dict(r.headers)}")
+        log.error(f"DIAG body[:500]={r.text[:500]!r}")
     r.raise_for_status()
     log.info(f"PDF ({len(r.content):,} bytes)")
     return BytesIO(r.content)
