@@ -302,3 +302,49 @@ les performances et ne peut pas les inverser.
 le perimetre reel en une fois; 2) ADR unique sur l'asymetrie
 `compute_benchmark`; 3) reclasser le statut de T5c — l'entree/sortie
 annonce->paiement n'a plus de support empirique.
+
+---
+
+## E3.0 — Trajectoire du prix autour de l'ex-date (test pur-prix)
+
+**Date**: 08/08/2026 | **Classe**: A (lecture seule, aucune ecriture DB)
+**Tickers**: SNTS, BOAC, BOAB | **Periode**: 2016-03-22 -> 2026-08-08
+
+**Objet**: repondre a la question d'origine — se positionner avant
+detachement, sortir apres — sans passer par un calcul d'alpha. Aucun
+montant de dividende n'entre dans le calcul, donc aucune jointure sur
+`fiscal_year`: immunise par construction contre l'asymetrie
+`compute_benchmark` ET contre ADR-040.
+
+**Seuils pre-fixes** (avant lecture des donnees), sur mediane
+`recup_45_vs_pre`: >= -0.5 mecanisme vivant / entre -0.5 et -2.6 (frais
+aller-retour) ne couvre pas ses frais / < -2.6 mecanisme mort.
+
+**Resultat**: n=16 cycles, 14 exploitables. Mediane `recup_45_vs_pre`
+**-3.03**, 4/14 positifs (28.6%), dispersion -11.34 a +3.26.
+**VERDICT: mecanisme mort**, seuil franchi.
+
+**Medianes complementaires**: decrochage J0 -1.79 / ex_to_30 -2.38 /
+ex_to_45 -1.06 / recup_30_vs_pre -5.69.
+
+**Constat structurel**: le decrochage a J0 est quasi nul, mais la baisse
+se POURSUIT sur 30 jours. L'ajustement BRVM est differe, pas partiel. La
+premisse "decrochage partiel = gisement capturable" est fausse.
+
+**Fenetre pre-annonce non mesuree**: aucun `event_type` d'annonce dans
+`corporate_events` (types presents: AG, DIVIDEND, DIVIDEND_HISTORY,
+DIVIDEND_PAYMENT, EX_DIVIDEND). Colonnes annonce/pre45/pre30 vides. Non
+poursuivi: la sortie post-ex etant invalidee, un resultat pre-annonce ne
+changerait aucune decision.
+
+**Anomalies de donnees relevees** (-> BACKLOG, hors perimetre de cette
+session): 1) BOAB porte DEUX EX_DIVIDEND en 2026 (14/05 et 22/05, 8j
+d'ecart) — doublon ou conflit de source, affecte tout consommateur de
+`corporate_events`; 2) SNTS 2/5 cycles NA et prix figes en 2023
+(decrochage 0.0 ET ex_to_30 0.0) — liquidite insuffisante, coherent avec
+l'exclusion documentee dans SKILL.md mais jamais implementee en code.
+
+**Artefacts**: `tools/experiments/E3_0/run_e3_0.py`,
+`tools/experiments/E3_0/E3_0_resultats.csv` (16 lignes)
+
+**Suite**: aucune. Chaine dividend capture close par ADR-043.

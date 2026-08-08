@@ -1227,3 +1227,30 @@ Analyse en lecture seule, aucune écriture en base ni en production. Test : pour
 **Reste à faire.** `VITE_SUPABASE_ANON_KEY` (Vercel, projet `brvm-analytics`, non modifiée depuis le 02/04/2026) est toujours une clé legacy `anon`. Le frontend fonctionne encore, donc la désactivation ne semble pas appliquée au rôle `anon` avec la même rigueur — mais la même panne silencieuse est possible à tout moment. Migration vers `sb_publishable_...` à planifier.
 
 **Leçon opérationnelle.** Une clé désactivée côté fournisseur ne produit aucune alerte : seuls les workflows planifiés échouent, et personne ne lit les échecs planifiés. `health_check.py` ne couvre pas ce cas.
+
+---
+
+## ADR-043 — Clôture de la chaîne « dividend capture »
+
+**Date** : 08/08/2026
+**Statut** : décidé — piste abandonnée
+
+**Décision.** La chaîne d'expérimentations « dividend capture » (E2.6, E2.7-A, E2.7-B, E2.8, T5c-A, T5c-B) est close. Aucune stratégie de capture de dividende n'est retenue en production. Cette décision est définitive en l'état des données ; elle ne pourra être rouverte que par une hypothèse *nouvelle*, pas par un ré-examen des résultats existants.
+
+**Motif 1 — cause racine des résultats publiés : asymétrie de benchmark.** Toute expérience calculant le rendement du sujet dividende inclus tout en comparant à un benchmark prix pur produit un alpha fictif exactement égal au rendement du dividende. L'audit du 07/08 (commit `741fcfd`) mesure une contribution mécanique de +8,561 pts sur E2.6 et une contribution identique à trois décimales sur E2.8/T5c-A : ces deux « résultats » ne sont pas deux découvertes indépendantes, c'est le même artefact compté deux fois. E2.7-A et E2.7-B reposent sur la même mécanique (12/12 combinaisons positives dans chaque grille = profil d'un terme additif quasi constant) ; ils ne sont pas audités et ne le seront pas, l'audit ne changeant aucune décision.
+
+**Motif 2 — test indépendant, négatif.** E3.0 (08/08/2026) mesure la trajectoire du prix autour de l'ex-date **sans faire intervenir aucun montant de dividende**, donc sans jointure sur `fiscal_year` : la mesure est immunisée contre l'asymétrie de benchmark *et* contre ADR-040 par construction. Seuils fixés par écrit avant lecture des données, sur la médiane de `recup_45_vs_pre` : ≥ −0,5% → mécanisme vivant ; entre −0,5% et −2,6% (frais aller-retour) → ne couvre pas ses frais ; < −2,6% → mécanisme mort.
+
+Résultat sur SNTS/BOAC/BOAB, 16 cycles dont 14 exploitables (2016–2026) : **médiane −3,03%**, 4/14 cycles positifs (28,6%), dispersion −11,34% à +3,26%. **Seuil « mécanisme mort » franchi.**
+
+**Motif 3 — convergence de deux méthodes indépendantes.** L'arithmétique a priori (0,88 × D encaissé − 0,37 × D de décrochage − 2,6% de frais ≈ +1% net sur un rendement de 7%) et la mesure empirique (−3,03% de prix + ~6,2% de dividende net d'IRVM − 2,6% de frais ≈ +0,5%) donnent la même réponse. Un gain d'environ 1% pour une dispersion de 15 points n'est pas une stratégie exploitable. La sensibilité au taux de courtage SGI (1%, non confirmé par source primaire — ADR-034) suffit à le rendre négatif.
+
+**Correction factuelle documentée — l'ajustement du prix est différé, pas partiel.** L'hypothèse en vigueur était : « la BRVM n'ajuste pas le prix à l'ex-date, le décrochage observé est partiel (~37% du dividende), d'où une opportunité de capture. » E3.0 montre que le décrochage à J0 est effectivement quasi nul (médiane **−1,79%**) mais que la baisse **se poursuit ensuite** : médiane `ex_to_30` = **−2,38%**, `ex_to_45` = −1,06%. Le marché ajuste lentement, sur 30 à 45 jours, au lieu d'ajuster d'un coup. La prémisse « décrochage partiel = gisement » est donc fausse : il n'y a pas de partie non ajustée à capturer, seulement un ajustement étalé. Cette correction vaut indépendamment de la stratégie abandonnée et s'applique à toute analyse future de fenêtres post-ex-date.
+
+**Périmètre fermé par cette décision.** Audit E2.7-A/B ; production T5c-A (déjà suspendue) et T5c-B ; analyse de sensibilité frais/IRVM sur T5c ; remédiation du bug ADR-040 (`fiscal_year` off-by-one) — plus aucun travail actif ne dépend de cette jointure. ADR-040 reste un constat de bug valide et non corrigé, à traiter si un futur besoin réactive `DIVIDEND_HISTORY`.
+
+**Non affectés.** Validation multi-horizon V1 (commit `8ef56ad`, n=843), T9, T14, positions réelles du portefeuille : méthodologies distinctes, ne passent pas par `compute_benchmark` et n'intègrent pas de dividende dans le calcul de rendement.
+
+**Réserve de portée.** E3.0 porte sur 3 tickers et 14 cycles exploitables. C'est exploratoire, pas concluant en soi — mais il ne s'agissait pas de prouver l'absence d'effet : il s'agissait de vérifier si la piste méritait d'être poursuivie après l'effondrement de ses résultats publiés. Le signe est défavorable et converge avec l'arithmétique. Cela suffit à arrêter.
+
+**Leçon méthodologique.** Vérifier la symétrie du calcul de rendement entre sujet et benchmark **avant** d'interpréter tout alpha, pour chaque expérience de la chaîne. Un seuil pré-enregistré n'a de valeur que s'il est respecté quand il tombe du mauvais côté.
