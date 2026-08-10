@@ -513,21 +513,25 @@ def main():
         for r in results:
             if r.get("fair_value_v3"):
                 upsert_records.append({
-                    "ticker":       r["ticker"],
-                    "calcul_date":  r["calcul_date"],
-                    "cours_cible":  r["fair_value_v3"],
-                    "borne_basse":  r["borne_basse"],
-                    "borne_haute":  r["borne_haute"],
-                    "decote_pct":   r["decote_pct"],
-                    "signal_v2":    r["signal_v3"],  # colonne existante
+                    "ticker":        r["ticker"],
+                    "calcul_date":   r["calcul_date"],
+                    "fair_value_v3": r["fair_value_v3"],
+                    "cours_actuel":  r.get("cours_actuel"),
+                    "upside_pct":    r["upside_pct"],
+                    "borne_basse":   r["borne_basse"],
+                    "borne_haute":   r["borne_haute"],
+                    "w_ddm":         r["w_ddm"],
+                    "decote_pct":    r["decote_pct"],
                     "qualite_score": r["qualite_score"],
-                    "methode_v3":   r["methode"],
-                    "upside_pct":   r["upside_pct"],
+                    "signal_v3":     r["signal_v3"],
+                    "methode":       r["methode"],
+                    "fiscal_year":   r.get("fiscal_year"),
                 })
 
         if upsert_records:
-            sb_upsert("target_prices", upsert_records)
-            print(f"   ✅ {len(upsert_records)} lignes upsertées dans target_prices")
+            # Table dediee : V3 n'ecrase jamais les lignes V2 de target_prices
+            sb_upsert("target_prices_v3?on_conflict=ticker,calcul_date", upsert_records)
+            print(f"   ✅ {len(upsert_records)} lignes upsertées dans target_prices_v3")
 
 
 if __name__ == "__main__":
