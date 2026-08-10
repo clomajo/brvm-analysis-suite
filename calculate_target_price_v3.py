@@ -45,30 +45,27 @@ PER_SECTORIEL = {
     "autre":        12.0,
 }
 
-# Mapping ticker → secteur
+# Mapping ticker -> secteur : importe de calculate_target_price.py (V2),
+# nomenclature officielle BRVM 7 categories, 47/47 tickers confirmes
+# (richbourse.com, 20/06/2026). Remplace le mapping local de V3 (04/06)
+# qui precedait cette correction.
+from calculate_target_price import SECTEUR_OFFICIEL
+
+# Correspondance nomenclature officielle -> cles de PER_SECTORIEL de V3
+_OFFICIEL_VERS_V3 = {
+    "SERVICES_FINANCIERS":          "banque",
+    "TELECOMMUNICATIONS":           "telecom",
+    "CONSOMMATION_DE_BASE":         "agro",
+    "CONSOMMATION_DISCRETIONNAIRE": "distribution",
+    "INDUSTRIELS":                  "industrie",
+    "SERVICES_PUBLICS":             "industrie",
+    "ENERGIE":                      "industrie",
+    "AUTRE":                        "autre",
+}
+
 SECTEUR_MAP = {
-    # Banques
-    "BOAB": "banque", "BOABF": "banque", "BOAC": "banque", "BOAM": "banque",
-    "BOAN": "banque", "BOAS": "banque", "SGBC": "banque", "SIBC": "banque",
-    "NSBC": "banque", "BICC": "banque", "BICB": "banque", "CBIBF": "banque",
-    "CABC": "banque", "ECOC": "banque", "STBC": "banque", "SLBC": "banque",
-    "LNBB": "banque", "ABJC": "banque", "BNBC": "banque", "SMBC": "banque",
-    "SAFC": "banque", "NEIC": "banque", "NSBC": "banque",
-    # Télécom
-    "ORAC": "telecom", "ONTBF": "telecom", "ORGT": "telecom",
-    # Agro-industrie
-    "PALC": "agro", "SOGC": "agro", "CFAC": "agro", "SIVC": "agro",
-    "SDSC": "agro", "UNXC": "agro",
-    # Distribution / Commerce
-    "TTLC": "distribution", "TTLS": "distribution", "SDCC": "distribution",
-    "SEMC": "distribution", "SCRC": "distribution", "SHEC": "distribution",
-    "PRSC": "distribution",
-    # Industrie / Autres
-    "SNTS": "industrie", "SPHC": "industrie", "SICC": "industrie",
-    "STAC": "industrie", "FTSC": "industrie", "ETIT": "industrie",
-    "CIEC": "industrie", "BICC": "industrie", "UNLC": "industrie",
-    "NTLC": "industrie", "SOGC": "industrie", "SAFC": "industrie",
-    "SOGC": "industrie",
+    t: _OFFICIEL_VERS_V3.get(s, "autre")
+    for t, s in SECTEUR_OFFICIEL.items()
 }
 
 # Seuil minimum de qualité pour signal ACHAT
@@ -117,6 +114,62 @@ def get_volume_moyen(company_id, historical_df, jours=20):
     recent = rows[:jours]
     volumes = [r["volume"] for r in recent if r.get("volume") and r["volume"] > 0]
     return sum(volumes) / len(volumes) if volumes else 0
+
+
+# ── Historique dividendes (pour pondération DDM/PE) ───────────────────────────
+
+FENETRE_DIVIDENDE = 5  # nombre d'annees de reference (convention de place)
+
+
+def build_historique_dividendes():
+    """
+    Retourne {ticker: (nb_annees_avec_dividende, nb_annees_observees)}
+    calcule sur les FENETRE_DIVIDENDE dernieres annees fiscales presentes
+    dans corporate_events (event_type = DIVIDEND_HISTORY, amount > 0).
+    """
+    rows = sb_get("corporate_events", {
+        "select": "ticker,event_type,fiscal_year,amount",
+        "event_type": "eq.DIVIDEND_HISTORY",
+    })
+
+    par_ticker = {}
+    for r in rows:
+        t = r.get("ticker")
+        fy = r.get("fiscal_year")
+        if not t or not fy:
+            continue
+        try:
+            annee = int(str(fy).replace("FY", "").strip())
+        except (ValueError, TypeError):
+            continue
+        par_ticker.setdefault(t, {})
+        montant = r.get("amount")
+        verse = montant is not None and montant > 0
+        par_ticker[t][annee] = par_ticker[t].get(annee, False) or verse
+
+    # Denominateur = fenetre calendaire fixe, pas le nombre d'annees presentes
+    # en base (une annee sans dividende n'a aucune ligne : elle est absente,
+    # pas enregistree a zero). On borne par la premiere annee observee pour
+    # ne pas penaliser les societes recemment cotees (regle : historique
+    # court non penalise).
+    toutes_annees = [a for annees in par_ticker.values() for a in annees]
+    if not toutes_annees:
+        return {}
+    annee_max = max(toutes_annees)
+    fenetre = list(range(annee_max - FENETRE_DIVIDENDE + 1, annee_max + 1))
+
+    hist = {}
+    for t, annees in par_ticker.items():
+        if not annees:
+            continue
+        premiere = min(annees.keys())
+        annees_eligibles = [a for a in fenetre if a >= premiere]
+        n_obs = len(annees_eligibles)
+        if n_obs == 0:
+            continue
+        n_div = sum(1 for a in annees_eligibles if annees.get(a, False))
+        hist[t] = (n_div, n_obs)
+    return hist
 
 
 # ── Score qualité (Couche 2) ───────────────────────────────────────────────────
@@ -196,7 +249,7 @@ def decote_liquidite(volume_moyen, shares_outstanding):
 
 # ── Calcul Fair Value V3 ──────────────────────────────────────────────────────
 
-def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None):
+def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None, hist_div=None):
     """
     Calcule la Fair Value V3 pour un ticker.
     Retourne un dict avec tous les champs pour upsert dans target_prices.
@@ -224,6 +277,17 @@ def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None):
     # 2. DPS et pondération DDM
     dps = fund.get("dividend_per_share") or 0
 
+    # Garde-fou de plausibilite : un rendement implicite (dps/cours) hors de
+    # [0.5%, 25%] signale un DPS incoherent en base (mauvais millesime, split
+    # non repercute, unite erronee). Le DPS est alors ignore -> bascule P/E.
+    RDT_IMPLICITE_MIN, RDT_IMPLICITE_MAX = 0.005, 0.25
+    dps_rejete = None
+    if dps > 0 and cours > 0:
+        rdt_implicite = dps / cours
+        if not (RDT_IMPLICITE_MIN <= rdt_implicite <= RDT_IMPLICITE_MAX):
+            dps_rejete = f"dps={dps:.0f} rdt_implicite={rdt_implicite*100:.1f}%"
+            dps = 0
+
     # Rendement cible BOA (source primaire) ou fallback sectoriel
     boa = (boa_by_ticker or {}).get(ticker, {})
     rdt_raw = boa.get("rendement")
@@ -238,9 +302,20 @@ def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None):
         rdt_cible = rdt_fallback.get(secteur_tmp, 0.06)
         rdt_source = "fallback"
 
-    # Pondération DDM : 0 si pas de DPS, 1 si DPS disponible
-    nb_dividendes = 1 if dps > 0 else 0
-    w = min(1.0, nb_dividendes / 1.0)
+    # Ponderation DDM progressive selon regularite du dividende (fenetre 5 ans).
+    # w = nb_annees_avec_dividende / min(FENETRE, nb_annees_observees)
+    # Historique court non penalise (2 versements sur 2 ans observes -> w = 1.0).
+    n_div, n_obs = (hist_div or {}).get(ticker, (0, 0))
+    if dps <= 0:
+        w = 0.0
+        w_source = "sans_dps"
+    elif n_obs > 0:
+        w = min(1.0, n_div / n_obs)
+        w_source = f"{n_div}/{n_obs}ans"
+    else:
+        # DPS present mais aucun historique en base -> DDM pur (comportement anterieur)
+        w = 1.0
+        w_source = "hist_absent"
 
     valeur_ddm = (dps / rdt_cible) if dps > 0 and rdt_cible > 0 else None
 
@@ -253,7 +328,7 @@ def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None):
     # 4. Fair Value hybride
     if valeur_ddm and valeur_pe:
         fair_brute = w * valeur_ddm + (1 - w) * valeur_pe
-        methode = f"DDM({int(w*100)}%,{rdt_source})+PE({int((1-w)*100)}%)"
+        methode = f"DDM({int(w*100)}%,{rdt_source},{w_source})+PE({int((1-w)*100)}%)"
     elif valeur_ddm:
         fair_brute = valeur_ddm
         methode = f"DDM_seul({rdt_source},{rdt_cible*100:.1f}%)"
@@ -325,8 +400,30 @@ def main():
         "select": "*",
         "fiscal_year": "eq.FY2025",
     })
-    fund_by_ticker = {f["ticker"]: f for f in fundamentals}
-    print(f"   {len(fundamentals)} lignes fundamentals FY2025")
+    fund_by_ticker = {}
+    for f in fundamentals:
+        if f.get("eps") is not None or f.get("dividend_per_share") is not None:
+            f["_fy_used"] = "FY2025"
+            fund_by_ticker[f["ticker"]] = f
+    n2025 = len(fund_by_ticker)
+
+    # Fallback FY2024 pour les tickers sans donnee exploitable en FY2025
+    fund_2024 = sb_get("company_fundamentals", {
+        "select": "*",
+        "fiscal_year": "eq.FY2024",
+    })
+    n2024 = 0
+    for f in fund_2024:
+        t = f["ticker"]
+        if t in fund_by_ticker:
+            continue
+        if f.get("eps") is None and f.get("dividend_per_share") is None:
+            continue
+        f["_fy_used"] = "FY2024"
+        fund_by_ticker[t] = f
+        n2024 += 1
+
+    print(f"   {n2025} tickers FY2025 + {n2024} via fallback FY2024 = {len(fund_by_ticker)}")
 
     # Historique 30 derniers jours pour volumes + cours
     date_depuis = (date.today() - timedelta(days=30)).isoformat()
@@ -350,6 +447,10 @@ def main():
             boa_by_ticker[t] = r
     print(f"   {len(boa_by_ticker)} rendements BOA chargés")
 
+    # Historique dividendes pour la ponderation DDM/PE
+    hist_div = build_historique_dividendes()
+    print(f"   {len(hist_div)} tickers avec historique dividende ({FENETRE_DIVIDENDE} ans max)")
+
     # Calcul Fair Value V3
     print("\n🔍 Calcul Fair Value V3...\n")
     results = []
@@ -360,7 +461,7 @@ def main():
         if not company_id:
             continue
 
-        res = fair_value_v3(ticker, fund, historical, company_id, boa_by_ticker)
+        res = fair_value_v3(ticker, fund, historical, company_id, boa_by_ticker, hist_div)
 
         signal = res.get("signal_v3", "NO_DATA")
         fv = res.get("fair_value_v3")
