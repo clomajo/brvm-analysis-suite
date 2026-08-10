@@ -172,6 +172,75 @@ def build_historique_dividendes():
     return hist
 
 
+# ── Rendement cible historique (source primaire, BOA en cross-check) ──────────
+
+RDT_HIST_MIN_ANNEES = 3      # nb minimum d'annees pour une mediane fiable
+RDT_HIST_MIN, RDT_HIST_MAX = 0.02, 0.15   # bornes de plausibilite
+
+
+def build_rendements_historiques(id_to_sym):
+    """
+    Retourne {ticker: (rdt_median, nb_annees)} — mediane du rendement annuel
+    observe (dividende de l'annee / cours median de la meme annee civile).
+
+    Appariement sur event_date et non fiscal_year : contourne le decalage
+    d'un an documente en ADR-040.
+    """
+    # corporate_events.ticker est NULL en base -> resolution via company_id
+    ev = sb_get("corporate_events", {
+        "select": "ticker,company_id,event_date,amount",
+        "event_type": "eq.DIVIDEND_HISTORY",
+    })
+    for r in ev:
+        if not r.get("ticker"):
+            r["ticker"] = id_to_sym.get(r.get("company_id"))
+
+    # Cours par (ticker, annee) — mediane des cours de l'annee.
+    # sb_get plafonne a 1000 lignes : pagination explicite requise ici.
+    cours_par_annee = {}
+    offset, page = 0, 5000
+    while True:
+        r_pg = requests.get(
+            f"{SUPABASE_URL}/rest/v1/historical_data",
+            headers={**HEADERS, "Range": f"{offset}-{offset + page - 1}"},
+            params={"select": "company_id,trade_date,price", "order": "trade_date.asc"},
+            timeout=60,
+        )
+        r_pg.raise_for_status()
+        lot = r_pg.json()
+        if not lot:
+            break
+        for r in lot:
+            sym = id_to_sym.get(r["company_id"])
+            p = r.get("price")
+            if not sym or not p or not r.get("trade_date"):
+                continue
+            cours_par_annee.setdefault((sym, r["trade_date"][:4]), []).append(p)
+        if len(lot) < page:
+            break
+        offset += page
+
+    def mediane(v):
+        v = sorted(v)
+        n = len(v)
+        return v[n // 2] if n % 2 else (v[n // 2 - 1] + v[n // 2]) / 2
+
+    rdts = {}
+    for r in ev:
+        t, ed, amt = r.get("ticker"), r.get("event_date"), r.get("amount")
+        if not t or not ed or not amt or amt <= 0:
+            continue
+        prix = cours_par_annee.get((t, ed[:4]))
+        if not prix:
+            continue
+        rdt = amt / mediane(prix)
+        if RDT_HIST_MIN <= rdt <= RDT_HIST_MAX:
+            rdts.setdefault(t, []).append(rdt)
+
+    return {t: (mediane(v), len(v)) for t, v in rdts.items()
+            if len(v) >= RDT_HIST_MIN_ANNEES}
+
+
 # ── Score qualité (Couche 2) ───────────────────────────────────────────────────
 
 def score_qualite(fund):
@@ -249,7 +318,7 @@ def decote_liquidite(volume_moyen, shares_outstanding):
 
 # ── Calcul Fair Value V3 ──────────────────────────────────────────────────────
 
-def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None, hist_div=None):
+def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None, hist_div=None, rdt_hist=None):
     """
     Calcule la Fair Value V3 pour un ticker.
     Retourne un dict avec tous les champs pour upsert dans target_prices.
@@ -288,14 +357,34 @@ def fair_value_v3(ticker, fund, historical_df, company_id, boa_by_ticker=None, h
             dps_rejete = f"dps={dps:.0f} rdt_implicite={rdt_implicite*100:.1f}%"
             dps = 0
 
-    # Rendement cible BOA (source primaire) ou fallback sectoriel
+    # Rendement cible : historique propre du titre (source primaire),
+    # BOA en cross-check / repli, fallback sectoriel en dernier recours.
     boa = (boa_by_ticker or {}).get(ticker, {})
     rdt_raw = boa.get("rendement")
-    if rdt_raw and float(rdt_raw) > 0:
-        rdt_cible = float(rdt_raw) / 100.0  # BOA stocke en % (ex: 7.36 → 0.0736)
+    rdt_boa = float(rdt_raw) / 100.0 if rdt_raw and float(rdt_raw) > 0 else None
+
+    # BOA = source de calcul (rendement exige aux cours actuels).
+    # L'historique du titre (cours 2021-2024) est conserve en cross-check
+    # affiche mais ne pilote pas la valorisation : l'appliquer a des cours
+    # post-rally +40% YTD produirait un ancrage passe (meme defaut que
+    # per_2024 dans V2).
+    hist_rdt = (rdt_hist or {}).get(ticker)
+    if hist_rdt:
+        rdt_h, n_ans = hist_rdt
+        result["rdt_hist_pct"] = round(rdt_h * 100, 2)
+        result["rdt_hist_annees"] = n_ans
+
+    if rdt_boa:
+        rdt_cible = rdt_boa
         rdt_source = "BOA"
+        if hist_rdt:
+            ecart = (hist_rdt[0] - rdt_boa) / rdt_boa * 100
+            result["rdt_ecart_hist_pct"] = round(ecart, 1)
+            rdt_source += f"(hist{n_ans}a{hist_rdt[0]*100:.1f}%,{ecart:+.0f}%)"
+    elif hist_rdt:
+        rdt_cible, n_ans = hist_rdt
+        rdt_source = f"hist{n_ans}a_seul"
     else:
-        # Fallback : rendement moyen sectoriel estimé
         secteur_tmp = SECTEUR_MAP.get(ticker, "autre")
         rdt_fallback = {"banque": 0.065, "telecom": 0.05, "agro": 0.055,
                         "distribution": 0.055, "industrie": 0.06, "autre": 0.06}
@@ -448,6 +537,9 @@ def main():
     print(f"   {len(boa_by_ticker)} rendements BOA chargés")
 
     # Historique dividendes pour la ponderation DDM/PE
+    rdt_hist = build_rendements_historiques(id_to_sym)
+    print(f"   {len(rdt_hist)} tickers avec rendement historique (>= {RDT_HIST_MIN_ANNEES} ans)")
+
     hist_div = build_historique_dividendes()
     print(f"   {len(hist_div)} tickers avec historique dividende ({FENETRE_DIVIDENDE} ans max)")
 
@@ -461,7 +553,7 @@ def main():
         if not company_id:
             continue
 
-        res = fair_value_v3(ticker, fund, historical, company_id, boa_by_ticker, hist_div)
+        res = fair_value_v3(ticker, fund, historical, company_id, boa_by_ticker, hist_div, rdt_hist)
 
         signal = res.get("signal_v3", "NO_DATA")
         fv = res.get("fair_value_v3")
