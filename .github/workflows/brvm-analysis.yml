@@ -117,6 +117,16 @@ jobs:
           python calculate_target_price.py
           echo "✅ Cours cibles mis à jour"
 
+      - name: 🧪 ÉTAPE 1g - Fair Value V3 (target_prices_v3 — expérimental)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        continue-on-error: true
+        run: |
+          echo "🧪 Calcul Fair Value V3 (table dédiée, n'écrase pas V2)..."
+          python calculate_target_price_v3.py --apply
+          echo "✅ Fair Value V3 calculée"
+
       - name: 📈 ÉTAPE 2 - Analyse Technique (Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
