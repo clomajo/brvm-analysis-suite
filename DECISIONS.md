@@ -1344,3 +1344,155 @@ Le bloquant « recherche doc GRU/Prévisions » de la session du 27/07/2026 est 
 la vérification existait et tournait, le verdict est négatif. L'onglet Prévisions sort
 de la nav cible. La home reste sur V1 seul — seul modèle du projet disposant d'une
 validation empirique (n=843, 65.6 % à J+20 → 81.8 % à J+90, commit `8ef56ad`).
+
+
+## ADR-045 — Refonte home : fusion Aperçu + Marché (spec figée, implémentation conditionnée)
+
+**Date :** 10/08/2026
+**Statut :** ACCEPTÉ — implémentation bloquée par ADR-046
+**Remplace :** notes de session 27/07/2026 (spec non formalisée)
+**Lié à :** ADR-044 (retrait Prévisions de la nav cible)
+
+### Contexte
+La home actuelle (Aperçu) duplique une partie de l'onglet Marché. Session 27/07 :
+décision de fusion, l'Aperçu absorbe Marché, qui disparaît de la nav.
+Deux prérequis étaient en suspens : l'origine réelle de « Volume vs moy. 0.4x »
+(levé ci-dessous) et la doc GRU/Prévisions (levé par ADR-044).
+
+### Décision
+Structure retenue :
+1. Bandeau marché global, horodatage unique « Données au [date] » (J-1, non répété par bloc)
+2. Trois blocs : Top 5 hausses / Top 5 baisses / bloc 3 (cf. ADR-046)
+3. « Opportunités du jour » — liste unique de signaux ACHAT, non séparés structurellement,
+   chaque carte taguée par origine + badge proof-level
+   ATTENTION ARBITRAGE OUVERT : ADR-044 conclut « la home reste sur V1 seul ». La présente
+   spec, antérieure, prévoit V1+V2 badgés. Contradiction non tranchée — à arbitrer avant
+   codage de cette section.
+4. Tableau complet 47 tickers
+
+Règle transversale : tout ticker cliquable réutilise le point d'entrée existant chargeant
+l'analyse fondamentale IA. Ne pas dupliquer la logique.
+
+### Vérifications ayant levé le blocage volume
+- `historical_data.volume` : 114 122 / 114 122 lignes non-null, alimenté jusqu'au 10/08
+- `App.jsx:3539-3545` : `volRatio = lastVolume / avgVolume20` sur données réelles (fetch L156)
+- `App.jsx:1472` : le snapshot marché fetche déjà `company_id, price, volume` — le bloc
+  « plus négociés » ne nécessitait aucun ajout au scraping
+- Conclusion : « Volume vs moy. » est une donnée réelle, pas un placeholder
+
+### Conséquences
+- Le classement par montant échangé se calcule frontend (`price × volume`) : `value` inutilisable
+- Market Breadth / Sector Performance / Heatmap ne sont plus bloqués techniquement ;
+  leur inclusion devient un arbitrage éditorial de densité, non tranché
+- Décision bloc 3 : option C (bloc « Activités du marché » complet), donc home reportée
+  derrière la construction d'un ingesteur d'indices — cf. ADR-046
+- Nav cible : 12 → 10 onglets (fusion Marché + retrait Prévisions par ADR-044)
+
+---
+
+## ADR-046 — Le Bulletin Officiel de la Cote comme source de référence marché
+
+**Date :** 10/08/2026
+**Statut :** ACCEPTÉ
+**Lié à :** ADR-045 (bloc 3), ADR-040, ADR-041
+
+### Contexte
+Le bloc « Activités du marché » (modèle brvm.org) exige 6 valeurs. Inventaire Supabase :
+- `new_market_indicators` : vide
+- `new_market_events` : vide
+- `v_latest_market_data` : nom trompeur, contient `predicted_price` (vue de prédictions)
+- Aucune donnée d'indice BRVM-C / BRVM-30 / BRVM-PRESTIGE en base
+- Capitalisation obligataire : absente
+
+Seules 2 lignes sur 6 étaient calculables. Option C retenue : construire l'ingesteur d'abord.
+
+### Décision
+Le Bulletin Officiel de la Cote (BOC), PDF quotidien publié par la BRVM, devient la source
+de référence pour les données marché agrégées, en remplacement d'un scraping de la page
+d'accueil brvm.org.
+
+Justification — un seul document couvre :
+
+| Donnée | Page BOC | État antérieur |
+|---|---|---|
+| BRVM-C / 30 / PRESTIGE + var. jour & annuelle | 1 | absent |
+| Capitalisation actions & obligations | 1 | absent |
+| Volume / valeur transigés marché | 1 | absent |
+| Market Breadth (hausse/baisse/inchangé) | 1 | calculé frontend |
+| 7 indices sectoriels + PER moyen par secteur | 1 | `sector_per_history` manuel |
+| Par ticker : ouv/clôt/volume/valeur | 3-4 | `value` morte |
+| Dernier dividende net + date de paiement | 3-4 | ADR-040 / ADR-041 |
+| Opérations en cours (dividendes à venir, IRVM) | 10 | partiel |
+| Quantités résiduelles achat/vente | 11 | absent |
+| Calendrier AG | 17-18 | `corporate_events` |
+| Marché obligataire complet | 5-9 | absent |
+
+### Stabilité de la source — vérifiée
+Pattern : `https://www.brvm.org/sites/default/files/boc_AAAAMMJJ_2.pdf`
+
+- Suffixe `_2` invariant sur 13 dates testées, 2023 → 2026
+- Aucun token, aucun paramètre d'expiration — stockage Drupal statique
+- Bulletin du 30/12/2022 toujours servi intégralement en 08/2026 (3 ans 8 mois)
+- Risque CDN écarté : profil opposé à celui qui a tué `parse_boa_letter` le 30/04/2026
+- Backfill pluriannuel viable ; le scraper n'a besoin que de la date
+
+### Règle opérationnelle — traitement des 404
+Un 404 signifie « jour non ouvré », pas « ingestion cassée » (vérifié : 07/08/2026,
+fête nationale ivoirienne, absent du listing officiel).
+
+Le scraper traite le 404 comme skip normal et n'alerte qu'après N jours ouvrés consécutifs
+sans bulletin. Sans cette règle, l'hétérogénéité des jours fériés des 8 pays UEMOA
+génère des fausses alertes permanentes — et une alerte permanente est une alerte ignorée,
+mécanisme exact de la mort silencieuse de l'ingestion BOA.
+
+### Rupture de schéma — contrainte de conception du parser
+Les séries ne sont pas continues :
+
+| | BOC 2022 | BOC 2026 |
+|---|---|---|
+| Indices phares | BRVM 10, BRVM Composite | Composite, BRVM 30, BRVM Prestige |
+| Indices sectoriels | 8 (Industrie, Transport, Agriculture, Distribution, Autres, Petites capi) | 7 (Télécoms, Conso discrétionnaire, Services financiers, Conso de base, Industriels, Énergie, Services publics) |
+| Base sectorielle | 100 au 14/06/1999 | 100 au 02/01/2025 |
+| Structure marché actions | par secteur | par compartiment (Prestige / Principal) |
+
+Ruptures identifiées : avis BRVM 259-2022 « Nouveaux indices », refonte du 02/01/2026.
+Un backfill naïf produirait une série avec sauts de base et changement de nomenclature.
+Le parser doit être versionné par période.
+
+### Renommages d'émetteurs — jointure
+SIVC (Air Liquide → Erium), SDSC (Bolloré → Africa Global Logistics),
+SEMC (Crown SIEM → Eviosys Packaging), TTLC (Total → TotalEnergies Marketing).
+SVOC (Movis) présent en 2022, absent en 2026.
+
+Joindre exclusivement par `symbole`, jamais par libellé.
+
+---
+
+## ADR-047 — PER sectoriels BOC : non-injection dans V2
+
+**Date :** 10/08/2026
+**Statut :** REPORTÉ (décision explicite, non oubli)
+
+### Contexte
+Le BOC publie quotidiennement le PER moyen des 7 secteurs officiels, dans la nomenclature
+exacte de `SECTEUR_OFFICIEL` (`calculate_target_price.py`). Cela permettrait d'automatiser
+`update_sector_per.py`, actuellement manuel/interactif. Le BOC donne aussi un taux de
+rendement moyen du marché empirique (6,01 % au 10/08/2026), qui rendrait caduc
+le 8 % arbitraire du terme `3,75 × DPS` de V2.
+
+### Décision
+Le gain d'automatisation sur `sector_per_history` est acquis et sera exploité.
+L'injection dans le calcul V2 est reportée, pour trois raisons :
+
+1. Distorsion par outliers. PER sectoriel INDUSTRIELS = 109,25 (tiré par SDSC 179,26,
+   FTSC 64,62), CONSO DISCRÉTIONNAIRE = 39,86 (tiré par BNBC 565,40). Un
+   `0,70 × per_ref × EPS` produirait des cours cibles absurdes.
+2. Méthodologie non neutre. La BRVM calcule ses PER moyens en excluant UNILEVER CI
+   (782,98) — traitement d'outlier ad hoc, signalé par simple astérisque, non documenté.
+3. V2 reste gelé. T9 (pas de différenciation vs stratégie dividende naïve) et T14
+   (68 % du signal concentré sur SERVICES_FINANCIERS = effet sectoriel) ne sont pas levés.
+   Améliorer un intrant d'un modèle dont l'edge n'est pas démontré n'apporte rien.
+
+Substituer un paramètre de modèle en cours de route sans test pré-enregistré est le motif
+d'erreur déjà consigné au projet. Toute reprise passera par un test pré-enregistré séparé,
+hors production.

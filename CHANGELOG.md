@@ -426,3 +426,21 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 - `tools/killswitch_check.py` : aucun filtre sur `signal` (ligne 82) et
   seuils fixés à 0 alors que la médiane structurelle de l'alpha d'univers
   vaut -1.84. Se déclenche en permanence, ne mesure rien.
+
+
+## 10/08/2026
+
+Aucun code produit — session d'investigation et de décision.
+
+- DOC : ADR-044 — fermeture onglet Prévisions (GRU MASE 1.888, direction 47.9 %) ;
+  lève le bloquant « doc GRU » de la session 27/07 ; nav cible 12 → 10 onglets
+- DOC : ADR-045 — spec home (fusion Aperçu + Marché) formalisée ; blocage « Volume vs moy. »
+  levé, donnée confirmée réelle (`volume` 100 % de couverture, `volRatio` calculé sur fetch réel)
+- DOC : ADR-046 — Bulletin Officiel de la Cote retenu comme source de référence marché.
+  Pattern d'URL déterministe `boc_AAAAMMJJ_2.pdf` vérifié sur 13 dates (2023→2026),
+  sans expiration ; règle 404 = jour non ouvré ; rupture de taxonomie sectorielle documentée
+- DOC : ADR-047 — PER sectoriels BOC : injection dans V2 explicitement reportée, V2 reste gelé
+- INFRA : inventaire Supabase — `new_market_indicators` et `new_market_events` vides,
+  `v_latest_market_data` mal nommée, `historical_data.value` morte (14,9 %)
+- FIX (à traiter) : `market_cap.scraped_at` figé au 27/05/2026 → `scrape_market_cap.py`
+  possiblement en panne depuis 2,5 mois — porté au backlog en priorité haute

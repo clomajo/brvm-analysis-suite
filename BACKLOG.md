@@ -505,3 +505,41 @@ aux utilisateurs sur la majorité des tickers couverts.
 - **Trancher le sort des deux blocs de log DIAG** ajoutés pour le diagnostic : `scrape_boc_pdf.py:get_company_ids()` (`6f9df46`) et `parse_boa_letter.py:download_pdf()` (`d5930bb`). Les conserver donne un corps de réponse exploitable au prochain incident ; les retirer restaure le code d'origine. Décision, pas urgence.
 - **Suivre l'expiration des PAT** : `BRVM_5` expire le 17/12/2026, le nouveau jeton à sa propre échéance. Deux jetons ont déjà expiré sans que personne ne le remarque (`BRVM` 14/04, `BRVM_4` 17/07) — l'échec ne se manifeste qu'au premier push sur un fichier de workflow.
 - **Couvrir les échecs de workflows planifiés dans `health_check.py`** : les deux incidents ont duré des semaines parce qu'un run planifié rouge n'alerte personne. `gh` CLI n'est pas installé localement (angle mort récurrent déjà tracé).
+
+
+### Ajouts session 10/08/2026
+
+- **[HAUTE] `scrape_market_cap.py` possiblement en panne** — `company_fundamentals.market_cap.scraped_at`
+  = 27/05/2026 alors que le workflow est censé tourner le 1er lundi de chaque mois.
+  2,5 mois sans mise à jour. Seul incident de production potentiel de la session,
+  indépendant de la refonte. Vérifier les runs GitHub Actions.
+- **[HAUTE] Parser BOC versionné** — gérer les ruptures de schéma (8→7 catégories sectorielles,
+  rebase 02/01/2025, passage secteur→compartiment). Prérequis à tout backfill. Cf. ADR-046.
+- **[HAUTE] Arbitrage V1 seul vs V1+V2 badgés sur la home** — ADR-044 et ADR-045 se
+  contredisent sur ce point. À trancher avant codage de la section « Opportunités du jour ».
+- **[MOYENNE] Fallbacks `Math.random()` dans App.jsx** — lignes 399 et 1434 génèrent des volumes
+  aléatoires en repli. Un fetch en échec produit un top 5 « plus négociés » entièrement fictif,
+  indiscernable du réel, sans aucun signal visuel. À neutraliser ou marquer explicitement.
+- **[MOYENNE] `historical_data.value` — colonne morte** — 16 973 / 114 122 lignes (14,9 %),
+  NULL sur toutes les lignes récentes. Décider : backfill depuis le BOC (colonne « Valeur »
+  présente par ticker) ou suppression. Le BOC rend le backfill trivial.
+- **[MOYENNE] Remédiation ADR-040 via BOC** — le BOC donne « Dernier dividende payé :
+  montant net + date » par ticker. Source candidate pour corriger l'off-by-one de
+  `DIVIDEND_HISTORY.fiscal_year` sans dépendre du scraper fautif.
+- **[MOYENNE] Arbitrage ADR-041 via BOC** — le BOC publie explicitement le dividende
+  en montant net et le « Rdt. Net ». Argument pour trancher la convention brut/net.
+- **[MOYENNE] Automatisation `sector_per_history`** — remplacer `update_sector_per.py`
+  (manuel/interactif, BOA Tableau de Bord) par extraction BOC. Gain acquis, indépendant
+  de l'usage V2 (cf. ADR-047).
+- **[BASSE] Liquidité réelle** — le BOC page 11 publie les quantités résiduelles achat/vente
+  par ticker, et définit le ratio de liquidité (titres échangés / volume ordres de vente).
+  Source potentielle pour valider ou remplacer le seuil 896 proposé en T5b, jamais validé.
+- **[BASSE] Inclusion Breadth / Sector Perf / Heatmap dans la home** — arbitrage éditorial
+  de densité, plus de blocage technique. Non tranché.
+- **[DOC] Renommer ou documenter `v_latest_market_data`** — nom trompeur, contient
+  `predicted_price` (prédictions), pas des données marché.
+- **[DOC] `monthly_volume_avg`** — moyenne saisonnière par mois calendaire, sémantiquement
+  différente de la moyenne glissante 20j du frontend. Ne pas interchanger.
+- **[DOC] `company_fundamentals`** — colonne de date = `scraped_at`, pas d'`updated_at`.
+- **[DOC] `new_market_indicators` et `new_market_events`** — tables vides, jamais alimentées.
+  Décider : cible de l'ingesteur BOC ou suppression.
