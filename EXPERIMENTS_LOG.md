@@ -348,3 +348,31 @@ l'exclusion documentee dans SKILL.md mais jamais implementee en code.
 `tools/experiments/E3_0/E3_0_resultats.csv` (16 lignes)
 
 **Suite**: aucune. Chaine dividend capture close par ADR-043.
+
+## E4.0 — Vérification GRU vs persistance naïve
+
+**Date** : 2026-08-10 | **Classe** : A (lecture seule, aucune écriture DB)
+**Script** : `tools/experiments/GRU_VERIF/audit_gru_vs_naive.py` (141 lignes)
+**Sortie** : `tools/experiments/GRU_VERIF/resultats_gru_vs_naive.csv` (5800 lignes)
+**Commit** : `95290c1` | **ADR** : ADR-044
+
+**Question** : le modèle GRU alimentant l'onglet Prévisions bat-il la persistance naïve ?
+
+**Seuils pré-enregistrés avant lecture** :
+- MASE < 0.85 valeur ajoutée | 0.85–1.0 marginal | ≥ 1.0 fermeture
+- Direction correcte ≥ 55 %
+
+**Données** : `predictions_results` (5800 lignes vérifiées) × `historical_data`
+pour le baseline naïf à `run_date`. Appariement strict, 0 rejet.
+
+**Résultat** : MASE global **1.888**, direction **47.9 %**.
+Stable 1.87–1.96 sur les 5 tranches d'horizon (J+1 à J+30).
+Direction décroissante avec l'horizon : 56.4 % (J+1–3) → 43.7 % (J+8–14).
+
+**Verdict** : seuil de fermeture franchi. Modèle non exploitable, onglet fermé.
+
+**Note méthodologique** : échappatoire disponible et non prise — les 27 533 prévisions
+échues non vérifiées (couverture 17 %) auraient permis de repousser le verdict au
+motif d'un échantillon non représentatif. Écartée : l'uniformité du résultat sur
+5800 points et 5 tranches d'horizon rend invraisemblable que les 83 % manquants
+inversent la conclusion.

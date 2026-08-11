@@ -1254,3 +1254,93 @@ Résultat sur SNTS/BOAC/BOAB, 16 cycles dont 14 exploitables (2016–2026) : **m
 **Réserve de portée.** E3.0 porte sur 3 tickers et 14 cycles exploitables. C'est exploratoire, pas concluant en soi — mais il ne s'agissait pas de prouver l'absence d'effet : il s'agissait de vérifier si la piste méritait d'être poursuivie après l'effondrement de ses résultats publiés. Le signe est défavorable et converge avec l'arithmétique. Cela suffit à arrêter.
 
 **Leçon méthodologique.** Vérifier la symétrie du calcul de rendement entre sujet et benchmark **avant** d'interpréter tout alpha, pour chaque expérience de la chaîne. Un seuil pré-enregistré n'a de valeur que s'il est respecté quand il tombe du mauvais côté.
+
+## ADR-044 — Fermeture de l'onglet Prévisions (modèle GRU non exploitable)
+
+**Date** : 2026-08-10
+**Statut** : Accepté
+**Commit audit** : `95290c1` (branche `remediation-2026-07`)
+
+### Contexte
+
+Le modèle GRU alimente l'onglet Prévisions du frontend et tourne en production
+via `brvm-analysis.yml` (`prediction_analyzer_v2.py` L195, `verify_predictions.py` L174)
+depuis le commit `2d025d4` du 16/05/2026. Aucune vérification de ses sorties n'avait
+jamais été lue — troisième occurrence du schéma « modèle en production sans validation »
+après V2 et V3.
+
+### Méthode
+
+Seuils **pré-enregistrés avant lecture des résultats**, conformément au protocole E3.0 :
+
+| Critère | Seuil |
+|---|---|
+| MASE = MAE_gru / MAE_naïve | < 0.85 : valeur ajoutée — 0.85–1.0 : marginal — ≥ 1.0 : fermeture |
+| Taux de direction correcte | ≥ 55 % |
+
+Comparateur : persistance naïve (prévision = dernier prix connu à `run_date`),
+benchmark standard de la littérature de prévision (Hyndman & Athanasopoulos ;
+M-competitions ; Meese & Rogoff 1983 pour le cas financier).
+
+Appariement strict : aucune ligne n'entre dans une jambe sans sa contrepartie.
+5 800 paires, **0 rejet faute de baseline**. Immunisé contre le défaut d'asymétrie
+de benchmark qui a invalidé E2.6 et T5c-A (ADR-043).
+
+Script : `tools/experiments/GRU_VERIF/audit_gru_vs_naive.py` (Classe A, lecture seule).
+
+### Résultats
+
+| Horizon | n | MAE GRU | MAE naïve | MASE | Direction |
+|---|---|---|---|---|---|
+| GLOBAL | 5800 | 641.30 | 339.74 | **1.888** | **47.9 %** |
+| J+1–3 | 1476 | 296.55 | 150.96 | 1.964 | 56.4 % |
+| J+4–7 | 1517 | 522.73 | 277.61 | 1.883 | 47.4 % |
+| J+8–14 | 2266 | 841.01 | 449.11 | 1.873 | 43.7 % |
+| J+15–30 | 541 | 1077.91 | 570.90 | 1.888 | 44.0 % |
+
+### Décision
+
+**L'onglet Prévisions ferme.** Le GRU produit une erreur ~1.9× supérieure à la
+persistance naïve et une direction sous le hasard. Le seuil de fermeture (MASE ≥ 1.0)
+est franchi de très loin.
+
+Robustesse du verdict :
+- MASE stable 1.87–1.96 sur **tous** les horizons — aucune poche d'exploitabilité
+- Direction se **dégrade** avec l'horizon (56.4 % → 43.7 %), inverse du comportement
+  attendu d'un modèle captant une tendance réelle
+- Médianes cohérentes avec les moyennes — pas d'effet outlier
+- Le seul point au-dessus du seuil de direction (J+1–3, 56.4 %) s'accompagne du pire
+  MASE du tableau (1.964) : sens deviné, amplitude inexploitable pour un cours cible
+
+### Séquence d'exécution
+
+1. ADR-044 (présent commit)
+2. Retrait de l'onglet du frontend — repo `brvm-analytics`, `App.jsx` via script de
+   patch Python (ADR-002). **Session distincte.**
+3. Débranchement de `verify_predictions.py` et `prediction_analyzer_v2.py` de
+   `brvm-analysis.yml` — **après** le retrait frontend uniquement.
+
+Ordre non négociable : couper le pipeline avant le retrait frontend laisserait un
+onglet affiché alimenté par des données gelées, pire que la situation actuelle.
+Les scripts et les tables `predictions` / `predictions_results` ne sont pas supprimés.
+
+### Anomalie relevée (backlog, sans effet sur le verdict)
+
+27 533 prévisions échues sur 33 333 ne sont jamais entrées dans `predictions_results`
+(couverture 17 %). Règle de sélection inconnue. Ne réhabilite pas le modèle :
+il faudrait que les 83 % manquants soient massivement meilleurs, incohérent avec
+l'uniformité observée sur 5 800 points et sur cinq tranches d'horizon.
+
+### Dette technique associée
+
+- `prediction_analyzer.py` (`229f512`, 14/03/2026) — mort, référencé uniquement dans
+  `.github/workflows/brvm-analysis.yml.backup`
+- `patch_gru_forecast.py` — non tracké, script de patch ponctuel, rejoint la liste
+  des fichiers non trackés à la racine
+
+### Conséquence sur la refonte frontend
+
+Le bloquant « recherche doc GRU/Prévisions » de la session du 27/07/2026 est **levé** :
+la vérification existait et tournait, le verdict est négatif. L'onglet Prévisions sort
+de la nav cible. La home reste sur V1 seul — seul modèle du projet disposant d'une
+validation empirique (n=843, 65.6 % à J+20 → 81.8 % à J+90, commit `8ef56ad`).
