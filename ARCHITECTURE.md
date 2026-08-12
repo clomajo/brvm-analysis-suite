@@ -1,173 +1,215 @@
 # Architecture — BRVM Analytics
 
-## Vue d'ensemble
+> Dernière refonte : 12/08/2026. La version précédente (28/07/2026) documentait
+> 9 scripts sur les 19 réellement appelés par `brvm-analysis.yml`, citait deux
+> tables inexistantes et décrivait des horizons de vérification obsolètes.
+> **Ce document doit être mis à jour à chaque ajout d'étape au pipeline** — son
+> obsolescence est le mécanisme qui produit les écrivains concurrents (ADR-041,
+> ADR-049, trois mappings sectoriels désynchronisés).
 
-BRVM Analytics est une plateforme B2B SaaS d'analyse quantitative de la BRVM
-(Bourse Régionale des Valeurs Mobilières), couvrant 47 tickers sur 8 pays UEMOA.
+---
+
+## Vue d'ensemble
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     FRONTEND (Vercel)                       │
-│              brvm-analytics.vercel.app                      │
-│         React 18 + Vite 3.2.7 — App.jsx (~3500 lignes)     │
-│                                                             │
-│  src/components/ (découvert 23/06/2026, ADR-017) :          │
-│  • BOAComparison.jsx                                        │
-│  • Opportunities.jsx                                        │
-│  • FinancialAnalysis.jsx — lit target_prices (corrigé      │
-│    25/06/2026, ADR-017) — sensible à un eps source faux     │
-│    pour certains tickers tant qu'ADR-018 n'est pas résolu   │
-└──────────────────────┬──────────────────────────────────────┘
-                       │ REST API (Supabase)
-┌──────────────────────▼──────────────────────────────────────┐
-│                   SUPABASE (PostgreSQL)                     │
-│              lynevvhmstpcffobwudr.supabase.co               │
-│                                                             │
-│  Tables principales:                                        │
-│  • companies          — 47 tickers BRVM                     │
-│  • historical_data    — 92 714+ lignes de prix              │
-│  • brvm_decisions     — signaux ACHAT/SURVEILLER/EVITER (V1)│
-│  • brvm_decisions_results — vérifications live (dès 07/26)  │
-│  • fundamental_analysis   — analyses Mistral (1 ligne par   │
-│    rapport, UNIQUE report_url — historisé, ADR-019)         │
-│  • technical_indicators   — RSI, MACD, SMA calculés         │
-│  • target_prices      — cours cible V2 + decote (calculé)   │
-│  • sector_per_history — P/E sectoriel BRVM, saisie mensuelle│
+│                    FRONTEND (Vercel)                        │
+│              brvm-analytics — React 18 + Vite 3.2.7         │
+│                     App.jsx (~4600 lignes)                  │
 └──────────────────────▲──────────────────────────────────────┘
-                       │ REST API
+                       │ REST API (VITE_SUPABASE_ANON_KEY)
 ┌──────────────────────┴──────────────────────────────────────┐
-│                PIPELINE (GitHub Actions)                    │
-│              brvm-analysis-suite (Python 3.11)              │
-│                    Tourne chaque jour                       │
-│                                                             │
-│  ÉTAPE 0  update_index.py          — indices BRVM           │
-│  ÉTAPE 1  data_collector_simple.py — scrape brvm.org (7sec) │
-│  ÉTAPE 1b test_pipeline.py         — 12 tests qualité       │
-│  ÉTAPE 2  technical_analyzer_simple.py — RSI, MACD, SMA     │
-│  ÉTAPE 3  opportunity_scorer_simple.py — scores 0-100       │
-│  ÉTAPE 3b generate_decisions.py    — signaux V1 + régime    │
-│           (GELÉ jusqu'au 01/07/2026 — ADR-001)              │
-│  ÉTAPE 3c verify_decisions.py      — vérif. 90j (dès 07/26) │
-│  ÉTAPE 3d test_pipeline.py         — tests post-décisions   │
-│  ÉTAPE 4  prediction_analyzer.py   — modèles ML (désactivé) │
-│  ÉTAPE 5  fundamental_analyzer.py  — Mistral AI (bi-hebdo   │
-│           1er et 15 — ADR-021) — analyses historisées       │
-│           (1 ligne/rapport, UNIQUE report_url)              │
-│  ÉTAPE 6  report_generator.py      — rapports (bi-hebdo,    │
-│           1er et 15 — ADR-021)                              │
-│  ÉTAPE 7  news_collector.py        — news + scoring IA      │
-│                                                             │
-│  calculate_target_price.py — cours cible V2 (indépendant   │
-│  du gel ADR-001, calibré jusqu'au go-live du 01/07/2026)    │
+│                  SUPABASE (PostgreSQL)                      │
+│              projet lynevvhmstpcffobwudr                    │
+│                    34 tables et vues                        │
+└──────────────────────▲──────────────────────────────────────┘
+                       │ REST API (SUPABASE_SERVICE_ROLE_KEY)
+┌──────────────────────┴──────────────────────────────────────┐
+│              PIPELINE (GitHub Actions)                      │
+│      brvm-analysis.yml — cron 06:00 UTC, quotidien          │
+│              Python 3.11, timeout 180 min                   │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Conséquence du cron à 06:00 UTC :** le pipeline ne peut ingérer que la séance
+de la veille. Toutes les données affichées sont à J-1 — la home l'assume avec un
+horodatage unique (ADR-045).
 
 ---
 
 ## Repos
 
-| Repo | Description | URL |
+| Repo | Rôle | Déploiement |
 |---|---|---|
-| `brvm-analytics` | Frontend React | github.com/clomajo/brvm-analytics |
-| `brvm-analysis-suite` | Pipeline Python | github.com/clomajo/brvm-analysis-suite |
+| `brvm-analysis-suite` | Pipeline Python | GitHub Actions |
+| `brvm-analytics` | Frontend React | Vercel |
+
+Branche active : `remediation-2026-07`. Cherry-pick vers `main` pour la prod,
+jamais de commit direct sur `main`.
 
 ---
 
-## Stack technique
+## Étapes du pipeline
 
-| Composant | Technologie | Version |
+Ordre réel d'exécution dans `brvm-analysis.yml`.
+
+| Étape | Script | Fréquence | Écrit dans |
+|---|---|---|---|
+| 0 | `update_index.py` | quotidien | `companies` |
+| 1 | `data_collector_simple.py` | quotidien | `companies`, `historical_data` |
+| 1 | `scrape_boc_pdf.py` | quotidien | `company_fundamentals` |
+| 1 | `scrape_indices.py` | quotidien | `companies`, `historical_data` |
+| 1 | `scrape_commodities.py` | quotidien | `commodity_prices` |
+| 1b | `test_pipeline.py` | lundi | — |
+| 1c | `scrape_corporate_events.py` | lundi | `companies`, `corporate_events` |
+| 1f | `calculate_target_price.py` | quotidien | `target_prices` |
+| 1g | Fair Value V3 | quotidien | `target_prices_v3` |
+| 2 | `technical_analyzer_simple.py` | quotidien | `technical_analysis` |
+| 3 | `opportunity_scorer_simple.py` | quotidien | `opportunities` |
+| 3b | `generate_decisions.py` | quotidien | `brvm_decisions` |
+| 3c | `verify_decisions.py` | quotidien | `brvm_decisions_results` |
+| 3e | `verify_predictions.py` | quotidien | `predictions_results` |
+| 3d | `test_pipeline.py` | quotidien | — |
+| 4 | Prédictions GRU | quotidien | `predictions` |
+| 5 | `fundamental_analyzer.py` | 1er et 15 | `fundamental_analysis`, `company_fundamentals`, `company_management` |
+| 6 | `report_generator.py` | 1er et 15 | fichiers .docx |
+| 7 | `news_collector.py` | quotidien | `news_events` |
+| V2 | `signaux_actifs.py` | lundi | — (lecture seule) |
+| V2b | `scrape_market_cap.py` | 1er lundi du mois | `company_fundamentals` |
+| — | `health_check.py` | quotidien | — |
+
+**Workflows séparés :** `parse_boa_letter.yml` (bulletins BOA, cron 18:00 UTC),
+`tests.yml`.
+
+**Non branché :** `tools/ingest_boc.py` — fonctionnel, historique backfillé
+jusqu'au 11/08/2026, mais aucune exécution automatique (backlog).
+
+**Débranchés / orphelins :** `data_collector.py` (ADR-048),
+`extract_fundamental_signals.py`, `prediction_analyzer.py`.
+
+**À débrancher :** étapes 3e et 4 (GRU) — ADR-044, après retrait de l'onglet
+Prévisions du frontend.
+
+---
+
+## Écrivains multiples — points de vigilance
+
+Plusieurs scripts écrivent dans la même table. C'est la principale source
+d'incohérences du projet.
+
+### `company_fundamentals`
+
+| Script | Écrit | Risque |
 |---|---|---|
-| Frontend | React + Vite | 18 + 3.2.7 |
-| Base de données | Supabase (PostgreSQL) | — |
-| Pipeline CI/CD | GitHub Actions | Python 3.11 |
-| Hébergement frontend | Vercel | — |
-| AI Fondamentaux | Mistral AI | mistral-large-latest |
-| AI Extraction | Claude API | claude-sonnet-4 |
-| Scraping | BeautifulSoup + requests | — |
-| Environnement local | macOS Catalina, Node v16.20.2 | Python 3.8/3.14 |
+| `scrape_boc_pdf.py` | `pe_ratio`, `dividend_yield`, `dividend_per_share` (**net**), `ex_dividend_date` | ADR-049 |
+| `scrape_market_cap.py` | `market_cap`, `shares_outstanding` | `scraped_at` figé au 27/05/2026 |
+| `fundamental_analyzer.py` | champs d'analyse IA | psycopg2 direct (viole ADR-004) |
+| autre écrivain | `dividend_per_share` (**brut**) | ADR-041 / ADR-049 |
+
+**`dividend_per_share` contient du brut ou du net selon l'ordre d'exécution**, ligne
+à ligne. Toute lecture de cette colonne est suspecte tant qu'ADR-049 n'est pas traité.
+
+### Indices BRVM — quatre sources
+
+`update_index.py`, `scrape_indices.py`, `data_collector.py` (débranché) et
+`tools/ingest_boc.py` touchent tous aux valeurs d'indices, sur des tables
+différentes. `boc_indices` est la seule alimentée depuis la source officielle
+(Bulletin Officiel de la Cote) avec contrôles de cohérence.
+
+### Mappings sectoriels — trois référentiels
+
+| Source | Contenu |
+|---|---|
+| `calculate_target_price.py` `SECTEUR_OFFICIEL` | 7 catégories BRVM — **référence production** |
+| `backtest_value.py` | 5 catégories maison |
+| `companies.sector` | libellés français simplifiés |
+
+`boc_indices` apporte un quatrième référentiel, celui de la BRVM elle-même
+(7 secteurs, base 02/01/2025).
 
 ---
 
-## Modèle de scoring V1
+## Modèles
 
-### Facteurs actuels (4 facteurs, gel jusqu'au 01/07/2026 — ADR-001)
+### V1 — signal composite prix/volume
+`RSI×0.20 + tendance×0.40 + volume×0.25 + volatilité×0.15` → ACHAT / SURVEILLER / ÉVITER.
 
-```
-Score composite (0-100) =
-  Technique (RSI, MACD, SMA)     ~40%
-  Fondamental (narratif Mistral) ~25%
-  Liquidité (tier: prestige/liquid/illiquid) ~20%
-  Tendance (momentum)            ~15%
-```
+**Seul modèle empiriquement validé** : n=843, 65.6 % à J+20 → 81.8 % à J+90
+(commit `8ef56ad`). Vérification quotidienne à J+20 (ADR-019 ; ADR-038 documente
+la logique J+90 d'origine).
 
-### Seuils de signal (v1_officielle_20260401)
-- **ACHAT** : score >= 65 (en régime BULL uniquement)
-- **SURVEILLER** : score 30-64
-- **EVITER** : score < 30
+### V2 — cours cible
+PER sectoriel × EPS + DDM. **Statistiquement non prouvé** : IC95 % bootstrap
+[-1.6 %, +14.3 %], n=25. Échec de la falsification T9 (ne se différencie pas d'une
+stratégie dividende naïve). T14 : 68 % des signaux concentrés sur
+SERVICES_FINANCIERS. **Gelé** (phase 13).
 
-### Régimes de marché
-- **BULL** : signaux ACHAT activés
-- **BEAR** : signaux ACHAT désactivés (alpha négatif documenté: -0.72%)
+### V3 — DDM/PE à pondération progressive
+`target_prices_v3`, 34 tickers, commit `334481b`. Coexiste avec V2 sans écrasement.
+7 signaux ACHAT. **Backtest de validation en attente** — pas d'affichage en home
+avant validation.
 
-### Performance documentée (backtest officiel)
-- Alpha vs random toutes conditions : **+1.82%**
-- Alpha en régime BULL : **+1.02%**
-- Alpha en régime BEAR : **-0.72%** (ACHAT désactivé)
+### GRU / Prévisions
+**Fermé définitivement** — ADR-044. MASE 1.888 (erreur ~1.9× la persistance naïve),
+direction 47.9 % (sous le hasard), audit `95290c1`.
 
 ---
 
-## Modèle de cours cible V2 (go-live 01/07/2026)
+## Sources de données
 
-```
-Cours cible = EPS moyen (jusqu'à 3 ans, filtre data-quality — ADR-011) × PER sectoriel (70%)
-              + dividende / 8% (30%)
-```
+| Source | Script | Contenu |
+|---|---|---|
+| brvm.org (HTML) | `data_collector_simple.py` | cours quotidiens |
+| BOC PDF pages 3-4 | `scrape_boc_pdf.py` | PER, dividende net, rendement par ticker |
+| BOC PDF page 1 | `tools/ingest_boc.py` | indices, agrégats, breadth, PER sectoriels |
+| Yahoo Finance | `scrape_commodities.py`, `tools/backfill_commodities.py` | cacao, coton, or, brut, USD/XOF |
+| BOA Capital | `parse_boa_letter.py` | bulletins hebdomadaires |
+| stockanalysis.com | `scrape_market_cap.py` | capitalisation, actions en circulation |
 
-**PER sectoriel :** lu dynamiquement depuis `sector_per_history` (7 secteurs officiels
-BRVM, ADR-010), jamais hardcodé. Alimentation manuelle mensuelle via `update_sector_per.py`.
+**BOC** — `https://www.brvm.org/sites/default/files/boc_AAAAMMJJ_2.pdf`. Pattern
+déterministe vérifié sur 13 dates (2023→2026), sans expiration. 404 = jour non
+ouvré (ADR-046). Rupture de taxonomie au 02/01/2026 : le parser refuse les
+bulletins antérieurs.
 
-**Filtre data-quality EPS (ADR-011) :** remplace toute liste d'exclusion statique.
-Vérifie la consécutivité des années EPS disponibles (si 2+) et détecte un collapse
-EPS >80% YoY. Avec 1 seule année EPS, le ticker est accepté sans contrôle (compromis
-assumé pour ne pas exclure des tickers à forte capitalisation par manque d'historique).
-
-**Taux d'actualisation 8% :** maintenu sans modification (ADR-009), origine non
-traçable mais pas de méthode de remplacement fiable identifiée.
+**Commodités** — 11 ans d'historique (2015-08 → 2026-08), ~2750 points par série.
+`usdxof` est dérivé d'EUR/USD via la parité fixe 655.957, pas du ticker `XOFUSD=X`.
+`crude` contient -37.63 au 2020-04-20 (WTI négatif) : donnée réelle, point de
+levier extrême.
 
 ---
 
-## Flux de données
+## Contraintes d'architecture (non négociables)
 
-```
-brvm.org/en/cours-actions/{0-6}
-    │ scrape quotidien (BeautifulSoup)
-    ▼
-historical_data (Supabase)
-    │
-    ├── technical_analyzer_simple.py
-    │       └── RSI(14), MACD(12/26/9), SMA(20/50)
-    │               └── technical_indicators (Supabase)
-    │
-    ├── opportunity_scorer_simple.py
-    │       └── score composite 0-100
-    │               └── opportunity_scores (Supabase)
-    │
-    ├── generate_decisions.py (V1, gelé — ADR-001)
-    │       └── ACHAT/SURVEILLER/EVITER + market_regime
-    │               └── brvm_decisions (Supabase)
-    │                       │
-    │                       └── verify_decisions.py (J+90)
-    │                               └── brvm_decisions_results
-    │
-    └── calculate_target_price.py (V2, calibrable jusqu'au 01/07/2026)
-            │
-            ├── lit sector_per_history (P/E sectoriel, màj mensuelle manuelle)
-            ├── applique evaluer_qualite_eps() sur company_fundamentals
-            │       (filtre consécutivité + collapse, ADR-011)
-            │
-            └── ACHAT/NEUTRE/VENTE + decote_pct + per_source (traçabilité)
-                    └── target_prices (Supabase)
-```
+| Règle | ADR |
+|---|---|
+| Supabase via REST API uniquement, jamais psycopg2 | ADR-004 |
+| Corrections de masse par SQL Editor uniquement | ADR-026 |
+| `App.jsx` modifié par scripts de patch Python | ADR-002 |
+| Pas de react-markdown ; Vite figé en 3.2.7 ; Node en v16.20.2 | — |
+| `load_dotenv(find_dotenv(usecwd=True))`, module `logging`, pas d'`except` silencieux | — |
+| `python3` explicite (le `python` du Mac mini est en Python 2) | — |
+
+**Violations connues d'ADR-004 :** `fundamental_analyzer.py`, `report_generator.py`
+(psycopg2 direct) — arbitrage en attente : migrer ou accorder une dérogation.
+
+---
+
+## Schéma — pièges connus
+
+| Table / colonne | Piège |
+|---|---|
+| `companies.symbol` | pas `ticker`, pas `name` |
+| `historical_data` | `trade_date`, `price`, `company_id` — **pas de colonne ticker**, résolution en deux temps via `companies` |
+| `historical_data.value` | **colonne morte** — 14.9 % de couverture, plus alimentée. Le montant échangé se calcule `price × volume` |
+| `company_fundamentals` | colonne de date = `scraped_at`, **il n'y a pas d'`updated_at`** |
+| `company_fundamentals.dividend_per_share` | brut **ou** net selon l'ordre d'exécution — ADR-049 |
+| `corporate_events` | `EX_DIVIDEND` (date précise, montant toujours NULL) et `DIVIDEND_HISTORY` (montants présents, `event_date` = clôture d'exercice) — jointure par `fiscal_year` |
+| `DIVIDEND_HISTORY.fiscal_year` | décalé d'un an (ADR-040) — affecte 77/89 cycles exploitables |
+| `brvm_decisions_results.benchmark_return` | moyenne de cohorte quotidienne issue de `verify_decisions.py`, **pas l'indice BRVM Composite** |
+| `v_latest_market_data` | nom trompeur — contient `predicted_price` (prédictions) |
+| `monthly_volume_avg` | moyenne **saisonnière par mois calendaire**, pas une moyenne glissante 20j |
+| `new_market_indicators` | 6 colonnes ; le `INSERT` de `data_collector.py` en référence deux qui n'existent pas |
+| `boc_indices` | `BRVM_PRESTIGE` (PHARE) et `BRVM-PRESTIGE` (COMPARTIMENT) sont le même indice — filtrer par `type_indice` |
 
 ---
 
@@ -175,28 +217,24 @@ historical_data (Supabase)
 
 | Contrainte | Impact | Statut |
 |---|---|---|
-| Node v16.20.2 (macOS Catalina) | Impossible de upgrader | Contourné |
-| Python 3.14 local incompatible TF 2.15 | Modèles ML non testés | Backlog TECH-02 |
-| App.jsx monolithique (~3500 lignes) | Maintenance difficile | Dette technique |
-| Données historiques pré-split non ajustées | Backtest BOA non fiable | Backlog DATA-05/06 |
-| Variation journalière sur données non consécutives | Top Gainers parfois incorrect | Backlog DATA-07 |
-| Parsing automatique du Tableau de Bord BOA non branché | Saisie PER sectoriel manuelle, pas automatique | Backlog (cf. ADR-010) — document source en lien email, pas en pièce jointe |
-| Tickers à 1 seule année EPS acceptés sans contrôle qualité | Risque d'EPS atypique non représentatif dans le cours cible V2 | Risque assumé (ADR-011), à surveiller après le 01/07/2026 |
-| `shares_outstanding` non fiable depuis stockanalysis.com pour certains tickers | EPS gonflé d'un facteur erroné (cas NTLC : ×20), cours cible V2 aberrant | NTLC : `shares_outstanding` corrigé (ADR-012), mais `eps` lui-même pas recalculé par le scraper — cf. ligne suivante |
-| `eps` scrapé sans recalcul depuis `net_income`/`shares_outstanding` (ADR-018) | Toute correction manuelle de `shares_outstanding` seule est écrasée silencieusement par le scraping hebdomadaire suivant si `eps` n'est pas aussi corrigé en base | Détection ajoutée (`check_eps_coherence`, log uniquement) ; NTLC/BICC/SOGC confirmés incohérents au 25/06/2026, correction des données en attente (après run du 29/06/2026) |
-| Doublon de calcul Fair Value : `FinancialAnalysis.jsx` recalculait en JS, indépendamment de `target_prices` | Aberrations possibles non filtrées | **Corrigé 25/06/2026 (ADR-017)** — lit désormais `target_prices`, comme `App.jsx` |
-| Contrainte SQL parasite `UNIQUE(company_id)` sur `fundamental_analysis` | Analyse Mistral bloquée sur 1 rapport/société ; nouveaux rapports échouaient à la sauvegarde après analyse (travail payant perdu) | **Corrigé 28/06/2026 (ADR-019)** — contrainte supprimée, retour à `UNIQUE(report_url)` |
-| Prompts Mistral avec P/E 10x hardcodé (objectif de cours calculé par l'IA) | Valorisation IA divergente du modèle V2 | **Corrigé 28/06/2026 (ADR-020)** — objectif de cours retiré des prompts, source unique = modèle V2 |
-| Quota API Mistral (plan Free) épuisé avant fin de mois | Pipeline retombe sur fallback DeepSeek/Gemini, voire fallback_text | **Atténué 28/06/2026 (ADR-021)** — retrait UPSERT + étapes 5/6 bi-hebdo. Reset mensuel le 30 |
+| Node v16.20.2 (macOS Catalina) | Mise à jour impossible | Contourné |
+| Claude Code incompatible Catalina | — | GitHub Codespaces pour les tâches Classe A |
+| `App.jsx` monolithique (~4600 lignes) | Maintenance difficile | Dette technique |
+| Données pré-split non ajustées | Backtest BOA non fiable | Backlog DATA-05/06 |
+| `shares_outstanding` non fiable post-split (stockanalysis.com) | EPS erroné, cours cible V2 aberrant | ADR-012, ADR-018 |
+| `scrape_market_cap.py` — `scraped_at` figé au 27/05/2026 | `market_cap` périmé | **Incident non résolu** |
+| `report_generator.py` ordonne par `id`, pas par date | Variations fausses après tout backfill | ADR-048, à corriger **avant** backfill |
+| `requirements.txt` ne déclare pas `pdfminer.six` | `parse_boa_letter.py` ne devrait pas tourner en CI | Piste sur son arrêt du 30/04/2026 |
+| Exclusion SNTS documentée dans SKILL.md | Jamais implémentée en code | Backlog |
 
 ---
 
 ## Sécurité
 
-- RLS (Row Level Security) activé sur toutes les tables Supabase
-- `brvm_data` : lecture publique
-- `brvm_decisions` : lecture publique + écriture service_role
-- `sector_per_history` : lecture publique, contrainte CHECK sur les 7 secteurs officiels
-- `target_prices` : lecture publique, colonne `per_source` avec CHECK (sector_per_history|fallback)
-- `user_actions` : lecture/écriture scopée par utilisateur
-- Clés API dans GitHub Secrets (jamais dans le code)
+Clés en variables d'environnement (`.env` local, secrets GitHub Actions).
+`SUPABASE_SERVICE_ROLE_KEY` au format `sb_secret_...` depuis la migration du
+27/07/2026 (ADR-042), utilisée à la fois comme en-tête `apikey` et
+`Authorization: Bearer`. Migration de `VITE_SUPABASE_ANON_KEY` vers
+`sb_publishable_...` toujours en attente côté Vercel.
+
+PAT `BRVM_5` : scopes `repo` + `workflow`. Surveiller l'expiration.

@@ -444,3 +444,63 @@ Aucun code produit — session d'investigation et de décision.
   `v_latest_market_data` mal nommée, `historical_data.value` morte (14,9 %)
 - FIX (à traiter) : `market_cap.scraped_at` figé au 27/05/2026 → `scrape_market_cap.py`
   possiblement en panne depuis 2,5 mois — porté au backlog en priorité haute
+
+
+## 11/08/2026
+
+- FEAT : `tools/parse_boc.py` (commit `ebdb580`) — parser page 1 du BOC.
+  Extraction positionnelle via pymupdf, 8 invariants arithmétiques de validation,
+  détection de schéma (rejet des bulletins pré-refonte 2026), 404 = jour non ouvré.
+  Testé sur 4 scénarios : 10/08 et 06/08 (tous contrôles verts), 07/08 (férié, 404),
+  30/12/2022 (schéma rejeté).
+- FIX : bug d'appariement `BRVM_30` — le « 30 » du libellé était capté comme
+  fragment numérique (30233.99 au lieu de 233.99). Les 6 invariants initiaux ne
+  couvraient pas les indices phares et étaient tous verts malgré la valeur fausse.
+  2 contrôles de recoupement ajoutés + garde-fou de plage.
+- DOC : ADR-048 — `data_collector.py` contient un ingesteur BOC complet mais
+  débranché du workflow ; schéma cible arrêté (3 tables `boc_*` + conservation de
+  `new_market_indicators`).
+- INFRA : `ddl_boc_20260811.sql` — création des tables `boc_indices`,
+  `boc_market_stats`, `boc_market_indicators` + contrainte unique sur
+  `new_market_indicators.extraction_date`.
+- INFRA (à traiter) : `report_generator.py` ordonne par `id` et non par date —
+  incompatible avec le backfill BOC, porté au backlog en priorité haute.
+
+
+## 12/08/2026
+
+**Chaîne d'ingestion BOC opérationnelle de bout en bout.**
+
+- FEAT : `tools/ingest_boc.py` (`d6b4f10`) — parse et upsert dans 4 tables.
+  Refus d'écriture si un invariant échoue. Idempotent.
+- INFRA : `tools/ddl_boc_20260811.sql` exécuté en base (SQL Editor, ADR-026) —
+  `boc_indices` (16 col.), `boc_market_stats` (21), `boc_market_indicators` (20),
+  + contrainte unique sur `new_market_indicators.extraction_date`.
+- DATA : backfill BOC 02/01 → 11/08/2026 — **142 séances**, 1846 lignes `boc_indices`,
+  284 `boc_market_stats`, 142 `boc_market_indicators` et `new_market_indicators`
+  (cette dernière n'était jamais alimentée). Série BRVM Composite continue
+  344.48 → 493.90, aucun saut > 5 %.
+- FIX : `tools/parse_boc.py` (`2b11739`) — trois faux positifs de contrôle,
+  vérifiés sur PDF dans chaque cas : Composite (prix) vs Total Return (dividendes
+  réinvestis) ; totaux « Actions & Droits » vs compartiments actions seules
+  (marché des droits actif du 28/04 au 09/06) ; libellé sectoriel tronqué à
+  l'encodage du PDF source le 15/07.
+- FEAT : `tools/backfill_commodities.py` (`c00bc5d`) — `commodity_prices` passe de
+  ~15 mois à 11 ans (~2750 points/série sur 5 séries). Prérequis à toute analyse
+  matière première → cours.
+- FIX : incident `usdxof` — 2514 lignes écrites en dollars par franc (0.0017) au lieu
+  de francs par dollar (578), le ticker `XOFUSD=X` du mapping `COMMODITIES` étant en
+  réalité inutilisé (`scrape_commodities.py` L117-120 dérive la valeur d'EUR/USD via
+  la parité fixe 655.957). Lignes supprimées, série reconstruite, garde-fou ajouté
+  (refus d'écrire si > 5 % des dates communes divergent).
+- DOC : ADR-049 — `scrape_boc_pdf.py` identifié comme second écrivain de
+  `dividend_per_share` (**net**), ce qui résout ADR-041 : la colonne mélange brut et
+  net ligne à ligne selon l'ordre d'exécution. Plus quatre défauts associés
+  (`ex_dividend_date` = date de paiement, `fiscal_year` off-by-one, TLS désactivé,
+  `except` nu).
+- DOC : `ARCHITECTURE.md` refondu — documentait 9 scripts sur les 19 réellement
+  appelés par `brvm-analysis.yml`, citait deux tables inexistantes
+  (`technical_indicators`, `opportunity_scores`), ignorait V3, le BOC, les commodités,
+  et décrivait `verify_decisions.py` à J+90 (J+20 depuis ADR-019).
+- NOTE : `crude` contient -37.63 au 2020-04-20 (WTI négatif) — donnée réelle,
+  point de levier extrême à traiter explicitement dans toute régression.

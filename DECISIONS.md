@@ -1496,3 +1496,179 @@ L'injection dans le calcul V2 est reportée, pour trois raisons :
 Substituer un paramètre de modèle en cours de route sans test pré-enregistré est le motif
 d'erreur déjà consigné au projet. Toute reprise passera par un test pré-enregistré séparé,
 hors production.
+
+
+## ADR-048 — Ingesteur BOC existant débranché, et schéma cible retenu
+
+**Date :** 11/08/2026
+**Statut :** ACCEPTÉ
+**Lié à :** ADR-046 (source BOC), ADR-004 (psycopg2), ADR-026 (SQL Editor)
+
+### Contexte
+En cherchant la cible d'écriture du nouveau parser BOC (`tools/parse_boc.py`,
+commit `ebdb580`), un inventaire des références à `new_market_indicators` a révélé
+qu'un ingesteur BOC complet existe déjà dans le repo — `data_collector.py` — et
+qu'il n'est pas branché.
+
+Constats :
+- `data_collector.py` L59-79 : récupère la liste des BOC depuis
+  `https://www.brvm.org/fr/bulletins-officiels-de-la-cote`
+- L151 `extract_market_indicators()` : extrait Composite / 30 / Prestige /
+  capitalisation / volume moyen / valeur moyenne par regex sur le texte du PDF
+- L289 : `INSERT INTO new_market_indicators ... ON CONFLICT (extraction_date) DO UPDATE`
+- L384-385 : les deux fonctions sont bien appelées dans le flux principal
+- **Mais** `brvm-analysis.yml` L72 appelle `data_collector_simple.py`, qui ne
+  touche ni au BOC ni aux indicateurs (grep vide)
+
+Conséquence : `new_market_indicators` est vide, et `report_generator.py` la lit
+dans 3 requêtes (L96, L119, L143) — les sections correspondantes du rapport sont
+donc dégradées ou vides depuis l'origine, sans que rien ne l'ait signalé.
+Même motif que `scrape_market_cap.py` : panne silencieuse, non couverte par
+`health_check.py`.
+
+### Pourquoi ne pas simplement rebrancher `data_collector.py`
+
+1. **Extraction par regex sur texte linéaire.** Le flux texte du BOC entrelace les
+   colonnes Actions et Obligations : les libellés d'un bloc sortent après les
+   valeurs de l'autre. Une regex `LIBELLE\s+([\d\s,\.]+)` apparie donc des
+   valeurs arbitraires. Le motif `BRVM\s+30\s+([\d\s,\.]+)` est particulièrement
+   exposé — c'est la version regex d'un bug rencontré et corrigé dans
+   `parse_boc.py` (le « 30 » du libellé capté comme fragment numérique,
+   produisant 30233.99 au lieu de 233.99).
+2. **Aucun contrôle de cohérence.** Le script peut écrire des valeurs fausses
+   sans qu'aucune vérification ne le détecte.
+3. **psycopg2 direct** — violation ADR-004, décision toujours pendante.
+
+`tools/parse_boc.py` (extraction positionnelle + 8 invariants arithmétiques)
+remplace `extract_market_indicators()` comme moteur d'extraction.
+
+### Défaut structurel de `report_generator.py`
+
+Ses trois requêtes ordonnent par `id DESC`, jamais par date. La variation
+journalière compare `id` et `id - 1` (L119-135). Tant que l'insertion est
+strictement chronologique, `id` et date coïncident. **Dès qu'un backfill insère
+de l'historique après coup, la correspondance est rompue** : l'`id` le plus élevé
+ne sera plus la date la plus récente, et les variations deviendront silencieusement
+fausses.
+
+C'est structurellement incompatible avec le backfill BOC prévu. Correction
+nécessaire avant tout backfill : ordonner par `extraction_date`.
+
+### Décision — schéma cible
+
+Trois tables nouvelles portent la donnée riche du BOC (~50 champs page 1) :
+- `boc_indices` — tous types d'indices (PHARE / COMPARTIMENT / TOTAL_RETURN /
+  SECTORIEL), une ligne par (date_seance, indice)
+- `boc_market_stats` — agrégats par (date_seance, marché ∈ ACTIONS/OBLIGATIONS)
+- `boc_market_indicators` — les 14 indicateurs, une ligne par date_seance
+
+`new_market_indicators` est **conservée et alimentée en parallèle** (ses 6 colonnes),
+afin de ne pas casser `report_generator.py`. Sa migration vers les tables `boc_*`
+est hors périmètre et reste à planifier.
+
+Chaque table porte une contrainte unique sur sa clé métier, pour permettre
+l'upsert idempotent : rejouer une date déjà ingérée met à jour au lieu de dupliquer.
+
+Une contrainte unique est ajoutée sur `new_market_indicators.extraction_date` :
+le `ON CONFLICT (extraction_date)` de `data_collector.py` l'exige et elle est
+absente du schéma actuel — tout upsert lèverait une erreur 42P10.
+
+`base_reference` étiquette le régime de base de chaque indice dès l'ingestion.
+Principe retenu, conforme à la pratique des fournisseurs de données : stocker le
+niveau publié tel quel, ne jamais retraiter l'historique, décrire les régimes à
+part. Le chaînage entre régimes, s'il devient nécessaire, sera un calcul à la
+lecture. Un référentiel de correspondance sectorielle 8→7 sera ajouté le jour où
+un parser v2022 existera — étiqueter dès l'origine coûte zéro, ré-étiqueter après
+coup coûte cher.
+
+Aucun `DROP` : `new_market_indicators` et `new_market_events` ne sont pas
+supprimées, contrairement à ce que laissait entendre l'entrée backlog du 10/08
+(rédigée sur l'hypothèse erronée qu'elles étaient orphelines).
+
+
+## ADR-049 — `scrape_boc_pdf.py` : second écrivain de `dividend_per_share`, et trois défauts associés
+
+**Date :** 12/08/2026
+**Statut :** CONSTAT — corrections à planifier
+**Résout :** ADR-041 (convention brut/net indéterminée)
+**Complète :** ADR-040 (off-by-one `fiscal_year`)
+
+### Contexte
+En cherchant où brancher l'ingestion BOC page 1 (`tools/ingest_boc.py`), l'inventaire
+des scripts appelés par `brvm-analysis.yml` a révélé que `scrape_boc_pdf.py` tourne
+quotidiennement en ÉTAPE 1 et parse déjà le BOC — pages 3-4, tableau par ticker.
+
+**Il n'y a pas de doublon avec `tools/ingest_boc.py`** : périmètres disjoints
+(page 1 vs pages 3-4), tables disjointes (`boc_*` vs `company_fundamentals`).
+Les deux scripts utilisent le même pattern d'URL et la même bibliothèque (pymupdf).
+
+Trois scripts BOC coexistent donc désormais dans le repo :
+
+| Script | Périmètre | Écrit dans | Statut |
+|---|---|---|---|
+| `data_collector.py` | page 1 (6 indicateurs) | `new_market_indicators` | débranché (ADR-048) |
+| `scrape_boc_pdf.py` | pages 3-4 (par ticker) | `company_fundamentals` | **production quotidienne** |
+| `tools/ingest_boc.py` | page 1 (~50 champs) | `boc_*` + `new_market_indicators` | nouveau |
+
+### Résolution d'ADR-041 — convention brut/net
+
+`scrape_boc_pdf.py` L124 : `"dividend_per_share": rec["dividende"]`, extrait de la
+colonne « Dernier dividende payé — **Montant net** » du BOC.
+
+ADR-041 notait deux scripts concurrents sans convention établie, et supposait que
+la colonne contenait du brut « par accident, comportement correct mais non
+intentionnel ». **Le constat réel est plus grave** : selon lequel des deux scripts
+a écrit en dernier pour un ticker donné, la valeur est brute ou nette. La colonne
+ne mélange pas seulement deux conventions au niveau du schéma — elle les mélange
+**ligne à ligne**, selon l'ordre d'exécution.
+
+Portée : toute expérience lisant `company_fundamentals.dividend_per_share`
+(E2.6, E2.7-A, E2.7-B, T5c-A, T9 volet A) s'appuie sur une colonne
+potentiellement hétérogène. À évaluer avant toute reprise de ces travaux.
+
+### Trois défauts supplémentaires dans `scrape_boc_pdf.py`
+
+**1. `ex_dividend_date` reçoit une date de paiement.**
+L125 : `"ex_dividend_date": rec["date_div"]`, alimenté par la colonne « Dernier
+dividende payé — Date » du BOC, qui est la date de **paiement**, pas la date de
+**détachement**. Ce sont deux dates distinctes, séparées de plusieurs jours.
+`ex_dividend_date` est le pivot de la stratégie de capture de dividende et du
+travail de recherche sur le timing d'achat post-ex-dividende.
+
+**2. `fiscal_year` reproduit l'off-by-one d'ADR-040.**
+L114 : `fy = f"FY{trade_date.year}"` — l'année de la date du **bulletin**, pas
+celle de l'exercice. Un dividende de l'exercice 2025 payé en août 2026 est
+étiqueté FY2026. ADR-040 attribuait ce décalage au seul `scrape_corporate_events.py` ;
+un second script produit le même effet, sur une table différente.
+
+**3. Vérification TLS désactivée.**
+L14-15 : `ctx.check_hostname = False` et `ctx.verify_mode = ssl.CERT_NONE`.
+Le contournement n'est pas nécessaire : `tools/parse_boc.py` télécharge les mêmes
+PDF via `requests` avec vérification normale, sans incident sur 142 séances.
+
+**4. `except:` nu dans la boucle de recherche du bulletin.**
+L26 : `except: d -= timedelta(days=1)` avale toute exception — y compris une clé
+Supabase invalide ou une erreur de parsing — et remonte jusqu'à 10 jours en
+arrière. Un échec structurel se présente donc comme « bulletin non trouvé ».
+Contraire à la règle projet (pas d'`except` silencieux).
+
+**5. Upsert sans `on_conflict`.**
+L130-134 : `Prefer: resolution=merge-duplicates` sans paramètre `on_conflict`,
+contrairement aux autres scripts du projet.
+
+### Décision
+Constats consignés, corrections **non appliquées dans cette session** : elles
+touchent un script de production quotidienne et une décision ouverte (ADR-041),
+et méritent chacune leur propre validation. Portées au backlog.
+
+Aucune correction ne doit être faite sans décider au préalable **quelle
+convention** (brut ou net) fait autorité pour `dividend_per_share` — corriger un
+seul des deux écrivains figerait l'incohérence au lieu de la résoudre.
+
+### Note de méthode
+`tools/ingest_boc.py` a été écrit sans que l'existence de `scrape_boc_pdf.py` et
+`data_collector.py` ait été vérifiée au préalable. Le périmètre s'est révélé
+disjoint, donc sans conséquence — mais la vérification aurait dû précéder
+l'écriture. `ARCHITECTURE.md` ne mentionnait aucun des deux (cf. sa refonte,
+même session) : c'est précisément le mécanisme qui produit les écrivains
+concurrents constatés dans ce projet (ADR-041, trois mappings sectoriels).

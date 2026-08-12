@@ -543,3 +543,62 @@ aux utilisateurs sur la majorité des tickers couverts.
 - **[DOC] `company_fundamentals`** — colonne de date = `scraped_at`, pas d'`updated_at`.
 - **[DOC] `new_market_indicators` et `new_market_events`** — tables vides, jamais alimentées.
   Décider : cible de l'ingesteur BOC ou suppression.
+
+
+### Ajouts session 11/08/2026
+
+- **[HAUTE] `report_generator.py` — tri par `id` au lieu de la date** — les 3 requêtes
+  (L96, L119, L143) ordonnent par `id DESC` et la variation journalière compare
+  `id` / `id - 1`. Incompatible avec tout backfill : dès qu'on insère de l'historique
+  après coup, les variations deviennent silencieusement fausses. **À corriger avant
+  le backfill BOC**, pas après. Cf. ADR-048.
+- **[HAUTE] `data_collector.py` débranché** — le workflow appelle
+  `data_collector_simple.py`. Décider : suppression du code mort, ou réécriture de
+  `extract_market_indicators()` sur `tools/parse_boc.py`. Cf. ADR-048.
+- **[MOYENNE] `health_check.py` ne couvre pas `new_market_indicators`** — table vide
+  depuis l'origine sans alerte. Troisième panne silencieuse après `scrape_market_cap.py`
+  et `parse_boa_letter.py`. Élargir les seuils de couverture.
+- **[MOYENNE] `requirements.txt` ne déclare pas `pdfminer.six`** — dont dépend
+  `parse_boa_letter.py`. Le workflow fait `pip install -r requirements.txt` : le script
+  ne devrait pas tourner en CI. Piste sérieuse sur son arrêt du 30/04/2026. `pypdf`
+  est déclaré mais utilisé nulle part ; `pymupdf` est déclaré et désormais utilisé
+  par `tools/parse_boc.py`.
+- **[MOYENNE] Migration `report_generator.py` vers les tables `boc_*`** — la double
+  alimentation (`new_market_indicators` + `boc_*`) est une mesure transitoire.
+- **[BASSE] Parser BOC v2022** — prérequis au backfill pré-refonte. Nécessite aussi
+  un référentiel de correspondance sectorielle 8→7 catégories.
+- **[CORRECTION] Entrée du 10/08 sur `new_market_indicators` / `new_market_events`** —
+  qualifiées de « jamais alimentées, candidates à la suppression ». Inexact : elles
+  sont référencées par `data_collector.py` (écriture) et `report_generator.py`
+  (lecture). Ne pas supprimer.
+
+
+### Ajouts session 12/08/2026
+
+- **[CRITIQUE] `dividend_per_share` : convention brut/net à trancher puis homogénéiser** —
+  `scrape_boc_pdf.py` écrit du **net** (BOC, colonne « Montant net »), l'autre écrivain
+  écrit du brut. La valeur d'une ligne dépend de l'ordre d'exécution. Décider quelle
+  convention fait autorité, corriger les deux écrivains, puis recalculer l'existant.
+  Impact : E2.6, E2.7-A, E2.7-B, T5c-A, T9 volet A. Cf. ADR-049.
+- **[HAUTE] `scrape_boc_pdf.py` : `ex_dividend_date` reçoit une date de paiement** —
+  la colonne BOC utilisée est la date de paiement, pas de détachement. Pivot de la
+  stratégie de capture de dividende. Cf. ADR-049.
+- **[HAUTE] `scrape_boc_pdf.py` : `fiscal_year` off-by-one** — `FY{année du bulletin}`
+  au lieu de l'année d'exercice. Même effet qu'ADR-040, sur `company_fundamentals`.
+- **[MOYENNE] `scrape_boc_pdf.py` : vérification TLS désactivée** (`ssl.CERT_NONE`).
+  Non nécessaire — `tools/parse_boc.py` télécharge les mêmes PDF avec vérification.
+- **[MOYENNE] `scrape_boc_pdf.py` : `except:` nu** L26 — masque les échecs structurels
+  en « bulletin non trouvé ». Ajouter le traitement 404 = jour non ouvré d'ADR-046.
+- **[MOYENNE] `scrape_boc_pdf.py` : upsert sans `on_conflict`.**
+- **[MOYENNE] Workflow d'ingestion BOC page 1 non créé** — `tools/ingest_boc.py`
+  fonctionne et l'historique est backfillé jusqu'au 11/08/2026, mais rien ne
+  l'exécute automatiquement. Étape à ajouter dans `brvm-analysis.yml` (cron 06:00 UTC,
+  donc J-1, cohérent avec le reste du pipeline) avec fenêtre de rattrapage de 5 jours
+  ouvrés via `--from`/`--to` (l'idempotence rend le rejeu sans coût).
+- **[BASSE] `sector_per_history` alimentable depuis `boc_indices`** — 7 secteurs × 142
+  dates de PER officiels désormais en base, contre une saisie mensuelle manuelle.
+  Indépendant du gel V2 (ADR-047).
+- **[BASSE] Fichiers `.yml.backup` et `.yml.bak` dans `.github/workflows/`** — sans effet
+  (GitHub n'exécute que `.yml`), mais source de confusion. Nettoyer.
+- **[RAPPEL] ADR-044 : ÉTAPES 3e et 4 (GRU) tournent toujours** — leur débranchement
+  est conditionné au retrait préalable de l'onglet Prévisions du frontend.
