@@ -124,14 +124,26 @@ def upsert_fundamentals(records, trade_date):
             "dividend_yield":   rec["rdt_net"],
             "dividend_per_share": rec["dividende"],
             "ex_dividend_date": rec["date_div"],
+            # Le BOC publie le dividende en montant NET (IRVM deduit).
+            # Tracabilite explicite : la colonne a longtemps melange brut et net
+            # selon l'ordre d'execution des scrapers (ADR-041 / ADR-049).
+            "dividend_convention": "NET",
             "scraped_at":       datetime.utcnow().isoformat()
         })
     if not upserts: print("  Aucune donnee"); return
+    # on_conflict est OBLIGATOIRE : sans lui, PostgREST ignore quelle contrainte
+    # cibler et l'INSERT viole company_fundamentals_company_id_fiscal_year_key
+    # (HTTP 409). C'est la cause du gel des ecritures depuis le 27/05/2026.
     r = requests.post(
-        f"{URL_BASE}/rest/v1/company_fundamentals",
+        f"{URL_BASE}/rest/v1/company_fundamentals?on_conflict=company_id,fiscal_year",
         headers={**HEADERS,"Prefer":"resolution=merge-duplicates"},
         json=upserts
     )
+    if r.status_code not in (200, 201, 204):
+        # Afficher le corps avant toute autre chose : PostgREST y met le detail
+        # de l'erreur, invisible autrement.
+        print(f"  ECHEC upsert {r.status_code}: {r.text[:400]}")
+        raise SystemExit(1)
     print(f"  Upsert {len(upserts)} tickers: {r.status_code}")
 
 def main():
