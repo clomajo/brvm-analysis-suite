@@ -108,6 +108,22 @@ jobs:
             echo "⏭️ Skipped — tourne seulement le lundi"
           fi
 
+      - name: 📘 ÉTAPE 1d - Ingestion BOC page 1 (indices, agrégats, PER sectoriels)
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Le pipeline tourne a 06:00 UTC : le bulletin du jour n'est pas encore
+          # publie. On ingere une fenetre se terminant a J-1, avec rattrapage sur
+          # 7 jours calendaires (publication tardive, run manque, echec ponctuel).
+          # L'upsert sur cle metier rend le rejeu sans effet de bord.
+          FIN=$(date -u -d "yesterday" +%Y-%m-%d 2>/dev/null || date -u -v-1d +%Y-%m-%d)
+          DEBUT=$(date -u -d "8 days ago" +%Y-%m-%d 2>/dev/null || date -u -v-8d +%Y-%m-%d)
+          echo "📘 Ingestion BOC du $DEBUT au $FIN"
+          python tools/ingest_boc.py --from "$DEBUT" --to "$FIN" || \
+            echo "⚠️ Ingestion BOC en anomalie — pipeline poursuivi (cf. logs)"
+
       - name: 🎯 ÉTAPE 1f - Cours Cibles V2 (target_prices)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
