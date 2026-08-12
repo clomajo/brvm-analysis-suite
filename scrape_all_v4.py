@@ -465,8 +465,13 @@ def get_company_ids():
 
 def insert_fundamental(record):
     clean = {k: v for k, v in record.items() if k in FUNDAMENTALS_ALLOWED and v is not None}
+    # stockanalysis.com publie le dividende BRUT (avant IRVM).
+    clean.setdefault('dividend_convention', 'BRUT')
+    # on_conflict est OBLIGATOIRE : sans lui, PostgREST ignore quelle contrainte
+    # cibler et l'INSERT viole company_fundamentals_company_id_fiscal_year_key
+    # (HTTP 409). C'est la cause du gel des ecritures depuis le 27/05/2026.
     r = requests.post(
-        f"{SUPABASE_URL}/rest/v1/company_fundamentals",
+        f"{SUPABASE_URL}/rest/v1/company_fundamentals?on_conflict=company_id,fiscal_year",
         headers={
             'apikey': SUPABASE_KEY,
             'Authorization': f'Bearer {SUPABASE_KEY}',
@@ -475,6 +480,8 @@ def insert_fundamental(record):
         },
         json=clean
     )
+    if r.status_code not in (200, 201, 204):
+        print(f"  ECHEC upsert fundamentals {r.status_code}: {r.text[:400]}")
     return r.status_code
 
 def upsert_management(record):
