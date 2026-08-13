@@ -504,3 +504,21 @@ Aucun code produit — session d'investigation et de décision.
   et décrivait `verify_decisions.py` à J+90 (J+20 depuis ADR-019).
 - NOTE : `crude` contient -37.63 au 2020-04-20 (WTI négatif) — donnée réelle,
   point de levier extrême à traiter explicitement dans toute régression.
+
+
+### Complément — restauration documentaire
+
+- DOC : restauration de 14 ADR perdus (`a005dd9`) — ADR-013 à 016 et ADR-022 à 031.
+  Le commit `0412529` (04/06/2026) avait réécrit `DECISIONS.md` au lieu de l'enrichir :
+  32 ADR ramenés à 8. La reconstruction ultérieure est repartie de 8 en renumérotant.
+  Texte restitué depuis `d59214f` (30/05/2026). Série ADR-001 à ADR-049 désormais
+  complète, sans trou.
+- DOC : ADR-050 — ADR-022 (filtre qualité ROE>15 % et P/B<2.5, décidé éliminatoire
+  dans V2) n'a jamais été implémenté : `calculate_target_price.py` ne contient ni
+  `roe` ni `pb_ratio`, et `git log -S` ne remonte aucun commit. Conséquence sur
+  l'interprétation de T9 et T14 posée en question ouverte, sans action sur le code
+  (V2 gelé).
+- FIX : `company_fundamentals` — écritures gelées depuis le 27/05/2026 sur deux
+  scripts (`scrape_boc_pdf.py`, `scrape_all_v4.py`), upsert sans `on_conflict`
+  retournant 409. Corrigé et déployé en production (`cdd9038`). Colonne
+  `dividend_convention` ajoutée (BRUT/NET) pour rendre ADR-041 traçable.

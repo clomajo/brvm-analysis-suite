@@ -1839,3 +1839,95 @@ disjoint, donc sans conséquence — mais la vérification aurait dû précéder
 l'écriture. `ARCHITECTURE.md` ne mentionnait aucun des deux (cf. sa refonte,
 même session) : c'est précisément le mécanisme qui produit les écrivains
 concurrents constatés dans ce projet (ADR-041, trois mappings sectoriels).
+
+
+## ADR-050 — ADR-022 (filtre qualité ROE/P-B) n'a jamais été implémenté
+
+**Date :** 12/08/2026
+**Statut :** CONSTAT — aucune action sur le code
+**Concerne :** ADR-022, T9, T14
+**Découvert à l'occasion de :** la restauration des 14 ADR perdus (commit `a005dd9`)
+
+### Constat
+
+ADR-022 (27/05/2026) décide : « ROE>15% ET P/B<2.5 éliminatoire dans V2 », sur la
+base d'un écart mesuré de 11,5 points — médiane J+90 de +9,5 % avec filtre contre
+−2,0 % sans.
+
+Vérification du code de production :
+
+- `calculate_target_price.py` (script V2) ne contient **ni `roe`, ni `pb_ratio`** —
+  aucune occurrence
+- `git log -S "roe" -- calculate_target_price.py` : **aucun commit**. Le mot n'a
+  jamais figuré dans ce fichier.
+
+Le seuil de 15 % existe ailleurs dans le projet, mais jamais comme filtre
+éliminatoire V2 :
+
+| Emplacement | Usage | Modèle |
+|---|---|---|
+| `generate_decisions.py:171` | `roe > 15 → roe_s = 80` | V1, score gradué |
+| `calculate_target_price_v3.py:259` | `roe >= 15` | V3 |
+| `signaux_actifs.py:119` | `ok_roe = roe > 15` | script de signalement |
+| `FinancialAnalysis.jsx:714` | coloration conditionnelle | affichage |
+
+Aucune trace d'un seuil P/B < 2.5 utilisé comme filtre, où que ce soit.
+
+### ADR-011 ne supersède pas ADR-022
+
+Hypothèse examinée puis écartée : `evaluer_qualite_eps()` (ADR-011, 21/06/2026)
+aurait pu remplacer le filtre. Lecture faite, ADR-011 ne mentionne ni ADR-022, ni
+le ROE, ni le P/B. Les deux traitent de problèmes distincts :
+
+- **ADR-011** — qualité de la *série EPS* : consécutivité des exercices, collapse
+  supérieur à 80 % YoY, disponibilité
+- **ADR-022** — qualité de l'*émetteur* : rentabilité des capitaux propres,
+  valorisation relative aux fonds propres
+
+Un ticker peut avoir une série EPS impeccable et un ROE de 3 %. ADR-011 le laisse
+passer ; ADR-022 l'aurait éliminé.
+
+### Question ouverte — portée sur T9 et T14
+
+T9 conclut que V2 ne se différencie pas d'une stratégie dividende naïve. T14
+établit que 68 % des signaux V2 se concentrent sur SERVICES_FINANCIERS.
+
+Ces deux résultats portent sur le V2 **tel qu'implémenté**, c'est-à-dire sans le
+filtre qualité décidé par ADR-022. Ce qui a été falsifié n'est donc pas exactement
+le modèle qui avait été décidé.
+
+**Ce constat ne réhabilite pas V2.** Il pose une question à laquelle rien ne permet
+de répondre aujourd'hui : un V2 filtré par ROE/P-B aurait-il passé T9 ? Y répondre
+supposerait de rejouer T9 sur un V2 filtré, avec des seuils pré-enregistrés avant
+lecture des résultats.
+
+Il est également possible que le filtre ait été écarté délibérément après ADR-022,
+sans que la décision soit consignée — la période concernée (27/05 → 04/06) est
+précisément celle dont les ADR ont été perdus.
+
+### Décision
+
+**Aucune action sur le code.** V2 est gelé (phase 13, T9). Implémenter un filtre
+dans un modèle gelé, ou rejouer un test de falsification sur un modèle modifié en
+cours de route, sont deux choses que le projet s'interdit — c'est le motif d'erreur
+déjà consigné à propos des substitutions de paramètres.
+
+Le constat est enregistré. La reprise éventuelle de V2 devra trancher : appliquer
+ADR-022, l'abandonner formellement, ou rejouer T9 avec le filtre.
+
+### Motif récurrent — deuxième occurrence sur le même script
+
+ADR-011 rapporte exactement le même incident, six semaines plus tôt :
+
+> « Le SKILL.md référençait une liste d'exclusion V2 statique, présentée comme déjà
+> active dans `calculate_target_price.py`. Vérification du code réel : cette liste
+> n'a **jamais été implémentée**. »
+
+Deux écarts décision/implémentation sur le même fichier, découverts tous deux par
+hasard — le premier en juin lors d'une investigation sur NTLC, le second en
+restaurant un ADR effacé. Dans les deux cas, la documentation affirmait qu'un
+filtre tournait alors qu'il n'existait pas.
+
+Le problème de fond n'est pas ADR-022 : c'est qu'aucun mécanisme ne vérifie qu'une
+décision atteint le code. Un ADR peut être adopté, documenté, cité comme faisant
+autorité, et rester lettre morte sans que rien ne le signale.

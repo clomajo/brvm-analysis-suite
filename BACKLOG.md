@@ -602,3 +602,29 @@ aux utilisateurs sur la majorité des tickers couverts.
   (GitHub n'exécute que `.yml`), mais source de confusion. Nettoyer.
 - **[RAPPEL] ADR-044 : ÉTAPES 3e et 4 (GRU) tournent toujours** — leur débranchement
   est conditionné au retrait préalable de l'onglet Prévisions du frontend.
+
+
+### Ajouts session 12/08/2026 — suite
+
+- **[HAUTE] Aucun mécanisme ne vérifie qu'un ADR atteint le code** — deux écarts
+  décision/implémentation constatés sur `calculate_target_price.py` (liste d'exclusion
+  statique, ADR-011 ; filtre ROE/P-B, ADR-050), découverts tous deux par hasard.
+  Piste : pour tout ADR modifiant un comportement de modèle, exiger la référence du
+  commit d'implémentation dans le corps de l'ADR — ADR-029 le fait déjà (« Implémenté :
+  commit 7a069ae »), mais ce n'est pas une règle.
+- **[MOYENNE] ADR-022 : trancher à la reprise de V2** — appliquer le filtre ROE>15 %
+  et P/B<2.5, l'abandonner formellement, ou rejouer T9 avec le filtre et des seuils
+  pré-enregistrés. Cf. ADR-050.
+- **[MOYENNE] `DECISIONS.md` a perdu 24 ADR le 04/06/2026** — restaurés le 12/08
+  (commit `a005dd9`). Cause : commit `0412529` qui réécrivait le fichier au lieu de
+  l'enrichir. Les patchs documentaires passent depuis par des scripts idempotents,
+  mais rien ne l'impose formellement.
+- **[BASSE] Vérifier l'implémentation des 13 autres ADR restaurés** — seul ADR-022
+  a été contrôlé. ADR-024 (`fix_splits.py` source de vérité), ADR-025 (backup avant
+  correction de masse), ADR-027 (date signal V2 = 30 avril), ADR-028 (pas de plafond
+  de décote) n'ont pas été vérifiés contre le code.
+- **[BASSE] `SKILL.md` toujours pas à jour** — tableau des ADR arrêté à ADR-021 alors
+  que le projet est à ADR-050 ; pièges de colonnes de la session non reportés ;
+  contrainte `fundamental_analysis` décrite comme `UNIQUE(company_id)` alors qu'ADR-019
+  l'a remplacée par `UNIQUE(report_url)` ; mention « Palm Oil + Rubber retirés » sans
+  explication, alors que le caoutchouc est l'exposition la plus pure de SOGB/SAPH.
