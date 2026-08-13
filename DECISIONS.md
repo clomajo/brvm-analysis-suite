@@ -406,6 +406,54 @@ sur la même table par la suite.
 
 ---
 
+## ADR-013 — Archivage des tabs décoratifs + nouvelle architecture navbar
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 11/05/2026
+**Décision :** Tabs Risque/Législatif/Direction/Macro/Matières/BOA vs BRVM masqués (code conservé).
+**Navbar :** [Recherche] · Marché · Opportunités · Portefeuille · Obligations.
+
+---
+
+## ADR-014 — GRU utile uniquement à J+1/J+2 sur le BRVM
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+> **Supersédé par ADR-044** (10/08/2026) — le GRU est fermé définitivement
+> (MASE 1.888, direction 47.9 %, sous la persistance naïve). Conservé pour la
+> traçabilité de la décision d'origine.
+
+**Date :** 16/05/2026
+**Résultats :** Dir.Acc J+2=56.1% · J+5=43.9% · Global=50.1%
+**Décision :** Afficher J+1/J+2 comme fiables. J+5+ = indicatifs uniquement.
+
+---
+
+## ADR-015 — Features Mistral incompatibles avec modèles GRU
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 16/05/2026
+**Résultats :** Dir.Acc 35.4% vs baseline 50.1% → -14.7 pts avec features Mistral.
+**Décision :** Conserver GRU prix seul. Valeur Mistral = Opportunités uniquement.
+
+---
+
+## ADR-016 — Signal technique = bruit structurel sur le BRVM
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 25/05/2026
+**Résultats :** AUC 0.51 sur 22 992 signaux (2016–2026).
+**Décision :** Abandonner le signal technique post-dégel. V2 basé sur valorisation fondamentale.
+
+---
+
 ## ADR-017 : Doublon de calcul Fair Value identifié — FinancialAnalysis.jsx (non corrigé)
 
 **Date :** 23/06/2026
@@ -809,6 +857,125 @@ causes structurelles identifiées :
 - Reste quotidienne : ÉTAPE 3c (`verify_decisions.py`, utilise Mistral mais
   vérifie des signaux J+20 datés, vraie raison de tourner chaque jour) — à
   surveiller si elle pèse sur le quota.
+
+## ADR-022 — Filtre qualité ROE>15% + P/B<2.5 = filtre éliminatoire V2
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 27/05/2026
+**Résultats :** Filtre combiné : médiane J+90 +9.5% vs -2.0% hors filtre.
+**Décision :** ROE>15% ET P/B<2.5 éliminatoire dans V2.
+
+---
+
+## ADR-023 — Modèle V2 en parallèle silencieux jusqu'au 01/07/2026
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 27/05/2026
+**Décision :** V2 tourne dans scripts séparés sans remplacer generate_decisions.py.
+**Bascule :** 01/07/2026 après vérification des 3 positions live.
+
+---
+
+## ADR-024 — fix_splits.py = source de vérité splits
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 29/05/2026
+**Décision :** fix_splits.py est la source de vérité. Dry run obligatoire avant --apply.
+**Conséquence :** Toute future correction de split passe par ce script.
+
+---
+
+## ADR-025 — Backup avant correction de masse
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 29/05/2026
+**Décision :** Créer backup_historical_data.json avant toute opération de masse.
+
+---
+
+## ADR-026 — SQL Editor pour corrections de masse (pas REST PATCH)
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 29/05/2026
+**Contexte :** fix_splits.py via PATCH REST = 47,000 requêtes ≈ 1h.
+**Décision :** Toutes corrections de masse → SQL Editor Supabase (UPDATE direct).
+
+---
+
+## ADR-027 — Date signal V2 = 30 avril (correction look-ahead bias)
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 29/05/2026
+**Contexte :** Utiliser janvier comme date signal = look-ahead bias (résultats FY non publiés).
+**Décision :** Date signal = 30 avril de l'année suivante (4 mois après clôture FY).
+**Impact :** Médiane J+90 passe de +5.9% à +7.8% — version honnête.
+
+---
+
+## ADR-028 — Pas de filtre décote maximum
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 29/05/2026
+**Contexte :** Décotes >150% performent mieux (médiane +6.3%) que 60-150% (+5.1%).
+**Décision :** Aucun plafond sur la décote — les grandes décotes sont le cœur du signal.
+
+---
+
+## ADR-029 — scrape_market_cap.py mensuel automatisé
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+> **Décision toujours en vigueur, exécution en panne.** Le 12/08/2026, il a été
+> constaté que `company_fundamentals.scraped_at` est figé au 27/05/2026 pour
+> `market_cap` : l'automatisation décidée ici ne produit plus d'écriture.
+> Cause distincte de celle d'ADR-049 (PATCH ciblé, pas un upsert) — à diagnostiquer.
+
+**Date :** 30/05/2026
+**Décision :** scrape_market_cap.py tourne automatiquement le 1er lundi du mois via GitHub Actions.
+**Source :** stockanalysis.com/quote/brvm/{ticker}/statistics/
+**Implémenté :** commit 7a069ae
+
+---
+
+## ADR-030 — target_prices = table historique quotidienne
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 30/05/2026
+**Contexte :** Choix entre vue SQL, table hebdomadaire ou table quotidienne.
+**Décision :** Table quotidienne avec contrainte UNIQUE (ticker, calcul_date).
+**Raison :** L'historique des décotes permet de tracker quand un titre franchit le seuil ACHAT — utile pour le forward test juillet 2026. 17K lignes/an = négligeable pour Supabase.
+**Conséquences :** calculate_target_price.py upsert quotidiennement dans le pipeline ÉTAPE 1f.
+
+---
+
+## ADR-031 — STYLE-01 fermé — react-markdown incompatible Vite 3
+> **Restauré le 12/08/2026.** Perdu lors du commit `0412529` (04/06/2026), qui a
+> réécrit `DECISIONS.md` au lieu de l'enrichir (27 insertions, 183 suppressions,
+> 32 ADR ramenés à 8). Texte restitué depuis `d59214f` (30/05/2026) sans modification.
+
+**Date :** 30/05/2026
+**Contexte :** react-markdown cause des erreurs esbuild avec Vite 3.2.7.
+**Décision :** Item fermé définitivement. Parser inline maison (split \n + détection ##) est le contournement validé.
+**Conséquence :** Ne pas revisiter avant migration vers Vite 4+ (post juillet 2026).
+
+---
 
 ## ADR-032 : NTLC — Split réel confirmé, prix pré-2017-09-11 corrigés
 
