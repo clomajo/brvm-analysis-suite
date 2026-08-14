@@ -628,3 +628,10 @@ aux utilisateurs sur la majorité des tickers couverts.
   contrainte `fundamental_analysis` décrite comme `UNIQUE(company_id)` alors qu'ADR-019
   l'a remplacée par `UNIQUE(report_url)` ; mention « Palm Oil + Rubber retirés » sans
   explication, alors que le caoutchouc est l'exposition la plus pure de SOGB/SAPH.
+
+
+- **[MOYENNE] Formule V2 de `SKILL.md` : cinq filtres documentés, un seul implémenté** —
+  ROE > 15 %, P/B < 2.5, cap 150-500B, volume_20j, J-10 ex-dividende sont absents de
+  `calculate_target_price.py`. Seul `evaluer_qualite_eps()` (ADR-011) tourne.
+  Avertissement ajouté dans `SKILL.md` le 12/08/2026 ; formule non corrigée, V2 étant
+  gelé. À trancher à la reprise de V2 — cf. ADR-050.

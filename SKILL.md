@@ -172,6 +172,21 @@ Score composite (0-100) =
 
 ## Modèle V2 (Phase 13 GELÉE depuis T9, 30/07/2026)
 
+⚠️ **Cette formule décrit une intention, pas le code** (vérifié le 12/08/2026).
+Sur les cinq conditions ci-dessous, **une seule est implémentée** dans
+`calculate_target_price.py` : le filtre data-quality EPS (ADR-011).
+
+Absentes du code — `grep` sans résultat sur `roe`, `pb_ratio`, `market_cap`,
+`volume`, `ex_dividend` :
+ROE > 15 % · P/B < 2.5 · cap 150-500B · volume_20j · J-10 avant ex-dividende.
+
+Le code applique une décote sur cours cible à **tous** les tickers ayant un EPS
+exploitable. Détail et conséquences sur T9/T14 : **ADR-050**.
+
+V2 étant gelé, la formule n'est pas corrigée — elle est conservée telle quelle
+comme trace de l'intention initiale.
+
+
 ```
 Signal V2 = ACHAT si :
   cours_actuel < cours_cible × (1 - seuil)
