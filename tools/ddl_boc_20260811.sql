@@ -189,6 +189,36 @@ END
 $$;
 
 
+-- -----------------------------------------------------------------------------
+-- 5. Lecture publique (RLS)
+--
+-- Ajoute le 15/08/2026, apres constat : le frontend (cle anon) recevait un
+-- HTTP 200 avec un tableau vide sur les trois tables. RLS etait actif sans
+-- aucune politique, donc aucune ligne visible. Le panneau d'indices de la home
+-- ne s'affichait pas.
+--
+-- Ces donnees sont publiques par nature : elles proviennent du Bulletin Officiel
+-- de la Cote, publie chaque jour par la BRVM. L'ecriture reste reservee au
+-- service_role utilise par le pipeline.
+-- -----------------------------------------------------------------------------
+ALTER TABLE boc_indices           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE boc_market_stats      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE boc_market_indicators ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS boc_indices_read           ON boc_indices;
+DROP POLICY IF EXISTS boc_market_stats_read      ON boc_market_stats;
+DROP POLICY IF EXISTS boc_market_indicators_read ON boc_market_indicators;
+
+CREATE POLICY boc_indices_read
+    ON boc_indices FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY boc_market_stats_read
+    ON boc_market_stats FOR SELECT TO anon, authenticated USING (true);
+
+CREATE POLICY boc_market_indicators_read
+    ON boc_market_indicators FOR SELECT TO anon, authenticated USING (true);
+
+
 -- =============================================================================
 -- Verification post-execution
 -- =============================================================================
