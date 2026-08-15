@@ -635,3 +635,26 @@ aux utilisateurs sur la majorité des tickers couverts.
   `calculate_target_price.py`. Seul `evaluer_qualite_eps()` (ADR-011) tourne.
   Avertissement ajouté dans `SKILL.md` le 12/08/2026 ; formule non corrigée, V2 étant
   gelé. À trancher à la reprise de V2 — cf. ADR-050.
+
+
+### Ajouts session 15/08/2026
+
+- **[HAUTE] `upsert_management()` echoue en 409 sur les 47 tickers** — meme defaut
+  que l'upsert `company_fundamentals` corrige le 12/08 : `resolution=merge-duplicates`
+  sans parametre `on_conflict`. `company_management` n'est donc plus alimentee.
+  Verifier la contrainte unique de la table avant de corriger.
+- **[HAUTE] Listes de tickers codees en dur, divergentes de `companies`** — trois
+  occurrences constatees cette semaine : `SECTOR_TICKERS` dans App.jsx (39/47),
+  `TICKERS` dans `scrape_all_v4.py` (46/47), et les trois mappings sectoriels
+  concurrents. Ces listes devraient etre lues depuis `companies` au demarrage,
+  ou au minimum validees contre elle avec une alerte en cas d'ecart.
+- **[MOYENNE] `company_fundamentals` : 10 tickers sans EPS** — BNBC, ETIT, NEIC,
+  SEMC, SICC, STAC, UNLC, UNXC restent sans EPS apres rescraping du 15/08 : la
+  donnee n'existe pas chez stockanalysis (societes en perte, sans dividende recent).
+  SIVC et BICB ont ete recuperes. Ces titres ne peuvent etre valorises ni par PE
+  ni par DDM — l'absence de fair value est le comportement correct.
+- **[MOYENNE] Onglet Fair Value de `FinancialAnalysis.jsx` lit V2** — bascule vers
+  V3 decidee le 15/08, non implementee. V3 couvre 39 tickers contre 22 pour V2, et
+  fournit un intervalle (borne_basse/borne_haute) et la methode de calcul.
+  Attention : `decote_pct` n'a pas le meme sens dans les deux tables — en V3
+  c'est la decote de prudence appliquee, l'equivalent de la decote V2 est `upside_pct`.
