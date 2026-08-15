@@ -1931,3 +1931,129 @@ filtre tournait alors qu'il n'existait pas.
 Le problème de fond n'est pas ADR-022 : c'est qu'aucun mécanisme ne vérifie qu'une
 décision atteint le code. Un ADR peut être adopté, documenté, cité comme faisant
 autorité, et rester lettre morte sans que rien ne le signale.
+
+
+## ADR-051 — V1 par secteur : écart structurel sur les Industriels, et dégradation temporelle du modèle
+
+**Date :** 15/08/2026
+**Statut :** CONSTAT — aucune modification du modèle
+**Concerne :** ADR-001 (V1), ADR-003 (exclusion en régime BEAR), ADR-039 (backfill alpha)
+**Scripts :** `tools/experiments/V1_SECTEURS/` (3 tests, Classe A, lecture seule)
+
+### Question posée
+
+Faut-il des sous-modèles V1 différenciés par secteur ? Avant de construire, mesurer
+si la question a une réponse : V1 se comporte-t-il différemment selon le secteur,
+de façon statistiquement distinguable ?
+
+### Seuils pré-enregistrés (fixés avant toute lecture)
+
+- Métrique : hit rate, défini uniformément comme `variation_pct > 0`
+- Signaux : ACHAT et SURVEILLER, mesurés séparément
+- Horizon : J+20 (tolérance 15-25 jours) — filtre les vérifications à l'ancien J+90 (ADR-038)
+- DIVERGENT : l'IC95 de Wilson du secteur ne recoupe pas celui du global
+- Taille minimale : n ≥ 30, sinon NON CONCLUANT
+- Décision si aucun divergent : question close
+- Décision si un ou deux divergents : envisager un **seuil** sectoriel, jamais une
+  réestimation des quatre pondérations par secteur (qui ferait passer le modèle de
+  4 à 28 paramètres sur le même échantillon)
+
+**Note sur la définition du hit rate.** `verify_decisions.py` emploie une définition
+conditionnelle : `> 0` pour ACHAT, `< 0` pour ÉVITER, `|var| < 5` pour SURVEILLER.
+Comparer ces taux entre signaux reviendrait à comparer des mesures différentes. Ces
+tests emploient donc `variation_pct > 0` pour les deux signaux — plus sévère pour
+SURVEILLER. **Les chiffres ci-dessous ne sont pas comparables au 65,6 % annoncé
+pour V1.**
+
+### Résultat 1 — divergence sectorielle (n=3008 à J+20)
+
+| Secteur | ACHAT | n | SURVEILLER | n |
+|---|---|---|---|---|
+| Global | 63,6 % | 984 | 64,6 % | 1796 |
+| Consommation de Base | **74,4 %** | 176 | 69,3 % | 391 |
+| Services Financiers | 64,7 % | 388 | **74,1 %** | 568 |
+| Énergie | 73,8 % | 130 | 74,1 % | 116 |
+| Services Publics | 69,6 % | 46 | 63,6 % | 77 |
+| Conso Discrétionnaire | 52,4 % | 84 | 58,2 % | 316 |
+| Télécommunications | 52,8 % | 72 | 53,8 % | 104 |
+| **Industriels** | **38,6 %** | 88 | **42,0 %** | 224 |
+
+Quatre divergences au sens du critère : Consommation de Base et Industriels en
+ACHAT, Services Financiers et Industriels en SURVEILLER.
+
+**Les Industriels divergent sur les deux signaux**, seul secteur dans ce cas.
+38,6 % de réussite sur des signaux d'achat, c'est sous le hasard — dans un marché
+où le BRVM Composite gagne 43,9 % depuis janvier.
+
+### Résultat 2 — ni effet de composition, ni effet de période
+
+Deux hypothèses concurrentes ont été testées avant toute conclusion sectorielle.
+
+**H1, effet de composition : rejetée — et l'inverse est vrai.** Aucun ticker ne
+concentre le déficit. En ACHAT : STAC 22,7 % (n=22), FTSC 27,3 % (n=11),
+SEMC 0 % (n=12), SIVC 0 % (n=3). Le seul titre qui tienne est SDSC à 65 % (n=40),
+et **son retrait fait tomber le secteur à 16,7 %**. SDSC masque le problème, il
+ne le cause pas.
+
+**H2, effet de période : rejetée pour les Industriels seuls**, mais elle a révélé
+autre chose (résultat 3).
+
+**Observation non anticipée :** les scores médians des ACHAT ratés sont élevés —
+70 à 74,5 pour STAC, SEMC, FTSC, SIVC. Le modèle n'hésite pas sur ces titres : il
+est confiant et il se trompe. SEMC affiche 0 % de réussite sur 12 signaux à score
+médian 74,5.
+
+### Résultat 3 — dégradation générale de V1 (le constat principal)
+
+Le tableau croisé secteur × mois répond à la question posée, mais en soulève une
+plus large :
+
+| Mois | Hit rate global | Médiane de variation | BRVM Composite |
+|---|---|---|---|
+| Mai 2026 | 74,6 % (n=791) | +4,93 % | +4,92 % |
+| Juin 2026 | 63,6 % (n=1305) | +2,44 % | +6,39 % |
+| Juillet 2026 | 53,7 % (n=684) | +0,41 % | +5,50 % |
+
+**V1 se dégrade sur les trois mois, dans un marché qui monte régulièrement.**
+En juillet, la médiane de variation des signaux est de +0,41 % quand le Composite
+progresse de 5,50 %.
+
+Par secteur, la dégradation est générale mais inégale : Services Financiers reste
+stable (71,2 → 71,5 → 67,1), les Industriels sont sous le global à chaque mois
+(62,7 → 33,1 → 33,3), et Services Publics s'effondre (100 → 65,5 → 18,5, mais sur
+2 titres seulement — à ne pas surinterpréter).
+
+### Ce que ces chiffres ne permettent pas de conclure
+
+**Sans mesure d'alpha, la dégradation ne peut pas être imputée au modèle.** Un hit
+rate qui baisse pendant que le marché monte est compatible avec plusieurs
+explications : perte d'edge du modèle, rotation sectorielle, ou simple compression
+des écarts en fin de rallye.
+
+`brvm_decisions_results.alpha` et `benchmark_return` sont NULL avant le 28/07/2026 :
+le backfill d'ADR-039 (T16-backfill) n'a jamais été exécuté. Cet item backlog, ouvert
+depuis juillet, trouve ici sa justification — il est le préalable à toute
+interprétation de ces résultats.
+
+### Décision
+
+**Aucune modification du modèle.** Ni seuil sectoriel, ni exclusion des Industriels,
+ni ajustement des pondérations.
+
+Deux raisons. D'abord, la règle pré-enregistrée autorisait un seuil sectoriel, mais
+la dégradation générale constatée en résultat 3 change la nature du problème : agir
+sur un secteur pendant que l'ensemble décroche traiterait un symptôme. Ensuite,
+modifier V1 — seul modèle validé du projet, gel ADR-001 expiré mais jamais rouvert —
+sur la base d'une mesure sans comparateur de marché reproduirait le défaut
+d'asymétrie de benchmark qui a invalidé E2.6 et T5c-A.
+
+**Préalable posé :** exécuter le backfill alpha (ADR-039) et rejouer ces trois tests
+sur l'alpha plutôt que sur le hit rate absolu. La question « V1 perd-il son edge ? »
+n'a pas de réponse disponible aujourd'hui.
+
+### Ce qui est établi malgré tout
+
+- Les Industriels sont le seul secteur divergent sur les deux signaux, à chaque mois
+- Le déficit y est réparti sur cinq des six titres, pas concentré
+- Le modèle attribue des scores élevés à ces signaux perdants
+- La dégradation temporelle est générale et monotone sur trois mois

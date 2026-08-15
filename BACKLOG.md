@@ -658,3 +658,24 @@ aux utilisateurs sur la majorité des tickers couverts.
   fournit un intervalle (borne_basse/borne_haute) et la methode de calcul.
   Attention : `decote_pct` n'a pas le meme sens dans les deux tables — en V3
   c'est la decote de prudence appliquee, l'equivalent de la decote V2 est `upside_pct`.
+
+
+### Ajouts session 15/08/2026 — V1 par secteur
+
+- **[CRITIQUE] Exécuter le backfill alpha (ADR-039 / T16-backfill)** — ouvert depuis
+  juillet, il devient bloquant : ADR-051 constate une dégradation de V1 sur trois mois
+  (74,6 % → 63,6 % → 53,7 %) sans pouvoir l'imputer au modèle faute de comparateur de
+  marché. `alpha` et `benchmark_return` sont NULL avant le 28/07/2026.
+  `tools/backfill_alpha.py` existe, n'a jamais été lancé.
+- **[HAUTE] Rejouer la série V1_SECTEURS sur l'alpha** — une fois le backfill fait.
+  Les trois scripts sont écrits et n'ont qu'à changer de métrique.
+- **[HAUTE] V1 : dégradation à surveiller** — la médiane de variation des signaux
+  tombe à +0,41 % en juillet quand le Composite fait +5,50 %. Si l'alpha confirme,
+  c'est le modèle de production qui est en cause, pas un secteur.
+- **[MOYENNE] Industriels : écart persistant** — seul secteur divergent sur les deux
+  signaux, à chaque mois. Déficit réparti sur cinq des six titres. Aucune action tant
+  que la dégradation générale n'est pas élucidée (cf. ADR-051).
+- **[BASSE] `verify_decisions.py` : définition conditionnelle du hit rate** —
+  `> 0` pour ACHAT, `< 0` pour ÉVITER, `|var| < 5` pour SURVEILLER. Ces trois taux
+  ne sont pas comparables entre eux, ce qui complique toute analyse transversale.
+  Envisager une colonne supplémentaire avec une définition uniforme.

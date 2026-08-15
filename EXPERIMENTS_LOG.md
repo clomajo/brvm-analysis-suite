@@ -423,3 +423,53 @@ en tete de `tools/experiments/V3/backtest_v3.py`).
 **Consequence immediate.** La bascule de l'onglet Fair Value de V2 vers V3, envisagee
 le 15/08, est suspendue : elle mettrait en avant un modele dont le seul test de
 validation vient d'echouer.
+
+
+## Série V1_SECTEURS — 15/08/2026
+
+Trois tests Classe A, lecture seule, dans `tools/experiments/V1_SECTEURS/`.
+Conclusions et décision : ADR-051.
+
+### 1. `hit_rate_par_secteur.py`
+
+Hit rate de V1 par secteur officiel, avec intervalles de Wilson à 95 %.
+Seuils pré-enregistrés avant lecture : divergence si les IC95 sont disjoints,
+n ≥ 30 minimum.
+
+3 558 vérifications chargées, 3 008 retenues à J+20 (550 écartées, ancien
+horizon J+90 d'avant ADR-038).
+
+Résultat : Industriels divergent sur les deux signaux (38,6 % en ACHAT,
+42,0 % en SURVEILLER, contre 63,6 % et 64,6 % au global). Consommation de Base
+diverge au-dessus en ACHAT (74,4 %), Services Financiers au-dessus en
+SURVEILLER (74,1 %).
+
+### 2. `industriels_ventilation.py`
+
+Test de deux hypothèses concurrentes avant toute conclusion sectorielle.
+
+H1 (un ticker porte le déficit) : **rejetée**. Le retrait de SDSC fait tomber le
+secteur de 38,6 % à 16,7 % — ce titre masquait le problème. Les cinq autres sont
+entre 0 % et 27,3 % en ACHAT.
+
+H2 (période défavorable) : **rejetée** pour les Industriels seuls, mais a conduit
+au test 3.
+
+Observation : scores médians de 70 à 74,5 sur les signaux ACHAT perdants. Le
+modèle est confiant sur ce qu'il rate.
+
+### 3. `basculement_juin.py`
+
+Tableau croisé secteur × mois, plus le contexte de marché tiré de `boc_indices`
+(145 séances, ingérées le 12/08).
+
+Résultat principal, non recherché : **V1 se dégrade globalement**. 74,6 % en mai,
+63,6 % en juin, 53,7 % en juillet, sur 2 780 observations — pendant que le
+Composite progresse de 4,92 %, 6,39 % et 5,50 % sur les mêmes mois.
+
+Les Industriels restent sous le global à chaque mois, donc leur singularité tient,
+mais elle s'inscrit dans une dégradation d'ensemble.
+
+**Limite bloquante :** ces tests mesurent un hit rate absolu, sans comparateur de
+marché. `alpha` est NULL avant le 28/07 (ADR-039, backfill jamais exécuté). Rejouer
+la série sur l'alpha est le préalable à toute interprétation.
