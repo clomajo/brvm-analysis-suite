@@ -486,8 +486,11 @@ def insert_fundamental(record):
 
 def upsert_management(record):
     clean = {k: v for k, v in record.items() if v is not None}
+    # on_conflict est OBLIGATOIRE : sans lui, PostgREST ignore quelle contrainte
+    # cibler et l'INSERT viole company_management_ticker_key (HTTP 409).
+    # Meme defaut que l'upsert company_fundamentals corrige le 12/08.
     r = requests.post(
-        f"{SUPABASE_URL}/rest/v1/company_management",
+        f"{SUPABASE_URL}/rest/v1/company_management?on_conflict=ticker",
         headers={
             'apikey': SUPABASE_KEY,
             'Authorization': f'Bearer {SUPABASE_KEY}',
@@ -496,6 +499,8 @@ def upsert_management(record):
         },
         json=clean
     )
+    if r.status_code not in (200, 201, 204):
+        print(f"  ECHEC upsert management {r.status_code}: {r.text[:300]}")
     return r.status_code
 
 if __name__ == '__main__':
