@@ -24,7 +24,7 @@ SESSION.headers.update({
 })
 
 TICKERS = [
-    'ABJC','BICC','BNBC','BOAB','BOABF','BOAC','BOAM','BOAN','BOAS',
+    'ABJC','BICB','BICC','BNBC','BOAB','BOABF','BOAC','BOAM','BOAN','BOAS',
     'CABC','CBIBF','CFAC','CIEC','ECOC','ETIT','FTSC','LNBB','NEIC',
     'NSBC','NTLC','ONTBF','ORAC','ORGT','PALC','PRSC','SAFC','SCRC',
     'SDCC','SDSC','SEMC','SGBC','SHEC','SIBC','SICC','SIVC','SLBC',
