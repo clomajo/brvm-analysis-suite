@@ -135,9 +135,16 @@ def get_soup(url, delay=1.5):
         time.sleep(delay)
         r = SESSION.get(url, timeout=20, verify=False)
         if r.status_code == 200:
-            return BeautifulSoup(r.text, 'html.parser')
+            # r.content et non r.text : quand le serveur ne declare pas
+            # d'encodage dans son en-tete, requests retombe sur latin-1 (RFC 2616)
+            # alors que la page est en UTF-8. Les accents ressortaient alors en
+            # double encodage ("ArsEne" au lieu d'"Arsene" accentue). Avec les
+            # octets bruts, BeautifulSoup lit la declaration meta charset du
+            # document.
+            return BeautifulSoup(r.content, 'html.parser')
         return None
-    except:
+    except Exception as e:
+        print(f"  get_soup {url} : {type(e).__name__} {e}")
         return None
 
 def extract_table_by_year(soup):
