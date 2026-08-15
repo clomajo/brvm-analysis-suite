@@ -376,3 +376,50 @@ Direction décroissante avec l'horizon : 56.4 % (J+1–3) → 43.7 % (J+8–14).
 motif d'un échantillon non représentatif. Écartée : l'uniformité du résultat sur
 5800 points et 5 tranches d'horizon rend invraisemblable que les 83 % manquants
 inversent la conclusion.
+
+
+## Backtest V3 rejoue sur donnees rafraichies — 15/08/2026
+
+**Contexte.** Le backtest du 09/08 concluait a un SUCCES : ecart ACHAT vs PASSER
+de +10,0 pts de hit rate a J+90, au seuil pre-enregistre de 10 pts.
+
+Ce backtest tournait pendant le gel de `company_fundamentals` (upsert 409 depuis
+le 27/05, corrige le 12/08). Il utilisait donc des EPS FY2024 sur 17 tickers.
+Apres reparation et rescraping du 15/08, V3 valorise 35 tickers sur FY2025
+contre 20 auparavant.
+
+**Rejeu, memes seuils, memes horizons :**
+
+| Signal | Horizon | n | hit rate | mediane |
+|---|---|---|---|---|
+| ACHAT | J+90 | 114 | 85.1 % | +13.7 % |
+| SURVEILLER | J+90 | 148 | 81.8 % | +9.9 % |
+| PASSER | J+90 | 310 | 75.2 % | +12.7 % |
+
+**Ecart ACHAT vs PASSER : +9.9 pts. Seuil : 10 pts. NON CONCLUANT.**
+
+**Decision.** Le seuil pre-enregistre est tenu pour ferme, conformement au
+principe applique a E3.0 (-3,03 % contre un seuil de -2,6 %) et a T9. 9,9 n'est
+pas 10. Aucun ajustement du modele n'est entrepris pour franchir la barre :
+iterer sur le meme backtest apres avoir lu le resultat serait du surapprentissage
+sur le test de validation.
+
+**Trois observations au-dela de l'ecart :**
+
+1. Les medianes ne discriminent pas : ACHAT +13,7 % contre PASSER +12,7 %.
+2. SURVEILLER (81,8 %) est proche d'ACHAT (85,1 %) — le modele separe mal ses
+   deux categories hautes.
+3. PASSER atteint 75,2 % a J+90. Avec un BRVM Composite a +43,93 % YTD, ce
+   chiffre suggere que le marche porte l'ensemble de la cote. Le backtest ne
+   dispose d'aucun comparateur de marche : c'est le meme defaut d'asymetrie de
+   benchmark qui a invalide E2.6 et T5c-A.
+
+**Suite retenue : forward test.** V3 ecrit quotidiennement dans `target_prices_v3`
+via l'etape 1g. Les signaux s'accumulent horodates, sans rejeu possible. C'est la
+seule validation qui echappe au biais du backtest, qui utilise par construction
+les fondamentaux courants et non leur etat a la date rejouee (limite documentee
+en tete de `tools/experiments/V3/backtest_v3.py`).
+
+**Consequence immediate.** La bascule de l'onglet Fair Value de V2 vers V3, envisagee
+le 15/08, est suspendue : elle mettrait en avant un modele dont le seul test de
+validation vient d'echouer.
