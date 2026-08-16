@@ -679,3 +679,32 @@ aux utilisateurs sur la majorité des tickers couverts.
   `> 0` pour ACHAT, `< 0` pour ÉVITER, `|var| < 5` pour SURVEILLER. Ces trois taux
   ne sont pas comparables entre eux, ce qui complique toute analyse transversale.
   Envisager une colonne supplémentaire avec une définition uniforme.
+
+
+### Correction 16/08/2026 — analyses fondamentales BOA bloquees
+
+- **[RESOLU] BOAB, BOABF et BOAC sans analyse depuis le 03/05/2026** — leurs trois
+  lignes de `fundamental_analysis` contenaient l'URL de la **page de listing**
+  (`brvm.org/fr/rapports-societe-cotes/bank-africa-ci`) au lieu d'un PDF de rapport.
+  Or `fundamental_analyzer.py` skippe definitivement par `report_url` (L134-135) :
+  ces trois societes etaient donc ecartees a chaque run.
+
+  Residu d'une version anterieure du script — les deux strategies de collecte
+  actuelles (L312 et L368) filtrent sur `.pdf` et ne peuvent plus produire ce cas.
+  Verification faite : le parseur actuel trouve 20 PDF sur la page BOAC, dont les
+  etats financiers 2025 et le rapport T1 2026.
+
+  3 lignes supprimees (ids 890, 892, 894), filtre `report_url=not.like.*.pdf` pour
+  ne pas toucher d'analyse valide. Table passee de 176 a 173 lignes. Les trois
+  societes seront analysees au prochain run des etapes 5/6 (1er septembre).
+
+- **[A VERIFIER] Volumetrie des analyses en aout** — 8 analyses generees en aout
+  contre 123 en juillet et 39 en juin. Les BOA n'expliquent pas cet ecart (bloquees
+  depuis mai). Soit regime de croisiere normal — peu de nouveaux rapports publies —
+  soit limitation cote fournisseur IA. Verifiable dans le log de l'etape 5 du run
+  du 15/08 (onglet Actions).
+
+- **[NOTE] Aucune cle API IA dans le .env local** — DEEPSEEK, GEMINI et MISTRAL ne
+  sont configures que dans les secrets GitHub Actions. `fundamental_analyzer.py`
+  n'est donc pas executable en local, et toute correction sur ce script ne peut
+  etre testee qu'en CI.
