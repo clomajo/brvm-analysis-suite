@@ -4,6 +4,13 @@ on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      force_ia:
+        description: >-
+          Forcer les etapes 5 et 6 (analyse fondamentale et rapports IA)
+          hors des dates habituelles du 1er et du 15. Consomme du quota API.
+        type: boolean
+        default: false
 
 jobs:
   brvm-analysis:
@@ -227,14 +234,22 @@ jobs:
           # Les fondamentaux changent au rythme des publications de rapports
           # (trimestriel au mieux), donc une analyse quotidienne consommait
           # inutilement le quota API Mistral (cf. session du 28/06/2026).
+          # force_ia permet un declenchement manuel hors des dates habituelles.
+          # Le cron ne fournit pas d'entree : la variable y est vide, la
+          # condition retombe donc sur la date et ADR-021 reste respecte.
           DOM=$(date +%d)
-          if [ "$DOM" = "01" ] || [ "$DOM" = "15" ]; then
+          FORCE="${{ github.event.inputs.force_ia }}"
+          if [ "$DOM" = "01" ] || [ "$DOM" = "15" ] || [ "$FORCE" = "true" ]; then
+            if [ "$FORCE" = "true" ]; then
+              echo "🔓 Declenchement manuel force (force_ia=true)"
+            fi
             echo "🚀 Analyse fondamentale avec Mistral AI..."
             echo "🤖 Modèle: mistral-large-latest"
             python fundamental_analyzer.py
             echo "✅ Analyse fondamentale terminée"
           else
             echo "⏭️ Skipped — analyse fondamentale bi-hebdomadaire (1er et 15 du mois)"
+            echo "   Relancer le workflow avec force_ia=true pour forcer."
           fi
       
       - name: 📝 ÉTAPE 6 - Génération Rapports (Mistral AI — bi-hebdomadaire)
@@ -250,8 +265,14 @@ jobs:
           # sont générés à partir des analyses fondamentales, qui ne changent
           # que deux fois par mois — inutile de régénérer quotidiennement
           # (économie de quota Mistral, cf. session du 28/06/2026).
+          # Meme logique qu'a l'ETAPE 5 : force_ia autorise un declenchement
+          # manuel, le cron retombe sur la date.
           DOM=$(date +%d)
-          if [ "$DOM" = "01" ] || [ "$DOM" = "15" ]; then
+          FORCE="${{ github.event.inputs.force_ia }}"
+          if [ "$DOM" = "01" ] || [ "$DOM" = "15" ] || [ "$FORCE" = "true" ]; then
+            if [ "$FORCE" = "true" ]; then
+              echo "🔓 Declenchement manuel force (force_ia=true)"
+            fi
             echo "🚀 Génération rapports avec Mistral AI..."
             if python report_generator.py; then
               echo "✅ Rapports générés"
