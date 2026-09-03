@@ -708,3 +708,30 @@ aux utilisateurs sur la majorité des tickers couverts.
   sont configures que dans les secrets GitHub Actions. `fundamental_analyzer.py`
   n'est donc pas executable en local, et toute correction sur ce script ne peut
   etre testee qu'en CI.
+
+### 02/09/2026 — Datation `historical_data` (ADR-052)
+
+- **[P0] `data_collector_simple.py` : `session_date = now()` ligne 56** rend le
+  parseur regex de la date BRVM (ligne 71) inatteignable. Ecrit les week-ends,
+  lundi = recopie du vendredi. Depuis 24/03/2026, tous tickers. Inclut le DELETE
+  non conditionnel non verifie dans `insert_data()`. **A CORRIGER AVANT TOUTE
+  PURGE.**
+
+- **[P0] Mesurer l'ampleur du decalage** — permanent J-1 (cron 6h UTC = avant
+  publication BRVM) ou week-end seulement ? Croiser `historical_data` vs BOC sur
+  5 seances. Determine la forme de la purge : suppression de lignes ou redatation
+  globale.
+
+- **[P1] Purger `historical_data`** selon le resultat de la mesure. SQL Editor
+  (ADR-026).
+
+- **[P1] `health_checks.py` : regle "aucun `trade_date` samedi/dimanche"** —
+  aurait detecte ce defaut en avril. Renforce l'item existant du backlog.
+
+- **[P2] Relire ADR-051 a la lumiere d'ADR-052** — la degradation temporelle de V1
+  constatee pourrait etre partiellement artefactuelle si elle porte sur la periode
+  post-11/04.
+
+- **[P2] Envisager le BOC comme source des cours** — le PDF porte la date de seance
+  dans son nom, l'infrastructure d'ingestion existe deja (`tools/ingest_boc.py`).
+  Decision d'architecture, distincte du correctif.

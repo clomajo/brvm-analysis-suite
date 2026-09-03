@@ -2057,3 +2057,97 @@ n'a pas de réponse disponible aujourd'hui.
 - Le déficit y est réparti sur cinq des six titres, pas concentré
 - Le modèle attribue des scores élevés à ces signaux perdants
 - La dégradation temporelle est générale et monotone sur trois mois
+
+## ADR-052 — `data_collector_simple.py` date les cours du jour d'execution, pas du jour de seance
+
+**Date** : 02/09/2026
+**Statut** : Constate, non corrige
+**Portee** : `historical_data`, tous tickers, du 24/03/2026 a aujourd'hui
+
+### Constat
+
+`data_collector_simple.py` (ETAPE 1 du pipeline) initialise `session_date` avec
+`datetime.now()` a la ligne 56, **avant** la boucle de scraping. Le test
+`if not session_date` de la ligne 71, qui devait declencher le parseur regex de la
+date reelle affichee sur la page BRVM, est donc **toujours faux**. Ce parseur n'a
+jamais ete execute. Meme structure inatteignable a la ligne 109.
+
+Consequence : les cours sont scrapes fidelement (prix et volumes non modifies) mais
+etiquetes avec la date d'execution du script, jamais avec la date de seance publiee.
+
+Le cron tourne `0 6 * * *` — tous les jours, y compris samedi et dimanche, et a 6h
+UTC, soit **avant la publication de la seance du jour**.
+
+### Mesure (company_id=36, SONATEL)
+
+- 2016-2025 : 0 ligne week-end sur 10 annees. Donnees issues des scripts
+  `import_historical_data*.py`, non concernees.
+- 2026 : 42 lignes week-end, **42/42 des week-ends attendus depuis le 11/04/2026**.
+- Motif observe : samedi = dimanche = lundi = cloture du vendredi (prix ET volume
+  strictement identiques). Le lundi est faux aussi, le site n'ayant pas encore
+  publie a 6h UTC.
+- ~3 lignes fabriquees sur 7 depuis le 11/04.
+
+### Defaut aggravant
+
+`insert_data()` execute un DELETE non conditionnel sur `trade_date=eq.{session_date}`
+avant insertion, **sans verifier le code retour**. Si le scraping ramene une page
+vide ou perimee, des donnees reelles sont detruites et remplacees par une recopie.
+Le defaut est destructif, pas seulement additif.
+
+### Impact sur les modeles
+
+Fenetres de calcul V1 raccourcies d'environ 30% depuis le 11/04 (une fenetre de
+20 "jours" couvre ~14 seances reelles) :
+- volatilite (poids 0,15) sous-estimee par des rendements nuls artificiels
+- volume (poids 0,25) lit des valeurs repetees
+- tendance (poids 0,40) calculee sur une profondeur effective reduite
+- horizons J+20/J+30/J+90 plus courts que leur libelle si comptes en lignes
+
+La validation historique de V1 (68,2% a J+30, n=768) repose majoritairement sur des
+signaux anterieurs et n'est pas invalidee. Les signaux generes depuis avril — ceux
+qui pilotent le portefeuille reel — sont produits sur series polluees.
+
+**A croiser avec ADR-051** : la degradation temporelle de V1 qui y est constatee
+pourrait etre partiellement un artefact de ce defaut plutot qu'un affaiblissement
+reel du signal, selon sa datation.
+
+### Origine
+
+Fichier ajoute par commit `8b774ec` du 24/03/2026 ("use working
+data_collector_simple.py"), en contexte de deblocage d'une collecte cassee — meme
+journee que `623fed9` (desactivation verification SSL). Raccourci assume sous
+contrainte, jamais relu ensuite.
+
+Hypotheses ecartees par verification : code herite du fork amont (non — commit
+signe clomajo), regression d'avril (non — defaut present des l'origine),
+changement de cron (non — inchange depuis 10/2025).
+
+### Decision
+
+Aucune correction dans cette session. Sequence retenue, une session chacune, ordre
+non negociable :
+
+1. Corriger `data_collector_simple.py` — parser la date reelle, **abandonner
+   bruyamment** (`sys.exit(1)`) si absente au lieu de retomber sur `now()`, garde
+   week-end, controler le DELETE.
+2. Mesurer l'ampleur exacte : decalage J-1 permanent ou week-end seulement.
+   Croisement `historical_data` vs BOC (nom de fichier `boc_YYYYMMDD_2.pdf` = date
+   de seance certaine).
+3. Purger selon le resultat de (2), via SQL Editor (ADR-026).
+
+Ne rien purger avant (1) : la base se repolluerait au run suivant.
+
+### Lecon
+
+Troisieme occurrence du mode d'echec "defaut silencieux en production" apres le
+freeze de `company_fundamentals` et l'exit code 0 sans insertion. Aucune alerte n'a
+signale, cinq mois durant, la creation de lignes datees d'un dimanche. Une regle
+`health_checks.py` "aucun trade_date en samedi/dimanche" aurait leve le drapeau
+des avril.
+
+### Note connexe
+
+`open_price`, `high_price` et `low_price` recoivent la valeur de cloture recopiee —
+la page BRVM ne publie pas ces champs. Ils ne portent aucune information. A savoir
+avant tout usage dans un modele futur.
