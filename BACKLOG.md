@@ -735,3 +735,23 @@ aux utilisateurs sur la majorité des tickers couverts.
 - **[P2] Envisager le BOC comme source des cours** — le PDF porte la date de seance
   dans son nom, l'infrastructure d'ingestion existe deja (`tools/ingest_boc.py`).
   Decision d'architecture, distincte du correctif.
+
+### 04/09/2026 — Amendement ADR-052 (croisement BOC)
+
+- **[P0] Rupture de collecte depuis le 31/08/2026** — volumes `historical_data`
+  inferieurs d'un facteur ~10 au BOC, 49 tickers presents. Defaut distinct du
+  decalage de datation, apparu il y a 5 jours. A investiguer.
+
+- **[P1] Redatation** (remplace l'item "purge") — decalage +1 jour permanent
+  confirme, 18/25 correspondances. Appariement par volume contre
+  `boc_market_stats`, pas de soustraction mecanique (3 dates sont correctement
+  datees).
+
+- **[P2] Evaluer richbourse.com** — cours et volumes journaliers par titre, cours
+  ajustes des fractionnements, export disponible. Source de controle pour la
+  redatation, voire de collecte. Lien avec `fix_splits.py` (non suivi, racine).
+
+- **[NOTE] La page brvm.org/fr/jours-feries n'est pas fiable** (annonce Maouloud
+  au 26/08, la fete legale etait le 25 ; se presente comme "calendrier 2023").
+  **Utiliser le BOC comme calendrier de seances** : un bulletin numerote = une
+  seance.

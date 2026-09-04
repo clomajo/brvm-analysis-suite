@@ -2151,3 +2151,101 @@ des avril.
 `open_price`, `high_price` et `low_price` recoivent la valeur de cloture recopiee —
 la page BRVM ne publie pas ces champs. Ils ne portent aucune information. A savoir
 avant tout usage dans un modele futur.
+
+### ADR-052 — Amendement du 04/09/2026 : mesure par croisement BOC
+
+Trois corrections a l'ADR ci-dessus, apres croisement de `historical_data` avec
+`boc_market_stats`.
+
+**1. Le decalage est permanent, pas limite au week-end.**
+
+Methode : comparaison du volume total marche. `boc_market_stats.volume_echange`
+(ACTIONS) donne le volume officiel d'une seance ; la somme des 49 tickers de
+`historical_data` a une date donnee doit l'egaler.
+
+Test de decalage sur 25 seances (29/07 → 03/09/2026) :
+
+| Decalage teste | Correspondances exactes |
+|---|---|
+| -1 jour | 0 / 25 |
+| 0 jour  | 3 / 25 |
+| **+1 jour** | **18 / 25** |
+| +2 jours | 6 / 24 |
+
+Egalites au titre pres sur des nombres a 7 chiffres — ce ne sont pas des
+rapprochements approximatifs. Exemples : BOC 29/07 = 2 845 466 → HD 30/07 ;
+BOC 31/07 = 2 990 556 → HD 03/08 ; BOC 06/08 = 594 933 → HD 10/08.
+
+**Chaque ligne de `historical_data` porte la seance de la veille ouvree.** Le cron
+a 6h UTC lit la page BRVM avant l'ouverture (~9h), recupere la cloture precedente,
+et l'etiquette avec `now()`.
+
+**Consequence : la decision de purge de l'ADR-052 est remplacee par une
+redatation.** Il ne s'agit pas de supprimer les lignes week-end mais de redater
+l'ensemble des lignes produites par `data_collector_simple.py` depuis le
+24/03/2026.
+
+Les 3 correspondances a decalage 0 (12/08, 27/08, 28/08) interdisent une
+redatation mecanique "-1 jour" : elle casserait ces lignes. **La redatation devra
+se faire par appariement de volume contre le BOC**, ligne par ligne, avec taux de
+certitude mesurable.
+
+**2. Correction : `company_id=36` est ABJC (SERVAIR ABIDJAN CI), pas SONATEL.**
+
+L'ADR-052 nommait ce ticker SONATEL par supposition non verifiee. SNTS cote a
+38 000 FCFA, ABJC entre 2 990 et 3 845 sur la periode mesuree. **Toutes les mesures
+de l'ADR-052 restent valides** (42/42 week-ends, motif de recopie, absence de
+week-end 2016-2025) — seul le nom du ticker etait faux.
+
+**3. Second defaut, distinct : rupture de collecte a partir du 31/08/2026.**
+
+| Date | BOC | `historical_data` |
+|---|---|---|
+| 31/08 | 1 384 395 | 396 914 |
+| 01/09 | 1 632 154 | 211 678 |
+| 02/09 | 1 110 031 | 108 758 |
+| 03/09 | 1 924 308 | 137 279 |
+
+Volumes inferieurs d'un ordre de grandeur, alors que le compteur affiche toujours
+49 tickers. Ce n'est plus un decalage — les valeurs ne correspondent a aucune
+seance, ni avant ni apres. Collecte partielle ou corrompue, apparue il y a cinq
+jours. **A investiguer separement du decalage de datation.**
+
+**4. Fiabilite de la reference BOC : verifiee.**
+
+Une anomalie apparente a fait suspecter l'ingestion BOC : `boc_market_stats`
+contient une ligne au 26/08/2026, que la page https://www.brvm.org/fr/jours-feries
+annonce comme ferie (Maouloud), et aucune ligne au 25/08 — un mardi ouvre.
+
+Verification faite, **c'est la page jours feries de la BRVM qui est erronee** :
+
+- `parse_boc.py` L183 (`parser_date_seance`) lit la date **dans le PDF**, pas dans
+  le nom de fichier. `date_seance` est donc la date imprimee au bulletin.
+- Numerotation des bulletins continue : n°159 (24/08) → n°160 (26/08) → n°161
+  (27/08). Aucun bulletin manquant.
+- `boc_20260825_2.pdf` n'existe pas (HTTP renvoie une page d'erreur de 37 Ko ;
+  les vrais PDF font ~970 Ko).
+- Richbourse (richbourse.com), qui declare publier les valeurs du BOC, ne liste
+  aucune seance au 25/08 et en liste une au 26/08.
+- Presse ivoirienne : Maouloud declare ferie chome et paye le **mardi 25 aout
+  2026** par le ministere de l'Emploi.
+
+**La page jours feries de brvm.org n'est pas un calendrier de seances fiable** —
+elle annonce d'ailleurs "le calendrier de l'annee 2023" tout en listant 2026.
+**Le BOC est le calendrier de reference** : l'existence d'un bulletin numerote est
+la preuve qu'une seance a eu lieu.
+
+`tools/ingest_boc.py` et `parse_boc.py` sont hors de cause. Aucun defaut de
+datation cote BOC.
+
+**Sequence revisee**
+
+1. Corriger `data_collector_simple.py` (inchange, reste prioritaire).
+2. Investiguer la rupture du 31/08 — potentiellement plus grave que le decalage.
+3. Redater `historical_data` 24/03/2026 → date du correctif, par appariement de
+   volume contre `boc_market_stats`. SQL Editor (ADR-026).
+
+**Piste ouverte : richbourse.com** comme source de controle ou de collecte. Fournit
+cours et volumes journaliers par titre, avec cours **ajustes** des fractionnements
+et augmentations de capital, exportables. Permettrait une validation de la
+redatation titre par titre plutot que sur volume agrege. A evaluer separement.
