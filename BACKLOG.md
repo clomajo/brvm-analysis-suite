@@ -755,3 +755,69 @@ aux utilisateurs sur la majorité des tickers couverts.
   au 26/08, la fete legale etait le 25 ; se presente comme "calendrier 2023").
   **Utiliser le BOC comme calendrier de seances** : un bulletin numerote = une
   seance.
+
+### 04/09/2026 soir — ADR-052 amendement 2
+
+**Ferme aujourd'hui**
+
+- ~~[P0] Mesurer l'ampleur du decalage~~ — fait. Cause unique : le script
+  photographie la page a l'heure ou il tourne et etiquette avec `now()`.
+  Trois regimes selon l'heure (avant ouverture / pendant seance / apres
+  cloture), pas trois defauts.
+- ~~[P0] Correctif urgent~~ — cron a `0 18 * * 1-5` + gardes week-end et
+  horaire. Deploye sur `main` (`6c17474`). Prochain run lundi 18h UTC.
+- ~~[P1] Reconstitution~~ — `boc_cote` : 108 seances, 5 103 lignes, 26/03 au
+  04/09, 0 echec. La purge/redatation envisagee est remplacee par un
+  remplacement depuis la source officielle.
+
+**Ouvert**
+
+- **[P1] Comparer `boc_cote` x `historical_data`** titre par titre sur la
+  periode. Resoudre les symboles vers `companies` (reperer les inconnus :
+  SAFCA, nouveaux titres). Mesurer l'ampleur reelle de la divergence avant
+  toute bascule.
+
+- **[P1] Basculer `historical_data`** 26/03 -> 04/09 depuis `boc_cote`.
+  **Export prealable obligatoire** — plan Supabase gratuit, aucun backup
+  automatique. Decider aussi du sort de `brvm_decisions` et
+  `brvm_decisions_results` sur la periode : regenerer, ou marquer non fiables
+  et repartir du 05/09. Regenerer des signaux a posteriori sur donnees
+  corrigees, c'est du backtest, pas du forward test — decision de methode.
+
+- **[P1] Correctif de fond `data_collector_simple.py`** : `session_date` reste
+  a `now()`, le parseur regex de la date (L71) reste inatteignable. Demande de
+  valider le regex contre la page actuelle. **Ou** basculer la collecte
+  quotidienne sur le BOC et rendre ce script secondaire — l'infrastructure
+  existe desormais.
+
+- **[P1] Reevaluer V1** sur mars-septembre une fois les donnees corrigees, et
+  **relire ADR-051** : la degradation constatee (74,6 % mai -> 63,6 % juin ->
+  53,7 % juillet) tombe exactement dans la fenetre polluee.
+
+- **[P1] `health_checks.py` — controles croises externes.** Les 12 tests de
+  `test_pipeline.py` sont tous internes : ils verifient la coherence de la base
+  avec elle-meme. Aucun ne confronte la donnee a une source independante, d'ou
+  cinq mois d'invisibilite. Pire : `last_trading_day()` (L46) ramene au vendredi
+  le week-end, donc les lignes fautives n'etaient jamais lues, et T4 (variation
+  <40 %) comme T8 (donnees <3j) etaient *ameliores* par le defaut.
+  Trois regles a ajouter :
+  - T13 : `sum(historical_data.volume)` du jour == `boc_market_stats.volume_echange`
+  - T14 : aucune `trade_date` en samedi/dimanche
+  - T15 : toute `trade_date` existe dans `boc_market_stats.date_seance`
+  T13 aurait alerte le 25 mars.
+
+- **[P2] `EXPECTED_TICKERS = 47`** dans `test_pipeline.py` alors que `companies`
+  en compte 49. La condition etant `nb < EXPECTED`, le test passe toujours.
+  Comparer au compte reel en base.
+
+- **[P2] `valeur_transigee` non fiable** au-dela de 1 milliard (troncature
+  d'affichage du BOC) et sur les droits. Documenter la limite partout ou la
+  colonne est lue. Ne pas reconstruire la valeur — la marquer.
+
+- **[P2] Bulletins des 24 et 25/03/2026 absents** cote BRVM : `boc_cote`
+  commence au 26/03 et non au 24/03. Verifier si feries ou PDF manquants.
+
+- **[P3] Fichiers non suivis** : ~50 a la racine, dont 4 `.bak` crees
+  aujourd'hui (`parse_boc.py.bak2/3/4`, `data_collector_simple.py.bak_adr052`)
+  et `tools/scrape_dates_publication_t1.py` d'origine inconnue. Git est la
+  sauvegarde ; les `.bak` sont a supprimer.

@@ -522,3 +522,37 @@ Aucun code produit — session d'investigation et de décision.
   scripts (`scrape_boc_pdf.py`, `scrape_all_v4.py`), upsert sans `on_conflict`
   retournant 409. Corrigé et déployé en production (`cdd9038`). Colonne
   `dividend_convention` ajoutée (BRUT/NET) pour rendre ADR-041 traçable.
+
+## 04/09/2026
+
+- FIX : `data_collector_simple.py` datait les cours avec `now()` et non avec la
+  date de seance. Actif depuis le 24/03/2026 sur tous les tickers. Le parseur
+  regex de la date reelle (L71) etait inatteignable, `session_date` etant
+  initialise a L56 avant le test qui devait le declencher. Sortie dependante de
+  l'heure d'execution : avant l'ouverture BRVM la page affiche la cloture de la
+  veille (decalage +1), pendant la seance les volumes sont partiels, apres la
+  cloture c'est correct. Cron a 6h UTC = pire cas, week-ends compris. Mesure :
+  47 seances sur 106 sans correspondance dans `historical_data` (ADR-052).
+- FIX : cron `0 6 * * *` -> `0 18 * * 1-5`, plus gardes week-end et horaire
+  (refus d'ecrire avant 16h UTC, contournable par `FORCER_COLLECTE=1`) dans
+  `main()`, avant tout scraping et tout DELETE. Deploye sur `main` (`6c17474`).
+- FEAT : `parse_boc.py` — extraction de la cote actions titre par titre depuis
+  le BOC (`parser_cote_actions`, `pages_cote_actions`, `controle_cote`,
+  `parser_cote_depuis_pdf`). Localisation structurelle des pages, sans
+  dependance a l'index ni a un libelle. Droits de souscription (`est_droit`) et
+  titres non cotes (`non_cote`) marques plutot qu'ecartes.
+- FEAT : `tools/ingest_cote.py` + table `boc_cote`. Chaque bulletin est controle
+  contre sa propre page 1 (volume, nb de titres transiges) avant tout ecrit.
+  **108 seances, 5 103 lignes, du 26/03 au 04/09, 0 echec.** `historical_data`
+  n'est pas touchee — la comparaison et la bascule restent a faire.
+- DOC : le BOC est le calendrier de seances de reference. La page
+  brvm.org/fr/jours-feries est erronee (annonce Maouloud au 26/08, la fete
+  legale etait le mardi 25/08) et se presente comme "calendrier de l'annee 2023".
+- DOC : `valeur_transigee` du BOC est tronquee a l'affichage au-dela de
+  1 milliard (ratio ~1000x sur SNTS, SGBC) et libellee dans une autre echelle
+  pour les droits. Ecart normal `valeur` vs `volume x cours` mesure sur 5 075
+  lignes : mediane 0,59 %, p99 5,82 %, max 12,22 %. Seuil de fiabilite a 15 %.
+- DOC : les 12 tests de `test_pipeline.py` sont tous internes et n'ont rien vu
+  pendant cinq mois. `last_trading_day()` ramene au vendredi le week-end, donc
+  les lignes fautives n'etaient jamais interrogees ; T4 et T8 etaient ameliores
+  par le defaut. Trois controles croises contre le BOC portes au BACKLOG.

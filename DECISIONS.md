@@ -2249,3 +2249,104 @@ datation cote BOC.
 cours et volumes journaliers par titre, avec cours **ajustes** des fractionnements
 et augmentations de capital, exportables. Permettrait une validation de la
 redatation titre par titre plutot que sur volume agrege. A evaluer separement.
+
+### ADR-052 — Amendement 2 du 04/09/2026 : cause unique, reconstitution BOC, gardes deployees
+
+**1. Il n'y a pas trois defauts, mais un seul mecanisme.**
+
+Le premier amendement decrivait un decalage +1 permanent, puis une "rupture de
+collecte" au 31/08. C'est la meme cause. `created_at` sur ABJC le montre :
+
+| Periode | Heure d'ecriture | Page BRVM affiche | Resultat |
+|---|---|---|---|
+| jusqu'au 26/08 | 06h19–06h33 UTC | cloture de la veille | date +1, volume juste |
+| 27–28/08 | 16h58, 17h49 UTC | cloture du jour | correct |
+| depuis le 29/08 | 10h04–12h00 UTC | seance en cours | date juste, volume tronque |
+
+Le script photographie la page a l'instant ou il tourne et etiquette avec
+`now()`. Sa sortie depend entierement de l'heure d'execution. Les 3 dates deja
+correctes isolees par le croisement BOC (12/08, 27/08, 28/08) sont les runs
+post-cloture.
+
+Le cron n'a jamais change (`0 6 * * *` depuis 10/2025). Les executions de
+10h-12h sont des `workflow_dispatch` manuels, possibles depuis `ccebd26`.
+
+**2. Reconstitution complete depuis le BOC — faite.**
+
+`parse_boc.py` lit desormais la cote titre par titre : cours precedent /
+ouverture / cloture, volume, valeur transigee, cours de reference, variation
+annuelle, dividende net, rendement, PER.
+
+- `parser_cote_actions()` — extraction par zones, ancree sur le symbole
+- `pages_cote_actions()` — localisation structurelle, sans dependance a l'index
+  ni a un libelle : symboles tous distincts + `valeur ~ volume x cours` sur
+  >=70 % des lignes. Les pages obligations echouent aux deux criteres.
+- `controle_cote()` — verification contre la page 1 du meme bulletin
+- `est_droit` / `non_cote` — droits de souscription et titres non cotes marques,
+  non melanges ni ecartes
+
+`tools/ingest_cote.py` rejoue une plage et ecrit dans `boc_cote` (upsert sur
+`date_seance,symbole`, dry-run par defaut, rapport JSON).
+
+**Resultat : 108 seances, 5 103 lignes, 26/03 au 04/09, 0 echec.** Les 11 dates
+sans bulletin sont des feries confirmes. A comparer aux **47 seances sans
+correspondance sur 106** dans `historical_data` : la source officielle couvre
+integralement la ou le scraping web laissait 44 % de trous.
+
+**3. `valeur_transigee` : limite de la source, pas defaut de parsing.**
+
+Le BOC tronque l'affichage des montants >= 1 milliard. Sur SNTS au 04/08 le PDF
+ecrit litteralement `2 401 664` la ou le montant reel avoisine 2,47 milliards
+(ratio ~1000x). Idem SGBC. Les droits (SAFCA) sont libelles dans une autre
+echelle.
+
+Ecart `valeur` vs `volume x cours de cloture` sur 5 075 lignes saines : mediane
+0,59 %, p90 2,62 %, p99 5,82 %, max 12,22 %. Ecart normal — la valeur transigee
+se calcule sur les prix reels des transactions, pas sur la cloture.
+
+**Seuil retenu : 15 %.** Au-dela, valeur signalee non fiable. Le controle
+bloquant porte sur le **volume** et le **nombre de titres transiges**, jamais
+sur la valeur.
+
+`nb_titres_transiges` de la page 1 ne compte que les actions : le controle
+exclut `est_droit` (reglait les 48-vs-47 d'avril a juin, cotation du droit
+SAFCA).
+
+**4. Gardes deployees en production (`6c17474` sur `main`).**
+
+- cron `0 6 * * *` -> `0 18 * * 1-5` : apres cloture BRVM, jours ouvres
+- garde samedi/dimanche dans `main()`, avant tout scraping et tout DELETE
+- garde horaire : refus d'ecrire avant 16h UTC, contournable par
+  `FORCER_COLLECTE=1`. Protege des `workflow_dispatch` — c'est un lancement
+  manuel qui a produit les volumes tronques du 29/08 au 04/09.
+
+**Ce n'est pas le correctif de fond.** `session_date` reste calcule avec `now()`
+et le parseur de date de la page (ligne 71) reste inatteignable. Les gardes
+bornent le script a la fenetre ou son comportement est correct.
+
+**5. Fausses pistes ecartees en cours d'analyse.**
+
+- `company_id=36` suppose SONATEL : c'est **ABJC (SERVAIR ABIDJAN CI)**. Mesures
+  valides, nom faux dans la version initiale.
+- `tools/ingest_boc.py` soupconne de mal dater : hors de cause. `parse_boc.py`
+  L183 lit la date **dans le PDF**. Le doute venait d'une ligne au 26/08 que la
+  page brvm.org/fr/jours-feries annonce ferie — c'est **cette page qui est
+  fausse** (Maouloud etait le mardi 25/08, confirme par la presse ivoirienne,
+  Richbourse, et la numerotation continue des bulletins 159-160-161).
+- Regression d'avril (`9b3fca4`, `0d5dea4`) : ecartee, le defaut est present des
+  l'origine du script (24/03/2026).
+
+**Le BOC est le calendrier de seances de reference** : un bulletin numerote =
+une seance. La page jours feries de la BRVM n'est pas fiable.
+
+**6. Suite.**
+
+1. Comparer `boc_cote` x `historical_data` titre par titre, resoudre les
+   symboles vers `companies`
+2. Basculer `historical_data` 26/03 -> 04/09, avec export prealable (plan
+   Supabase gratuit, aucun backup automatique)
+3. Correctif de fond du parsing de date, ou bascule de la collecte quotidienne
+   sur le BOC
+4. Reevaluer V1 sur la periode, et relire ADR-051 : la degradation observee
+   (74,6 % mai -> 63,6 % juin -> 53,7 % juillet) tombe exactement dans la
+   fenetre polluee et pourrait etre artefactuelle
