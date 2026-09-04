@@ -103,7 +103,9 @@ def controler(chemin, titres):
 
 def upsert(lignes):
     """Ecrit dans boc_cote (upsert sur date_seance,symbole)."""
-    url = f"{SUPABASE_URL}/rest/v1/boc_cote?on_conflict=date_seance,symbole"
+    base = SUPABASE_URL if SUPABASE_URL.endswith("/rest/v1") \
+        else f"{SUPABASE_URL}/rest/v1"
+    url = f"{base}/boc_cote?on_conflict=date_seance,symbole"
     entetes = {
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
