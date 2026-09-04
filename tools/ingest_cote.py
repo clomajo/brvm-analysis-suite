@@ -69,22 +69,35 @@ def controler(chemin, titres):
     att_nb = actions.get("nb_titres_transiges")
 
     vol = sum(t["volume"] or 0 for t in titres)
-    val = sum(t["valeur_transigee"] or 0 for t in titres)
-    nb = sum(1 for t in titres if (t["volume"] or 0) > 0)
+    # nb_titres_transiges de la page 1 ne compte que les actions, pas les droits
+    nb = sum(1 for t in titres
+             if (t["volume"] or 0) > 0 and not t.get("est_droit"))
 
     ecarts = []
     if att_vol is None:
         ecarts.append("page1 : volume_echange illisible")
     elif abs(vol - att_vol) >= 1:
         ecarts.append(f"volume cote {vol:,.0f} vs page1 {att_vol:,.0f}")
-    if att_val is None:
-        ecarts.append("page1 : valeur_transigee illisible")
-    elif abs(val - att_val) >= 1:
-        ecarts.append(f"valeur cote {val:,.0f} vs page1 {att_val:,.0f}")
     if att_nb is None:
         ecarts.append("page1 : nb_titres_transiges illisible")
     elif nb != int(att_nb):
         ecarts.append(f"nb_transiges cote {nb} vs page1 {int(att_nb)}")
+
+    # valeur_transigee : NON bloquant. Le BOC tronque l'affichage des montants
+    # >= 1 milliard (ratio ~1000x observe sur SNTS, SGBC) et les droits sont
+    # libelles dans une autre echelle (SAFCA). Sur 5 075 lignes saines, l'ecart
+    # val vs volume x cours a une mediane de 0,59 % et un maximum de 12,2 %.
+    # Seuil a 15 % : au-dela, la valeur lue est consideree non fiable.
+    suspectes = []
+    for t in titres:
+        v, c, val = t["volume"], t["cours_cloture"], t["valeur_transigee"]
+        if not v or not c or not val:
+            continue
+        if abs(val - v * c) / (v * c) > 0.15:
+            suspectes.append(t["symbole"])
+    if suspectes:
+        logger.warning("    valeur_transigee non fiable sur %d titre(s) : %s",
+                       len(suspectes), ", ".join(suspectes[:6]))
     return ecarts
 
 
