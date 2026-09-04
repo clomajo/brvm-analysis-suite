@@ -580,9 +580,16 @@ def parser_cote_actions(pages_lignes):
                      "est_droit": bool(titre and "droit" in norm(titre))}
             for champ, (a, b) in COLONNES_COTE.items():
                 ligne[champ] = nombre_zone(mots, a, b)
-            if ligne["cours_cloture"] is None:
+            # 'NC' (non cote) en ouverture/cloture : le titre n'a pas
+            # transige. On conserve la ligne — une seance sans transaction est
+            # une information, pas une absence de donnee.
+            zone_ouv_clot = texte_zone(mots, 195, 255)
+            ligne["non_cote"] = "NC" in zone_ouv_clot
+            if ligne["cours_cloture"] is None and not ligne["non_cote"]:
                 logger.debug("%s : cours de cloture illisible, ignore", sym)
                 continue
+            if ligne["non_cote"] and ligne["volume"] is None:
+                ligne["volume"] = 0
             titres.append(ligne)
     return titres
 
