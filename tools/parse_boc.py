@@ -601,3 +601,49 @@ def controle_cote(titres, volume_page1, valeur_page1, nb_titres_page1):
         {"controle": "nb_transiges", "cote": nb, "page1": nb_titres_page1,
          "statut": "OK" if nb == nb_titres_page1 else "ECART"},
     ]
+
+
+def pages_cote_actions(doc, seuil=0.70, min_lignes=3):
+    """Localise les pages de la cote actions dans un BOC.
+
+    Detection structurelle, sans dependance aux libelles : une page de cote
+    actions a des symboles tous distincts et verifie valeur ~ volume x cours
+    sur la quasi-totalite de ses lignes. Les pages obligations echouent aux
+    deux criteres (symboles repetes, valeur_transigee absente).
+
+    Retourne la liste des index de pages (0-based).
+    """
+    trouvees = []
+    for i in range(len(doc)):
+        try:
+            lignes = parser_cote_actions([extraire_lignes(doc[i])])
+        except SchemaBocInconnu:
+            continue
+        if len(lignes) < min_lignes:
+            continue
+        if len({x["symbole"] for x in lignes}) != len(lignes):
+            continue
+        coherentes = sum(
+            1 for x in lignes
+            if x["volume"] and x["cours_cloture"] and x["valeur_transigee"]
+            and abs(x["valeur_transigee"] - x["volume"] * x["cours_cloture"])
+            / max(x["valeur_transigee"], 1) < 0.30
+        )
+        if coherentes / len(lignes) >= seuil:
+            trouvees.append(i)
+    return trouvees
+
+
+def parser_cote_depuis_pdf(chemin_pdf):
+    """Ouvre un BOC, localise la cote actions et l'extrait avec sa date.
+
+    Retourne (date_seance, numero_bulletin, [titres], [pages_utilisees]).
+    """
+    import fitz
+    doc = fitz.open(chemin_pdf)
+    date_s, num = parser_date_seance(extraire_lignes(doc[0]))
+    pages = pages_cote_actions(doc)
+    if not pages:
+        raise SchemaBocInconnu(f"aucune page de cote actions dans {chemin_pdf}")
+    titres = parser_cote_actions([extraire_lignes(doc[i]) for i in pages])
+    return date_s, num, titres, pages
