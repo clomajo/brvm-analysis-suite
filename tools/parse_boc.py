@@ -538,3 +538,66 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ── Cote des actions (pages 3-4) ────────────────────────────────────────────
+# Bornes relevees sur boc_20260826_2.pdf (595x842). Le titre peut deborder sur
+# la ligne du secteur : on ancre sur le symbole et on lit les nombres par zone.
+COLONNES_COTE = {
+    "cours_precedent":   (150, 195),
+    "cours_ouverture":   (195, 222),
+    "cours_cloture":     (222, 255),
+    "variation_jour_pct":(255, 285),
+    "volume":            (285, 320),
+    "valeur_transigee":  (320, 370),
+    "cours_reference":   (370, 420),
+    "variation_annuelle_pct": (420, 470),
+    "dividende_net":     (470, 492),
+    "rendement_net_pct": (520, 558),
+    "per":               (558, 595),
+}
+RE_SYMBOLE = re.compile(r"^[A-Z]{3,7}$")
+
+
+def parser_cote_actions(pages_lignes):
+    """Extrait la cote titre par titre des pages actions du BOC.
+
+    pages_lignes : liste de listes de lignes (sortie d'extraire_lignes).
+    Retourne [{symbole, cours_cloture, volume, ...}, ...].
+    """
+    titres = []
+    for lignes in pages_lignes:
+        for _y, mots in lignes:
+            zone_sym = [m for x0, _x1, m in mots if 30 <= x0 < 65]
+            if len(zone_sym) != 1:
+                continue
+            sym = zone_sym[0].strip()
+            if not RE_SYMBOLE.match(sym) or sym == "TOTAL":
+                continue
+            titre = texte_zone(mots, 65, 150).strip() or None
+            ligne = {"symbole": sym,
+                     "titre": titre,
+                     "est_droit": bool(titre and "droit" in norm(titre))}
+            for champ, (a, b) in COLONNES_COTE.items():
+                ligne[champ] = nombre_zone(mots, a, b)
+            if ligne["cours_cloture"] is None:
+                logger.debug("%s : cours de cloture illisible, ignore", sym)
+                continue
+            titres.append(ligne)
+    return titres
+
+
+def controle_cote(titres, volume_page1, valeur_page1, nb_titres_page1):
+    """Compare les agregats de la cote a ceux de la page 1 du meme bulletin."""
+    vol = sum(t["volume"] or 0 for t in titres)
+    val = sum(t["valeur_transigee"] or 0 for t in titres)
+    nb = sum(1 for t in titres if (t["volume"] or 0) > 0)
+    return [
+        {"controle": "nb_titres", "cote": len(titres), "attendu": None},
+        {"controle": "volume", "cote": vol, "page1": volume_page1,
+         "statut": "OK" if volume_page1 and abs(vol - volume_page1) < 1 else "ECART"},
+        {"controle": "valeur_transigee", "cote": val, "page1": valeur_page1,
+         "statut": "OK" if valeur_page1 and abs(val - valeur_page1) < 1 else "ECART"},
+        {"controle": "nb_transiges", "cote": nb, "page1": nb_titres_page1,
+         "statut": "OK" if nb == nb_titres_page1 else "ECART"},
+    ]
