@@ -161,6 +161,29 @@ def main():
     logger.info("BRVM Data Collector - Simple HTTP Version (SSL disabled)")
     logger.info("=" * 60)
     
+    # ── Gardes de datation (ADR-052) ────────────────────────────────────
+    # Ce script date les lignes avec now(), pas avec la date de seance lue
+    # sur la page. Sa sortie depend donc entierement de l'heure d'execution :
+    #   - avant l'ouverture BRVM : la page affiche la cloture de la veille
+    #     -> lignes decalees de +1 jour
+    #   - pendant la seance       : volumes partiels
+    #   - apres la cloture        : correct
+    # Ces gardes refusent d'ecrire hors de la fenetre sure. Correctif de fond
+    # (parsing de la vraie date de seance) a faire, cf. BACKLOG.
+    maintenant = datetime.utcnow()
+    if maintenant.weekday() >= 5:
+        logger.warning(
+            "Samedi/dimanche (%s) : pas de seance BRVM, aucune ecriture.",
+            maintenant.date())
+        sys.exit(0)
+    if maintenant.hour < 16 and os.getenv("FORCER_COLLECTE") != "1":
+        logger.warning(
+            "%02dh%02d UTC : la seance BRVM n'est pas close, les volumes "
+            "seraient partiels et la date fausse. Aucune ecriture. "
+            "Utiliser FORCER_COLLECTE=1 pour passer outre.",
+            maintenant.hour, maintenant.minute)
+        sys.exit(0)
+
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("SUPABASE_URL or SUPABASE_KEY not set in environment")
         sys.exit(1)
