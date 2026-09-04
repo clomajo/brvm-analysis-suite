@@ -2,7 +2,11 @@ name: BRVM Analysis Suite V25.0 - Mistral AI
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    # 18h UTC, jours ouvres. La BRVM cote ~9h-15h UTC : a 6h la page affichait
+    # encore la cloture de la veille, et data_collector_simple.py datant les
+    # lignes avec now(), toute la base etait decalee de +1 jour (ADR-052).
+    # A 18h la seance du jour est publiee et complete.
+    - cron: '0 18 * * 1-5'
   workflow_dispatch:
     inputs:
       force_ia:
