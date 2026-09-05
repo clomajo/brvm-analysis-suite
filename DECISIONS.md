@@ -2350,3 +2350,95 @@ une seance. La page jours feries de la BRVM n'est pas fiable.
 4. Reevaluer V1 sur la periode, et relire ADR-051 : la degradation observee
    (74,6 % mai -> 63,6 % juin -> 53,7 % juillet) tombe exactement dans la
    fenetre polluee et pourrait etre artefactuelle
+
+### ADR-052 — Amendement 3 du 04/09/2026 : comparaison boc_cote x historical_data, et procedure de bascule
+
+**Mesure realisee, lecture seule. Rien n'a ete modifie.**
+
+**1. Resolution des symboles**
+
+`companies` compte 49 entrees, `boc_cote` 48 symboles distincts. Les trois
+ecarts sont tous explicables :
+
+- **SAFCA** (27 seances) : droit preferentiel de souscription, present dans le
+  BOC, absent de `companies`. Marque `est_droit`. **A exclure de la bascule.**
+- **BRVMC** (id 48) et **BRVM30** (id 49) : ce sont les **indices**, pas des
+  societes cotees. Presents dans `companies` par commodite, alimentes par
+  `update_index.py`. 281 lignes sur la periode. **A conserver intacts.**
+
+Perimetre commun reel : **47 symboles**.
+
+**2. Comparaison sur la periode 26/03 -> 04/09**
+
+| | lignes |
+|---|---|
+| `boc_cote` hors droits | 5 076 |
+| `historical_data` actions | 7 549 |
+| `historical_data` indices | 281 (hors perimetre) |
+
+Sur les **4 926 cles communes** (date, symbole) :
+
+| Cas | Lignes | Part |
+|---|---|---|
+| Prix ET volume identiques | 499 | **10,1 %** |
+| Prix ok, volume different | 671 | 13,6 % |
+| Volume ok, prix different | 7 | 0,1 % |
+| Les deux differents | 3 749 | 76,1 % |
+
+Les 499 identiques correspondent aux runs post-cloture. Les 671 "prix ok,
+volume different" sont les captures intra-seance : le prix affiche etait le bon,
+le volume incomplet.
+
+**Ecarts de couverture :**
+
+- **57 dates** dans `historical_data` sans seance BOC correspondante, dont
+  **46 week-ends**. Onze autres dates fabriquees en semaine.
+- **2 623 lignes** sans equivalent BOC — un tiers de la table.
+- **2 seances BOC absentes** d'`historical_data` : 03/06 et 23/07. Le pipeline
+  n'a rien ecrit ces jours-la.
+- **150 lignes BOC** sans equivalent (47 x 2 seances manquantes + non cotes).
+
+**3. Decision : remplacement integral, pas correction selective**
+
+A 10,1 % d'identite, une correction ligne a ligne n'a pas de sens. La plage
+26/03 -> 04/09 de `historical_data` est remplacee par `boc_cote`.
+
+**4. Traitement des titres non cotes**
+
+3 lignes concernees, toutes UNLC (Unilever CI, titre le plus illiquide) : les
+25/06, 14/08 et 24/08. `cours_cloture` est NULL ('NC' au bulletin) mais
+`cours_reference` est renseigne et egal au cours precedent dans les trois cas.
+
+**Regle retenue : `price = cours_reference`, `volume = 0`.** Fidele au bulletin,
+evite trois trous dans la serie, et le volume nul marque l'absence de
+transaction — information que `historical_data` ne portait pas jusqu'ici.
+
+**5. Procedure de bascule (a executer)**
+
+Ordre strict :
+
+1. **Export de sauvegarde** de `historical_data` 26/03 -> 04/09 en JSON local,
+   AVANT tout DELETE. Plan Supabase gratuit, aucun backup automatique.
+2. **DELETE** de la plage **en excluant `company_id` 48 et 49** (indices).
+3. **INSERT** depuis `boc_cote` : hors `est_droit`, resolution
+   `symbole -> company_id` via `companies`, `price = cours_cloture` ou
+   `cours_reference` si `non_cote`.
+4. **Verification** : 5 076 lignes actions + 281 lignes d'indices = 5 357
+   lignes sur la periode. Aucune date en samedi/dimanche. Somme des volumes par
+   date == `boc_market_stats.volume_echange`.
+
+**Ne pas executer en fin de session.** C'est la seule etape destructive du
+chantier.
+
+**6. Consequence sur `brvm_decisions` — decision de methode a prendre**
+
+Les signaux du 26/03 au 04/09 ont ete generes sur les donnees fausses, et
+`brvm_decisions_results` les a verifies sur ces memes donnees. Deux options :
+
+- **Regenerer** les decisions de la periode sur donnees corrigees. Mais des
+  signaux recalcules a posteriori sont du **backtest**, pas du forward test :
+  les compter dans l'historique de performance serait une erreur de categorie.
+- **Marquer la periode non fiable** et repartir du 05/09 pour le forward test.
+
+Recommandation : la seconde. Elle est plus honnete et preserve la distinction
+entre validation historique et suivi en temps reel. A trancher explicitement.

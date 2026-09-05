@@ -821,3 +821,28 @@ aux utilisateurs sur la majorité des tickers couverts.
   aujourd'hui (`parse_boc.py.bak2/3/4`, `data_collector_simple.py.bak_adr052`)
   et `tools/scrape_dates_publication_t1.py` d'origine inconnue. Git est la
   sauvegarde ; les `.bak` sont a supprimer.
+
+### 04/09/2026 nuit — comparaison faite, bascule a executer
+
+- ~~[P1] Comparer `boc_cote` x `historical_data`~~ — fait (ADR-052 amendement 3).
+  **10,1 % de lignes identiques** sur 4 926 cles communes. 57 dates sans seance
+  BOC dont 46 week-ends. Correction selective exclue.
+
+- **[P1] BASCULE — a executer a froid, seule etape destructive du chantier.**
+  Procedure detaillee en ADR-052 amendement 3, section 5. Points de vigilance :
+  - export JSON prealable (plan gratuit, aucun backup automatique)
+  - **DELETE en excluant `company_id` 48 et 49** — ce sont les indices BRVMC et
+    BRVM30, alimentes par `update_index.py`, hors perimetre (281 lignes)
+  - exclure `est_droit` (SAFCA, 27 lignes)
+  - `non_cote` (3 lignes UNLC) : `price = cours_reference`, `volume = 0`
+  - verification finale : 5 076 actions + 281 indices, aucune date week-end,
+    volumes concordants avec `boc_market_stats`
+
+- **[P1] Decision de methode : sort de `brvm_decisions` 26/03 -> 04/09.**
+  Regenerer les signaux sur donnees corrigees en ferait du backtest, pas du
+  forward test. Recommandation : marquer la periode non fiable et repartir du
+  05/09. A trancher explicitement, pas par defaut.
+
+- **[P2] 2 seances BOC sans aucune ligne dans `historical_data`** : 03/06 et
+  23/07. Le pipeline n'a rien ecrit ces jours-la — verifier les logs GitHub
+  Actions si encore disponibles.
