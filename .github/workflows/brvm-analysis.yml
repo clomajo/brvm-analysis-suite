@@ -125,11 +125,14 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          # Le pipeline tourne a 06:00 UTC : le bulletin du jour n'est pas encore
-          # publie. On ingere une fenetre se terminant a J-1, avec rattrapage sur
-          # 7 jours calendaires (publication tardive, run manque, echec ponctuel).
-          # L'upsert sur cle metier rend le rejeu sans effet de bord.
-          FIN=$(date -u -d "yesterday" +%Y-%m-%d 2>/dev/null || date -u -v-1d +%Y-%m-%d)
+          # Le pipeline tourne a 18:00 UTC (ADR-052 amdt 2) : le bulletin du jour
+          # est publie. La fenetre se termine donc a J, non a J-1 — sinon le
+          # bulletin du jour n'est jamais ingere le jour meme et boc_market_stats
+          # accuse un retard permanent d'une seance sur boc_cote.
+          # Rattrapage sur 8 jours calendaires (publication tardive, run manque,
+          # echec ponctuel, week-ends). L'upsert sur cle metier rend le rejeu
+          # sans effet de bord.
+          FIN=$(date -u +%Y-%m-%d)
           DEBUT=$(date -u -d "8 days ago" +%Y-%m-%d 2>/dev/null || date -u -v-8d +%Y-%m-%d)
           echo "📘 Ingestion BOC du $DEBUT au $FIN"
           python tools/ingest_boc.py --from "$DEBUT" --to "$FIN" || \
