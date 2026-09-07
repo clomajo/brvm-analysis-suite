@@ -770,3 +770,39 @@ trois cas le document etait plausible et faux.
 ## Points ouverts
 
 Voir `BACKLOG.md`, section priorite haute.
+
+## 07/09/2026 — DATA-30 : brvm_decisions_results remplacee par les mesures correctes
+
+`brvm_decisions_results` contenait des verifications faites sur les prix mal
+dates. Contenu remplace par celui de `brvm_decisions_results_v2` (bloc `DO $$`
+transactionnel, controles en `ASSERT`).
+
+**4 122 -> 3 760 lignes**, 09/04 -> 20/08, aucun `alpha` NULL, hit rate 53,7 %.
+
+Backup prealable : `backups/brvm_decisions_results_integral_20260907_191715.json`,
+4 122 lignes, sha256 `de3d53dddf447061668ccb9f64ff99af679dcdda931d09fc15420494d7d2a905`.
+
+**Lignes perdues, toutes documentees :**
+- 176 hors fenetre (03, 06, 07, 08/04) : modele anterieur aux quatre changements
+  du 06-08/04. Dont **46 au 06/04, lundi de Paques** — aucune seance BOC,
+  bulletins 64 puis 65 sans saut. Signaux emis un jour ferie sur prix inexistants.
+- 186 dans la fenetre : dates de signal sans seance reelle (amdt 6).
+
+**Effet de bord :** `alpha` et `benchmark_return` sont desormais renseignes sur
+toute la table. **T16-backfill devient sans objet** sur cette periode.
+
+**Points ouverts identifies :**
+1. Le kill-switch (`tools/killswitch_check.py`) est **deja declenche** avant comme
+   apres (36 % puis 44 % d'alphas positifs, seuil 50 % ; medianes -2,97 puis
+   -1,125, seuil 0). Le remplacement ne change pas son etat. Mais ses seuils sont
+   **structurellement inatteignables** : `alpha` etant calcule contre une
+   **moyenne** de cohorte, la majorite des titres est mecaniquement sous la
+   moyenne sur une distribution asymetrique. Il surveille en outre les trois
+   categories melangees, alors que seuls les ACHAT engagent une recommandation —
+   et leur alpha moyen est de **+1,18**.
+2. `generate_decisions.py` a produit 46 signaux le 06/04, jour ferie. Le cron
+   `1-5` couvre les week-ends, pas les 11 dates de `JOURS_FERIES_BRVM_2026`.
+3. Benchmark : l'indice BRVMC (`company_id` 48) est disponible et serait un
+   comparateur investissable et standard, contrairement a la cohorte
+   auto-referentielle (ADR-035). Changer de benchmark redefinit l'alpha — a
+   pre-enregistrer, pas a essayer pour voir.
