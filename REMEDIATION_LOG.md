@@ -659,3 +659,26 @@ EVITER 47,0 % / −0,55. Hierarchie monotone, **V1 discrimine**.
 Le resultat du 04/09 (~63 % pour les trois categories, conclusion « aucune
 discrimination ») est **superseded** : il etait produit par le bruit de datation.
 Detail et reserves dans `EXPERIMENTS_LOG.md`.
+
+## 07/09/2026 — boc_market_stats : 15/07 et 04/09 rattrapees, controle 108/108
+
+Deux seances de `boc_cote` n'avaient pas de ligne ACTIONS dans
+`boc_market_stats`, laissant le controle des volumes de la bascule a 106
+seances verifiables sur 108.
+
+Cause : `ingest_boc.py` (agregats page 1) et `ingest_cote.py` (cote) sont deux
+chaines distinctes. Le 15/07 avait echoue le 12/08 entre deux voisins ingeres a
+six secondes d'intervalle — echec transitoire, non reproductible : le dry run du
+07/09 passe sans erreur. Le 04/09 n'avait jamais ete traite par `ingest_boc.py`,
+dont le dernier ecrit datait du 12/08, alors que `ingest_cote.py` couvrait
+jusqu'au 04/09.
+
+Correction : `python3 tools/ingest_boc.py --date 2026-07-15` puis `--date
+2026-09-04`, apres dry run. 13 indices, 2 lignes de stats, 1 indicateur chacune,
+aucun controle en echec. `--force` non utilise.
+
+**Controle des volumes de la bascule : 108/108 seances conformes** (etait 106).
+Le point ouvert laisse par la bascule est ferme.
+
+**Point ouvert :** `ingest_boc.py` n'a rien ecrit entre le 12/08 et le 07/09.
+Verifier sa presence dans le cron quotidien, sinon le trou se reformera.
