@@ -596,3 +596,31 @@ separe avec seuils pre-enregistres.
 Ordre : bascule, puis reconstitution, puis refonte V1 (segmentation par
 horizon), puis agent IA — ce dernier subordonne a la reparation prealable de la
 chaine Mistral, inerte de bout en bout.
+
+## 07/09/2026 — BASCULE EXECUTEE (ADR-052 amdt 3, section 5, etapes 2 a 4)
+
+`historical_data` 26/03 -> 04/09/2026 remplacee par `boc_cote`. Execution en
+bloc `DO $$` transactionnel, controles en `ASSERT` (annulation automatique en cas
+d'echec). Le SQL Editor ouvrant une connexion par execution, DELETE, INSERT,
+controles et COMMIT devaient tenir dans un seul `Run` — une premiere tentative en
+`BEGIN` explicite s'est annulee a la fermeture de la connexion, sans effet.
+
+Resultat, tous controles passes :
+
+- actions **5 076** | indices conserves **275** | total periode **5 351**
+- table entiere : 115 347 -> **112 952**
+- 108 seances, **aucune en week-end**, aucun prix NULL
+- volumes : inseres + droits == `boc_market_stats.volume_echange`, **106/106**
+  seances verifiables
+
+Mapping applique : `price` = `cours_cloture`, ou `cours_reference` si
+`non_cote` (3 lignes UNLC, volume force a 0) ; `open_price` = `cours_ouverture` ;
+`value` = `valeur_transigee` ; `high_price`/`low_price` **NULL** (le BOC ne les
+fournit pas — aucune valeur n'est fabriquee). Droits SAFCA exclus.
+
+**Point ouvert :** `boc_market_stats` n'a pas de ligne ACTIONS pour le 15/07 et
+le 04/09 (page 1 non ingeree). Les 47 lignes de cote existent pour ces deux
+dates dans `boc_cote` ; seul le controle croise des volumes n'y est pas
+applicable. A backlogger.
+
+Prochaine etape : reconstitution des signaux (amdt 5), modele fige, un seul run.
