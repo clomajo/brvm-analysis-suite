@@ -553,3 +553,17 @@ week-end, 2 seances BOC manquantes (03/06, 23/07) — l'amendement 3 avait raiso
 sur ces points.
 
 Blocage leve. Etapes 2 a 4 de la section 5 ouvrables.
+
+## 07/09/2026 — Audit du plafond PostgREST sur le depot (ADR-053)
+
+`tools/audit_pagination.py`, analyse statique. 35 appels en lecture visant une
+table >5 000 lignes.
+
+Resultat : **aucune analyse passee invalidee**. Les quatre experiences
+dividendes (E2_6, E2_7A, E2_7B, E2_8) paginent correctement par Range/1 000 —
+E2.6, E2.7-A/B et T5c-A sont indemnes.
+
+Un defaut latent confirme : `calculate_target_price.py`, `fetch_prix_actuels()`
+lit 115 347 lignes sans pagination. Le tri `trade_date.desc` rend le resultat
+correct aujourd'hui, mais un ticker absent des ~106 dernieres seances
+disparaitrait silencieusement. Correctif classe B, non execute.

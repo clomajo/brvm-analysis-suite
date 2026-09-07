@@ -2506,3 +2506,83 @@ Ne jamais compter par `len()` sur un `select` brut : au-dela de 5 000 lignes le
 resultat est faux sans le signaler. Cette regle s'ajoute au pattern de
 decouverte de schema (`GET ...?select=*&limit=1` avant toute requete
 fonctionnelle).
+
+## ADR-053 — Audit du plafond PostgREST 5 000 lignes sur l'ensemble du depot
+
+**Date : 07/09/2026. Audit statique + comptages. Aucune ecriture.**
+
+**1. Origine**
+
+L'ADR-052 amendement 4 a etabli que PostgREST tronque silencieusement toute
+reponse a 5 000 lignes. Question ouverte : d'autres analyses passees ont-elles
+ete faussees par le meme mecanisme ?
+
+**2. Perimetre reel**
+
+Seules trois tables depassent le seuil :
+
+| table | lignes | expose |
+|---|---|---|
+| `historical_data` | 115 347 | oui |
+| `brvm_decisions` | 6 619 | oui |
+| `boc_cote` | 5 103 | oui |
+| `brvm_decisions_results` | 4 075 | non |
+| `corporate_events` | 3 256 | non |
+| `boa_recommendations` | 574 | non |
+| `boc_market_stats` | 316 | non |
+| `company_fundamentals` | 267 | non |
+| `companies` | 49 | non |
+
+La vue `v_historical_prices` est adossee a `historical_data`, donc exposee.
+
+**3. Methode**
+
+`tools/audit_pagination.py` : analyse statique, 12 lignes de contexte autour de
+chaque appel REST, exclusion des ecritures (post/patch/on_conflict, non
+concernees par le plafond). 35 appels en lecture visant une table exposee.
+Verification manuelle du code pour chaque candidat.
+
+**4. Resultat : un seul defaut reel**
+
+**Indemnes — pagination correcte :** les quatre experiences dividendes
+(E2_6, E2_7A, E2_7B, E2_8_rotation) utilisent une boucle Range par 1 000 avec
+sortie sur batch incomplet et acceptation du statut 206. **Les resultats E2.6,
+E2.7-A, E2.7-B et T5c-A ne sont pas affectes par le plafond.**
+
+**Faux positifs :** `tools/explore_dividend_cycle.py` et
+`tools/explore_dividend_window60.py` — `fetch_prices()` n'est pas paginee mais
+filtre `ticker=eq.{ticker}`, soit quelques milliers de lignes au plus par appel.
+`fix_splits.py` L217 vise `companies` (49 lignes).
+
+**Defaut confirme : `calculate_target_price.py`, `fetch_prix_actuels()`**
+
+    select=company_id,trade_date,price&order=trade_date.desc
+
+Aucun filtre, aucune pagination, sur 115 347 lignes.
+
+Le tri `trade_date.desc` fait que les 5 000 lignes recues sont les plus
+recentes (~106 seances a 47 tickers), et la boucle retient la premiere
+occurrence par symbole. **Le resultat produit est donc correct a ce jour.**
+
+Le defaut est **latent** : un ticker sans cotation sur les ~106 dernieres
+seances sort de la fenetre et disparait silencieusement du dictionnaire de prix,
+sans erreur. UNLC (3 seances non cotees) est le profil a risque. La bascule
+ADR-052 modifiera la densite des seances sur la periode.
+
+**5. Conclusion**
+
+**Aucune analyse passee n'est invalidee par le plafond PostgREST.** Un seul
+script de production porte un defaut latent, non declenche a ce jour.
+
+**6. Correctif — a traiter separement**
+
+`calculate_target_price.py` est en production : modification de classe B.
+Piste retenue : borner la requete a une fenetre temporelle explicite plutot
+qu'a un nombre de lignes. Non execute a ce stade.
+
+**7. Regle**
+
+Confirme et complete l'ADR-052 amdt 4 : toute lecture susceptible de depasser
+5 000 lignes doit etre paginee. Un filtre restrictif (`ticker=eq.`,
+`company_id=eq.`) tient lieu de garantie equivalente si le sous-ensemble reste
+sous le seuil — le raisonnement doit alors etre explicite dans le code.
