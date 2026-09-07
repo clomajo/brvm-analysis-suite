@@ -538,3 +538,72 @@ l'ecart.** Le resultat du 04/09 est superseded.
    `abs(var) < 5` mecaniquement plus severe.
 5. `brvm_decisions_results` (production) est **inchangee**. Les deux tables
    coexistent pour comparaison.
+
+## PRE-ENREGISTREMENT — E4.0 : V1 par horizon, liquidite, secteur, double benchmark
+
+**Redige et commite AVANT tout calcul. 07/09/2026.**
+
+**Contexte.** La re-verification du 07/09 mesure V1 a J+20 : ACHAT 62,9 %
+(n=995), alpha cohorte **+1,18** ; SURVEILLER 51,0 % / −0,40 ; EVITER 47,0 % /
+−0,55. Ces valeurs sont **connues** au moment d'ecrire ce pre-enregistrement,
+d'ou la necessite de fixer les criteres maintenant.
+
+**Classe A** : lecture seule, aucune ecriture en base, aucune modification de
+`generate_decisions.py`. **Le gel ADR-001 n'est pas rouvert** — mesurer un
+modele n'est pas le modifier.
+
+### Ce qui est mesure
+
+Hit rate et alpha moyen par categorie de signal (ACHAT / SURVEILLER / EVITER),
+croises avec :
+
+- **horizon** : J+10, J+15, J+20, J+30, J+45, J+60 (jours calendaires, comme
+  ADR-019)
+- **liquidite** : `liquidity_tier` de `brvm_decisions`
+- **secteur** : `SECTOR_MAP` de `generate_decisions.py` — ne couvre que FINANCE
+  et AGRO, tout le reste tombe dans OTHER. **Limite reconnue d'avance** :
+  l'analyse sectorielle sera grossiere.
+
+### Deux benchmarks, calcules cote a cote
+
+- `alpha_cohorte` : variation moins la moyenne des variations des signaux
+  verifies le meme jour. **Reference** — c'est la definition du +1,18 a battre.
+- `alpha_brvmc` : variation moins la variation de l'indice BRVM Composite
+  (`company_id` 48) sur la meme fenetre, meme tolerance +/-5 jours.
+
+**Engagement : les deux sont rapportes systematiquement.** On ne retient pas
+apres coup celui qui flatte. Si `alpha_brvmc` est moins bon, il est publie tel
+quel. BRVMC porte 137 dates pour 108 seances reelles (indices preserves mais non
+corriges par la bascule) : **il est borne aux seances BOC**, comme les signaux.
+
+### Criteres, fixes avant lecture
+
+**Un horizon est declare meilleur que J+20 si les DEUX conditions tiennent :**
+
+1. alpha cohorte moyen sur ACHAT **> +1,18**
+2. hierarchie **ACHAT > SURVEILLER > EVITER** monotone sur le hit rate **et**
+   sur l'alpha cohorte
+
+Une seule des deux ne suffit pas.
+
+**Effectif minimal : 100 observations par cellule.** En dessous, le resultat est
+affiche mais **non interpretable** et ne peut fonder aucune conclusion. Avec
+6 horizons x 3 categories x 3 tiers, des dizaines de cellules seront produites :
+certaines paraitront spectaculaires par pur hasard. Ce seuil est fixe **avant**
+d'avoir vu un seul chiffre.
+
+**Un seul run.** Resultat pris tel quel, sans ajustement posterieur. Si un
+defaut technique impose un second run, il est documente et le premier resultat
+conserve.
+
+### Reserve connue
+
+Les horizons longs reduisent l'echantillon : les donnees s'arretent au 04/09,
+donc a J+60 seuls les signaux anterieurs au 06/07 ont un prix de verification.
+Une baisse de n a horizon croissant est **attendue** et n'est pas un resultat.
+
+### Ce qui n'est PAS l'objet
+
+Aucune modification de V1. Aucune recalibration du kill-switch. Aucun changement
+de benchmark en production. Ce sont des chantiers distincts, subordonnes a ce
+que cette mesure revelera.
