@@ -607,3 +607,89 @@ Une baisse de n a horizon croissant est **attendue** et n'est pas un resultat.
 Aucune modification de V1. Aucune recalibration du kill-switch. Aucun changement
 de benchmark en production. Ce sont des chantiers distincts, subordonnes a ce
 que cette mesure revelera.
+
+## RESULTATS E4.0 — 07/09/2026
+
+Un seul run, conformement au pre-enregistrement (`5305af4`). Resultats pris tels
+quels. `tools/experiments/E4_0/run_e4_0.py`, sortie JSON dans le meme dossier.
+
+**Note methodologique :** ce run borne les prix aux seances BOC, ce que la
+re-verification du matin ne faisait pas. D'ou un leger ecart a J+20 (alpha ACHAT
++1,14 sur n=985 ici, contre +1,18 sur n=995 ce matin). Le seuil pre-enregistre
+de +1,18 provient donc d'une mesure de methode legerement differente. Signale,
+non corrige.
+
+### Par horizon (categorie ACHAT)
+
+| Horizon | n | Hit rate | Variation | Alpha cohorte | Alpha BRVMC |
+|---|---|---|---|---|---|
+| J+10 | 1 100 | 58,8 % | +2,81 | +0,63 | +0,28 |
+| J+15 | 1 033 | 60,5 % | +4,11 | +0,86 | +0,41 |
+| J+20 | 985 | 63,0 % | +5,30 | +1,14 | +0,65 |
+| J+30 | 820 | 66,5 % | +7,71 | **+1,64** | +1,72 |
+| J+45 | 784 | 70,9 % | +11,52 | +1,69 | +1,72 |
+| J+60 | 675 | 80,0 % | +15,61 | **+1,83** | +1,42 |
+
+**Critere pre-enregistre rempli a J+30 et J+60** (alpha ACHAT > +1,18 ET
+hierarchie monotone sur hit rate et alpha). J+45 echoue : EVITER y remonte a
++0,04, la monotonie de l'alpha est rompue.
+
+Le signal se renforce avec l'horizon, de facon reguliere. EVITER descend
+symetriquement de 40,5 % a 21,7 %. Coherent avec le resultat anterieur a J+90
+(81,8 %, n=132).
+
+**Reserve :** un hit rate croissant avec l'horizon est en partie mecanique en
+marche haussier. L'alpha, qui neutralise la tendance, monte aussi mais plus
+modestement (+1,14 -> +1,83). C'est lui qui fait foi.
+
+**Reserve d'echantillon :** a J+60, les 675 observations sont les signaux les
+plus anciens (J+60 anterieur au 04/09), donc une periode particuliere. Meme
+biais que celui deja documente sur J+90.
+
+### Par liquidite (J+20) — resultat le plus saillant
+
+| Cle | n | Hit rate | Alpha cohorte | Alpha BRVMC |
+|---|---|---|---|---|
+| ACHAT / **liquid** | 629 | 65,0 % | **+2,68** | +2,17 |
+| ACHAT / **prestige** | 356 | 59,6 % | **−1,58** | −2,02 |
+| SURVEILLER / liquid | 870 | 47,1 % | +0,73 | +0,63 |
+| SURVEILLER / illiquid | 916 | 49,9 % | −1,35 | −1,65 |
+| SURVEILLER / prestige | 500 | 59,0 % | −0,67 | −0,80 |
+| EVITER / liquid | 239 | 40,2 % | −1,22 | −1,26 |
+| EVITER / illiquid | 111 | 25,2 % | +0,91 | +1,17 |
+| EVITER / prestige | 92 | 29,3 % | +0,03 | −0,04 (n<100) |
+
+**V1 genere de l'alpha sur les titres liquides et en detruit sur les prestige.**
+Les 356 signaux ACHAT prestige sous-performent la cohorte de 1,58 pt. Le +1,14
+global masque deux populations de signe oppose.
+
+C'est le resultat le plus actionnable du run — davantage que le choix
+d'horizon. Un filtre excluant les ACHAT prestige modifierait toutefois V1 :
+**necessiterait de rouvrir le gel ADR-001 par un ADR explicite**, et un
+pre-enregistrement propre.
+
+### Par secteur (J+20)
+
+ACHAT : AGRO +1,56 (n=93, **non interpretable**), FINANCE +1,24 (n=364),
+OTHER +1,00 (n=528). Ecarts faibles et `SECTOR_MAP` ne couvrant que deux
+secteurs, l'analyse sectorielle n'est pas concluante — limite annoncee dans le
+pre-enregistrement.
+
+Cellules sous le seuil de 100 affichees mais **non interpretables** :
+EVITER/AGRO (n=40, alpha +5,66 — typiquement le genre d'aberration que le seuil
+d'effectif existe pour neutraliser), EVITER/FINANCE (n=90), EVITER/prestige
+(n=92), ACHAT/AGRO (n=93).
+
+### Double benchmark
+
+Les deux alphas sont rapportes comme engage. Ils concordent sur le sens partout.
+`alpha_brvmc` est plus severe aux horizons courts (+0,28 vs +0,63 a J+10) et
+converge a partir de J+30 (+1,72 vs +1,64). Le choix du benchmark ne change
+aucune conclusion de ce run.
+
+### Ce que ce run ne dit pas
+
+Rien sur la regle de sortie. L'horizon est ici une **fenetre de mesure**, pas une
+recommandation de duree de detention. Determiner quand sortir d'une position
+(seuil, trailing stop, duree maximale, differenciation par tier de liquidite)
+est un sujet distinct, et probablement le plus manquant du produit aujourd'hui.
