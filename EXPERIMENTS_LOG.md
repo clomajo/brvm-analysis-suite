@@ -473,3 +473,68 @@ mais elle s'inscrit dans une dégradation d'ensemble.
 **Limite bloquante :** ces tests mesurent un hit rate absolu, sans comparateur de
 marché. `alpha` est NULL avant le 28/07 (ADR-039, backfill jamais exécuté). Rejouer
 la série sur l'alpha est le préalable à toute interprétation.
+
+## 07/09/2026 — Re-verification V1 sur prix corriges (ADR-052 amdt 6)
+
+**Objet.** Mesurer V1 sur donnees exactes. Les signaux emis ne sont pas
+modifies (modele stable du 09/04 au 04/09, gel ADR-001 jamais rouvert) ; seule
+la verification est refaite, le defaut de datation ayant fausse la mesure et non
+l'emission.
+
+**Methode.** `tools/reverify_decisions.py`. Logique de calcul recopiee a
+l'identique de `verify_decisions.py` : fenetre J+20 en **jours calendaires**
+(ADR-019), tolerance +/-5 jours pour trouver un prix, memes regles de
+`signal_correct`, `benchmark_return` = moyenne des `variation_pct` de la cohorte
+du jour. Trois differences documentees : boucle sur toutes les dates,
+`verification_date` derivee de `signal_date` (+20j) et non de `date.today()`,
+ecriture dans `brvm_decisions_results_v2` (production intacte).
+
+**Perimetre.** 6 439 decisions dans la fenetre 09/04 -> 04/09. Ecartees :
+2 256 lignes sur **48 dates de signal sans seance BOC reelle** (dates fabriquees
+par le defaut de datation, signaux douteux a l'emission) ; 423 sans prix de
+verification (signaux posterieurs au 20/08, J+20 hors donnees).
+**Retenu : 3 760 lignes sur 80 dates, 09/04 -> 20/08.**
+
+**Un seul run.** Le premier passage utilisait par erreur l'ensemble des dates
+d'`historical_data` comme reference de seance ; corrige pour `boc_cote`. Le
+resultat ci-dessous est celui du run corrige, pris tel quel, sans ajustement
+posterieur.
+
+**Resultat.**
+
+| Signal | n | Hit rate | Variation moy. | Alpha moy. |
+|---|---|---|---|---|
+| ACHAT | 995 | **62,9 %** | +5,29 % | **+1,18** |
+| SURVEILLER | 2 310 | 51,0 % | +3,57 % | −0,40 |
+| EVITER | 455 | 47,0 % | +2,91 % | −0,55 |
+
+Global : 2 018/3 760 = 53,7 %.
+
+**Lecture.** Hierarchie monotone sur les trois colonnes. L'alpha, mesure contre
+la cohorte du meme jour, neutralise la tendance de marche : ACHAT surperforme
+les autres signaux V1 du meme jour de **+1,18 pt sur 20 jours calendaires**.
+**V1 discrimine.**
+
+**Ce que la correction des donnees a revele.** Le recalcul du 04/09 sur prix BOC
+donnait ~63 % pour les trois categories (ACHAT 63,3 %, SURVEILLER 62,9 %,
+EVITER 64,3 %) et concluait a une absence de discrimination. Ici ACHAT reste a
+62,9 % mais SURVEILLER et EVITER s'effondrent. **Ce n'est pas V1 qui s'ameliore
+— c'est le bruit de datation qui gonflait les deux categories basses et masquait
+l'ecart.** Le resultat du 04/09 est superseded.
+
+**Reserves.**
+
+1. `benchmark_return` reste **auto-referentiel** (ADR-035) : moyenne des tickers
+   verifies ce jour-la, pas le BRVM Composite. L'alpha mesure « ACHAT contre les
+   autres signaux V1 du meme jour », pas « contre le marche ». Comparaison
+   pertinente pour un modele de selection, mais a nommer correctement.
+2. EVITER monte de **+2,91 %** en moyenne : le marche etait haussier, EVITER
+   identifie les moins bons, pas les baissiers.
+3. La tolerance +/-5 jours peut retenir un prix jusqu'a 5 jours **apres** la date
+   de signal — fuite d'information future faible mais reelle. Conservee telle
+   quelle pour ne pas modifier la methode de mesure en cours de route.
+4. Hit rate global 53,7 % **non comparable** aux 65,6 % anterieurs : composition
+   d'echantillon differente, SURVEILLER dominant (2 310/3 760) avec sa regle
+   `abs(var) < 5` mecaniquement plus severe.
+5. `brvm_decisions_results` (production) est **inchangee**. Les deux tables
+   coexistent pour comparaison.

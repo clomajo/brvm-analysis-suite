@@ -646,3 +646,16 @@ modele) ; ~33 dates de decision sans seance reelle ecartees de la mesure.
 
 Evite : copie de script, bornage de requetes, probleme des fondamentaux non
 historises, risque d'upsert sur la production.
+
+## 07/09/2026 — Re-verification executee (ADR-052 amdt 6)
+
+`tools/reverify_decisions.py` -> `brvm_decisions_results_v2` (3 760 lignes,
+80 dates, 09/04 -> 20/08). `brvm_decisions_results` intacte, sauvegardee au
+prealable (sha `4ab935d6...`, 4 075 lignes, copie Drive verifiee).
+
+Resultat : ACHAT 62,9 % / alpha +1,18 ; SURVEILLER 51,0 % / −0,40 ;
+EVITER 47,0 % / −0,55. Hierarchie monotone, **V1 discrimine**.
+
+Le resultat du 04/09 (~63 % pour les trois categories, conclusion « aucune
+discrimination ») est **superseded** : il etait produit par le bruit de datation.
+Detail et reserves dans `EXPERIMENTS_LOG.md`.
