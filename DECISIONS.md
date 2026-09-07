@@ -2442,3 +2442,67 @@ Les signaux du 26/03 au 04/09 ont ete generes sur les donnees fausses, et
 
 Recommandation : la seconde. Elle est plus honnete et preserve la distinction
 entre validation historique et suivi en temps reel. A trancher explicitement.
+
+### ADR-052 — Amendement 4 du 07/09/2026 : correction des comptages de l'amendement 3
+
+**Mesure realisee, lecture seule. Rien n'a ete modifie.**
+
+**1. Anomalie constatee**
+
+Le pre-vol de la bascule (section 5) a donne des comptages `historical_data`
+inferieurs a ceux de l'amendement 3, sur une plage pourtant bornee au 04/09 :
+
+| | amdt 3 | live 07/09 |
+|---|---|---|
+| indices (`company_id` 48/49) | 281 | **275** |
+| actions | 7 549 | **7 471** |
+
+Sur une plage figee dans le passe, un comptage ne peut pas diminuer sans
+suppression. Deux hypotheses : suppression entre le 04 et le 07 (H2), ou mesure
+de l'amendement 3 erronee (H1).
+
+**2. H2 ecartee**
+
+`tools/diag_ecart_84.py` compare l'export de sauvegarde du 07/09
+(sha256 `5f2d6786...`) a l'etat live : 7 746 lignes des deux cotes, aucun `id`
+disparu, aucun `id` apparu. **La base n'a pas bougé.**
+
+**3. H1 confirmee — cause : plafond PostgREST**
+
+PostgREST plafonne toute reponse a **5 000 lignes**. Un en-tete `Range` plus
+large ne le contourne pas : la reponse est tronquee **silencieusement**, sans
+erreur ni indication. Les comptages de l'amendement 3 ont ete produits par
+`len()` sur des `select` non pagines et sont donc faux par sous-estimation.
+
+**4. Ce qui reste valide dans l'amendement 3**
+
+Verification par requetes paginees : les valeurs suivantes sont **exactes** et
+confirmees.
+
+- `boc_cote` hors droits : **5 076** (`count=exact` == lignes rapatriees)
+- **108 seances**, 26/03 -> 04/09, **aucune en week-end**
+- 2 seances BOC absentes d'`historical_data` : **03/06 et 23/07**
+- 27 lignes SAFCA, toutes `est_droit=true` ; 3 lignes `non_cote`, toutes UNLC
+
+Ecart mineur non corrige : les dates HD en semaine sans seance BOC sont **9**,
+non 11. Sans consequence, ces lignes sont supprimees par la bascule.
+
+**5. Cible corrigee de l'etape 4 (section 5)**
+
+> **5 076 lignes actions + 275 lignes d'indices = 5 351 lignes** sur la periode.
+
+La cible de 5 357 annoncee a l'amendement 3 est **caduque**. Vérifier contre
+elle conduirait a conclure a tort a un echec de la bascule.
+
+Note : l'asymetrie des indices (BRVMC 137 dates, BRVM30 138 — BRVM30 a une ligne
+au 01/04 que BRVMC n'a pas) est reelle, hors perimetre de la bascule, conservee
+en l'etat.
+
+**6. Regle generale**
+
+Tout comptage sur Supabase se fait par `Prefer: count=exact` ou par requete
+**paginee** avec verification que le nombre de lignes rapatriees egale le count.
+Ne jamais compter par `len()` sur un `select` brut : au-dela de 5 000 lignes le
+resultat est faux sans le signaler. Cette regle s'ajoute au pattern de
+decouverte de schema (`GET ...?select=*&limit=1` avant toute requete
+fonctionnelle).
