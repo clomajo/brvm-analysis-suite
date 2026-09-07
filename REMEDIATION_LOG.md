@@ -538,3 +538,18 @@ Etape 1 close. Le DELETE (etape 2) reste bloque : ecart non explique entre les
 comptages de l'amendement 3 (281 indices / 7 549 actions) et les comptages live
 du 07/09 (275 / 7 471), soit 84 lignes. Sur une plage bornee dans le passe, ce
 nombre ne devrait pas diminuer. A instruire avant toute ecriture.
+
+## 07/09/2026 — Ecart de 84 lignes : elucide (ADR-052 amdt 4)
+
+`tools/diag_ecart_84.py`, lecture seule. La base n'a pas bougé depuis l'export
+(7 746 lignes de part et d'autre, aucun `id` disparu). L'ecart provient des
+comptages de l'amendement 3, produits par `len()` sur des `select` non pagines
+et tronques silencieusement au plafond PostgREST de 5 000 lignes.
+
+Cible de l'etape 4 corrigee : **5 076 + 275 = 5 351** lignes (et non 5 357).
+
+Valide par requetes paginees : 5 076 lignes hors droits, 108 seances sans
+week-end, 2 seances BOC manquantes (03/06, 23/07) — l'amendement 3 avait raison
+sur ces points.
+
+Blocage leve. Etapes 2 a 4 de la section 5 ouvrables.
