@@ -580,3 +580,19 @@ INCLUDING ALL)` — types, contraintes, index et sequences identiques.
 - comparaison champ par champ sur les 10 colonnes : identique
 
 **Le backup est rejouable a l'identique.** Table de test supprimee.
+
+## 07/09/2026 — Section 6 tranchee : reconstitution (ADR-052 amdt 5)
+
+La recommandation de l'amendement 3 (marquer la periode non fiable, repartir du
+05/09) est ecartee. Elle confondait optimisation a posteriori et reconstitution
+a modele fige : `generate_decisions.py` ne lit que le passe a la date de
+decision, rejouer avec les vrais prix n'injecte aucune information future.
+
+Decision : les signaux du 26/03 au 04/09 sont **regeneres** sur donnees
+corrigees, sous quatre conditions contraignantes — modele strictement fige, un
+seul run, etiquetage distinct des signaux reconstitues, refonte V1 en chantier
+separe avec seuils pre-enregistres.
+
+Ordre : bascule, puis reconstitution, puis refonte V1 (segmentation par
+horizon), puis agent IA — ce dernier subordonne a la reparation prealable de la
+chaine Mistral, inerte de bout en bout.

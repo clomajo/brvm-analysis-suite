@@ -2586,3 +2586,82 @@ Confirme et complete l'ADR-052 amdt 4 : toute lecture susceptible de depasser
 5 000 lignes doit etre paginee. Un filtre restrictif (`ticker=eq.`,
 `company_id=eq.`) tient lieu de garantie equivalente si le sous-ensemble reste
 sous le seuil — le raisonnement doit alors etre explicite dans le code.
+
+### ADR-052 — Amendement 5 du 07/09/2026 : reconstitution des signaux, decision de la section 6
+
+**Revient sur la recommandation de la section 6 de l'amendement 3.**
+
+**1. Ce que recommandait l'amendement 3**
+
+Marquer la periode 26/03 -> 04/09 comme non fiable et repartir du 05/09, au
+motif que recalculer les signaux sur donnees corrigees produirait du backtest et
+contaminerait le forward test.
+
+**2. Pourquoi cette recommandation est erronee**
+
+Elle confond deux operations distinctes.
+
+La contamination par backtest survient quand des **parametres sont choisis en
+connaissant les resultats** : seuils ajustes, univers filtre, horizons
+selectionnes apres coup. Le modele est alors optimise sur sa propre reponse.
+
+Rejouer `generate_decisions.py` a modele inchange n'est pas cela.
+Le script ne lit que les donnees anterieures a la date de decision : rejouer le
+15/04 avec les vrais prix jusqu'au 15/04 reproduit le signal que le modele
+**aurait emis** si le pipeline avait fonctionne. Aucune information posterieure
+n'entre dans le signal. C'est une **reconstitution**, pas une optimisation.
+
+Le defaut corrige etait une erreur d'infrastructure (datation), pas une erreur
+de modele. Jeter la periode reviendrait a perdre 5 mois de couverture pour un
+motif methodologique qui ne s'applique pas.
+
+**3. Decision : reconstitution**
+
+Les signaux du 26/03 au 04/09 sont **regeneres** sur donnees corrigees, puis
+reverifies.
+
+**4. Conditions de non-contamination — contraignantes**
+
+La reconstitution n'est valide que si les quatre conditions suivantes sont
+tenues. Elles sont la raison d'etre de cette decision ; les relacher ramene le
+risque que l'amendement 3 voulait eviter.
+
+1. **Modele strictement fige.** Le code de `generate_decisions.py` et les
+   parametres de `config/params.py` sont inchanges entre la version qui a tourne
+   en production et celle qui rejoue. Verification par `git diff` avant le run.
+2. **Un seul run.** Pas d'iteration. Regarder les resultats puis ajuster puis
+   rejouer detruit la validite. Si un defaut technique impose un second run, il
+   est documente et le premier resultat est conserve.
+3. **Etiquetage distinct.** Les signaux reconstitues portent une marque les
+   separant des signaux emis en temps reel. Les deux populations ne sont jamais
+   agregees sans mention explicite.
+4. **Refonte V1 en chantier separe.** Toute modification du modele
+   (segmentation par horizon J+15/J+30/J+45, seuils, univers) se fait **apres**
+   la reconstitution, avec pre-enregistrement des seuils avant lecture des
+   resultats. Reconstituer et refondre dans la meme passe invaliderait les deux.
+
+**5. Ce que la reconstitution rend exploitable**
+
+- 5 mois de couverture de signaux sur donnees exactes
+- la base statistique manquante pour la segmentation par horizon ; en
+  particulier la reserve sur J+90 (n=132, echantillon limite aux signaux
+  d'avril-mai, confondu possible avec la tendance generale du marche)
+- une comparaison directe signaux sur donnees fausses / signaux sur donnees
+  exactes, qui mesure le cout reel du defaut de datation
+
+**6. Ordre d'execution**
+
+1. bascule `historical_data` (section 5, etapes 2 a 4)
+2. reconstitution des signaux, modele fige, un seul run
+3. refonte V1 (segmentation par horizon), seuils pre-enregistres
+4. agent IA — subordonne a la reparation prealable de la chaine Mistral
+   (`extract_fundamental_signals.py` absent de tout workflow,
+   `signal_fondamental` fige a 46 lignes datees du 30/04, chaine inerte de bout
+   en bout). Reparer et mesurer avant de construire par-dessus : le schema
+   V2/V3/GRU — mise en production sans cadre de validation — ne se repete pas.
+
+**7. Portee**
+
+Cet amendement remplace la recommandation de la section 6 de l'amendement 3.
+Le reste de l'amendement 3 est inchange, sous reserve des corrections de
+comptage de l'amendement 4.
