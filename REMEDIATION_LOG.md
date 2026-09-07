@@ -521,3 +521,20 @@ Diagnostic débloqué par un log du corps de réponse avant `raise_for_status()`
 ### Effet de bord
 
 Le push du correctif cron a été refusé : le PAT en service (`BRVM_5`) porte le scope `repo` mais pas `workflow`, requis pour tout commit touchant `.github/workflows/`. Les deux jetons disposant de `workflow` (`BRVM`, `BRVM_4`) étaient expirés depuis avril et juillet — expiration silencieuse, jamais détectée. Nouveau jeton créé avec `repo` + `workflow`.
+
+## 07/09/2026 — ADR-052 amdt 3, section 5, etape 1 : export de sauvegarde
+
+Export prealable de `historical_data` sur la plage de bascule 26/03 -> 04/09/2026.
+Script : `tools/export_historical_backup.py` (commit 86096e1) — lecture seule,
+pagination 1000, controle `count=exact` et relecture disque.
+
+- 7 746 lignes : 7 471 actions + 275 indices (`company_id` 48/49)
+- 161 dates distinctes, 26/03/2026 -> 04/09/2026
+- sha256 `5f2d6786e9163cb481a48cda8fa102559530c8475110aa75fd5e8d2f18de00d6`
+- 1,88 Mo — `backups/` (ignore par git, .gitignore:136), copie Google Drive
+  verifiee par re-telechargement et comparaison d'empreinte
+
+Etape 1 close. Le DELETE (etape 2) reste bloque : ecart non explique entre les
+comptages de l'amendement 3 (281 indices / 7 549 actions) et les comptages live
+du 07/09 (275 / 7 471), soit 84 lignes. Sur une plage bornee dans le passe, ce
+nombre ne devrait pas diminuer. A instruire avant toute ecriture.
