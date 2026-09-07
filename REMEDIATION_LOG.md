@@ -624,3 +624,25 @@ dates dans `boc_cote` ; seul le controle croise des volumes n'y est pas
 applicable. A backlogger.
 
 Prochaine etape : reconstitution des signaux (amdt 5), modele fige, un seul run.
+
+## 07/09/2026 — Re-verification retenue, reconstitution abandonnee (ADR-052 amdt 6)
+
+L'amendement 5 est corrige. Deux faits etablis a l'examen du code et de l'historique :
+
+- dernier changement reel de `generate_decisions.py` : `dd29674` du 08/04.
+  `3734681` (16/07) ne touche que `config/params.py` — verifie par
+  `git show 3734681 -- generate_decisions.py`, sortie vide. Gel ADR-001 jamais
+  rouvert. **Modele stable du 09/04 au 04/09.**
+- le champ `signal` de V1 ne depend que des prix et volumes. Le defaut de
+  datation a fausse la **mesure** (`verify_decisions.py`), pas l'emission.
+
+Les signaux emis sont donc authentiques. Les reconstituer les remplacerait par
+des signaux simules et detruirait cinq mois de forward test reel.
+
+**Decision : signaux conserves, seule `brvm_decisions_results` est recalculee.**
+
+Perimetre : fenetre valide 09/04 -> 04/09 ; 03/04-08/04 a part (4 changements de
+modele) ; ~33 dates de decision sans seance reelle ecartees de la mesure.
+
+Evite : copie de script, bornage de requetes, probleme des fondamentaux non
+historises, risque d'upsert sur la production.

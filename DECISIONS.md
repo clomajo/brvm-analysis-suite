@@ -2665,3 +2665,73 @@ risque que l'amendement 3 voulait eviter.
 Cet amendement remplace la recommandation de la section 6 de l'amendement 3.
 Le reste de l'amendement 3 est inchange, sous reserve des corrections de
 comptage de l'amendement 4.
+
+### ADR-052 — Amendement 6 du 07/09/2026 : re-verification plutot que reconstitution
+
+**Corrige l'amendement 5. Aucune ecriture a ce stade.**
+
+**1. Ce que retenait l'amendement 5**
+
+Regenerer les signaux du 26/03 au 04/09 sur donnees corrigees, a modele fige.
+
+**2. Pourquoi c'est la mauvaise reponse**
+
+L'examen du code et de l'historique git etablit deux faits que l'amendement 5
+n'avait pas pris en compte.
+
+**a) Les signaux emis sont authentiques et le modele est stable.**
+Dernier changement reel de `generate_decisions.py` : `dd29674` du **08/04**.
+Le commit `3734681` du 16/07 ne touche que `config/params.py` — verifie par
+`git show 3734681 -- generate_decisions.py`, qui ne retourne rien. L'ADR-001
+gelait le modele jusqu'au 01/07 ; ce gel **n'a jamais ete rouvert** (cf.
+DECISIONS.md l.2046). V1 n'a pas bouge du 09/04 au 04/09.
+
+Les signaux de cette fenetre sont donc ceux que V1 a reellement emis, en
+conditions de forward test, sous un modele stable pendant pres de cinq mois.
+
+**b) Le defaut portait sur les prix, donc sur la verification, pas sur
+l'emission.** Le champ `signal` de V1 ne depend que des prix et des volumes.
+`verify_decisions.py` a mesure ces signaux contre des prix mal dates : c'est la
+**mesure** qui est fausse, pas le signal.
+
+**3. Consequence**
+
+Reconstituer remplacerait des signaux **authentiques** par des signaux
+**simules**. Cela detruirait la valeur de cinq mois de discipline de gel et
+transformerait un forward test reel en simulation retrospective.
+
+**Decision : les signaux emis sont conserves en l'etat. Seule
+`brvm_decisions_results` est recalculee sur les prix corriges.**
+
+**4. Perimetre**
+
+- **Fenetre valide : 09/04 -> 04/09/2026.** Modele stable, signaux
+  authentiques.
+- **03/04 -> 08/04** : quatre changements de modele (`1f14655`, `c6a4fc7`,
+  `4ffd0eb`, `5807ea7`, `dd29674`). Traites a part ou exclus. Volume faible.
+- **~33 dates de decision sans seance reelle** (141 dates de `brvm_decisions`
+  pour 108 seances BOC) : signaux emis sur prix mal dates, **douteux a
+  l'emission**. Ecartes de la mesure, non verifies comme les autres.
+
+**5. Ce que cela evite**
+
+Aucune copie de `generate_decisions.py`, aucun bornage de requete, aucune
+question de fondamentaux non historises (`company_fundamentals` n'a pas de
+version datee, ce qui rendait toute reconstitution du volet fondamental
+impossible), aucun risque d'`upsert` sur la table de production.
+
+**6. Ce qui reste vrai de l'amendement 5**
+
+L'analyse methodologique — rejouer a modele fige n'est pas du backtest
+contaminant — reste correcte. Elle ne s'applique simplement pas ici : la
+reconstitution est **inutile**, les signaux authentiques existant deja.
+
+La condition sur la refonte V1 (segmentation par horizon J+15/J+30/J+45) est
+**maintenue et renforcee** : elle se fait apres la re-verification, avec
+pre-enregistrement des seuils avant lecture des resultats. Le gel ADR-001 n'a
+jamais ete rouvert ; toute modification de V1 doit l'etre explicitement.
+
+**7. Portee**
+
+Remplace la decision de l'amendement 5. La section 6 de l'amendement 3 reste
+ecartee : la periode n'est pas abandonnee.
