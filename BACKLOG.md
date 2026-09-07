@@ -846,3 +846,53 @@ aux utilisateurs sur la majorité des tickers couverts.
 - **[P2] 2 seances BOC sans aucune ligne dans `historical_data`** : 03/06 et
   23/07. Le pipeline n'a rien ecrit ces jours-la — verifier les logs GitHub
   Actions si encore disponibles.
+
+---
+
+## 🔴 OUVERTS AU 07/09/2026 — suite du chantier ADR-052
+
+### CI-01 — Echecs silencieux de l'etape 1d (priorite haute)
+
+L'etape d'ingestion BOC cumule `continue-on-error: true` et `|| echo`. Tout
+echec y est invisible : le workflow s'affiche en vert quoi qu'il arrive. C'est
+ce qui a laisse l'echec du 15/07 non detecte pendant deux mois malgre une
+fenetre de rattrapage de 8 jours qui aurait du le reprendre.
+
+Le filet a une raison d'etre : une ingestion BOC en echec ne doit pas faire
+tomber la collecte des prix ni les decisions. Options a arbitrer — retirer le
+seul `|| echo` en gardant `continue-on-error` (etape rouge, pipeline poursuivi) ;
+ajouter un controle de completude en fin de pipeline ; echouer bruyamment
+au-dela d'un certain age de trou. **Decision de conception, pas correction
+mecanique.**
+
+### DATA-30 — Arbitrage `brvm_decisions_results` vs `_v2` (priorite haute)
+
+Deux tables coexistent. Le frontend lit `brvm_decisions_results`, dont les
+mesures sont faites sur les prix mal dates (~63 % partout, sans discrimination).
+`brvm_decisions_results_v2` porte les mesures correctes (62,9 / 51,0 / 47,0).
+**Tant que ce n'est pas tranche, le site affiche des chiffres faux.**
+
+### MODEL-10 — Refonte V1 par horizon J+15/J+30/J+45
+
+La re-verification fournit le socle statistique qui manquait (3 760
+observations, hierarchie monotone, alpha +1,18 sur ACHAT).
+
+**Deux conditions imperatives.** Le gel ADR-001 doit etre **rouvert
+explicitement** par un ADR — il est expire mais n'a jamais ete leve. Et les
+seuils doivent etre **pre-enregistres avant** toute lecture des resultats par
+horizon : les chiffres a J+20 sont desormais connus, c'est exactement la
+situation ou l'ajustement a posteriori guette.
+
+### DATA-31 — `calculate_target_price.py`, defaut de pagination latent
+
+`fetch_prix_actuels()` lit 115 347 lignes sans pagination. Correct aujourd'hui
+grace au tri `trade_date.desc` (les 5 000 lignes recues sont les plus recentes),
+mais un ticker absent des ~106 dernieres seances sortirait **silencieusement**
+du dictionnaire de prix. UNLC est le profil a risque. Classe B.
+
+### CHORE-05 — ~50 fichiers untracked
+
+Surtout des `.bak_*` de documentation (8 versions de `BACKLOG.md`, 6 de
+`DECISIONS.md`) et des scripts de verification ponctuels. Le cout n'est pas la
+place mais le bruit : un `git status` a 50 lignes masque le fichier qui compte —
+ce qui a coute deux commits incomplets le 07/09.

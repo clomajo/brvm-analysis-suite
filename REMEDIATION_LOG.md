@@ -703,3 +703,70 @@ echec y est invisible dans le statut du workflow. C'est probablement ce qui a
 laisse l'echec du 15/07 non detecte pendant deux mois, malgre une fenetre de
 rattrapage qui aurait du le reprendre. A traiter separement — retirer le filet
 merite sa propre decision.
+
+---
+
+# SYNTHESE DE SESSION — 07/09/2026
+
+14 commits sur `remediation-2026-07` (`86096e1` -> `7aa8dc1`), plus le
+cherry-pick `123b1a6` sur `main`.
+
+## Ce qui a ete fait
+
+**1. Bascule `historical_data` executee** (`b12942c`). Cinq mois de prix mal
+dates (26/03 -> 04/09) remplaces par les cotes officielles du BOC. Seule etape
+irreversible du chantier. Resultat : 5 076 actions + 275 indices = 5 351 lignes,
+table 115 347 -> 112 952, 108 seances, aucune en week-end, volumes conformes.
+
+Filet en trois couches, toutes verifiees avant execution : export JSON
+(sha `5f2d6786...`, copie Drive validee par re-telechargement), **test de
+restauration reel** dans une table jetable (`c4ec727` — 7 746 lignes rejouees,
+ids et contenu identiques champ par champ), et bloc `DO $$` transactionnel avec
+controles en `ASSERT`. Aucune couche n'a servi ; c'est le resultat attendu.
+
+**2. Deux raisonnements corriges, avec effet direct sur le resultat.**
+
+- *Amendement 4* (`4f7e0cb`) : les comptages de l'amendement 3 etaient faux,
+  produits par `len()` sur des `select` non pagines tronques a 5 000 lignes.
+  Cible de bascule corrigee 5 357 -> **5 351**.
+- *Amendement 6* (`5c0eec5`) : la reconstitution des signaux retenue par
+  l'amendement 5 etait **inutile**. V1 est stable du 09/04 au 04/09 (dernier
+  changement `dd29674` du 08/04 ; gel ADR-001 jamais rouvert), donc les signaux
+  emis sont authentiques. Le defaut de datation avait fausse la **mesure**, pas
+  l'emission. Reconstituer aurait remplace cinq mois de forward test reel par
+  une simulation.
+
+**3. Audit du plafond PostgREST** (ADR-053, `72332ed`). **Aucune analyse passee
+invalidee.** Les quatre experiences dividendes (E2_6, E2_7A, E2_7B, E2_8)
+paginent correctement — E2.6, E2.7-A/B et T5c-A sont indemnes. Un seul defaut
+latent : `calculate_target_price.py`.
+
+**4. Re-verification V1 sur prix corriges** (`a7ff942`) — resultat principal de
+la journee.
+
+| Signal | n | Hit rate | Variation moy. | Alpha moy. |
+|---|---|---|---|---|
+| ACHAT | 995 | **62,9 %** | +5,29 % | **+1,18** |
+| SURVEILLER | 2 310 | 51,0 % | +3,57 % | −0,40 |
+| EVITER | 455 | 47,0 % | +2,91 % | −0,55 |
+
+Hierarchie monotone sur les trois colonnes. **V1 discrimine.** Le recalcul du
+04/09 (~63 % pour les trois categories, conclusion « aucune discrimination »)
+est superseded : cet aplatissement etait produit par le bruit de datation.
+
+**5. `boc_market_stats` completee et cause corrigee** (`dc374aa`, `d903437`).
+15/07 et 04/09 rattrapees, controle des volumes **108/108**. Cause du 04/09 :
+la fenetre d'ingestion se terminait a J-1, heritage du cron 06:00 non ajuste
+lors du passage a 18:00. Corrige et cherry-picke en production.
+
+## Enseignement transversal
+
+Trois erreurs de la journee partagent un motif : **une conclusion ecrite reprise
+sans etre reverifiee**. L'amendement 3 relayait des comptages tronques ;
+l'amendement 5 relayait une regle methodologique mal appliquee ; le commentaire
+du workflow decrivait un cron qui avait change trois jours plus tot. Dans les
+trois cas le document etait plausible et faux.
+
+## Points ouverts
+
+Voir `BACKLOG.md`, section priorite haute.
