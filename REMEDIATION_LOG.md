@@ -682,3 +682,24 @@ Le point ouvert laisse par la bascule est ferme.
 
 **Point ouvert :** `ingest_boc.py` n'a rien ecrit entre le 12/08 et le 07/09.
 Verifier sa presence dans le cron quotidien, sinon le trou se reformera.
+
+## 07/09/2026 — Cause du retard de boc_market_stats : fenetre d'ingestion a J-1
+
+L'etape 1d du workflow calculait `FIN=yesterday`, avec un commentaire datant du
+cron 06:00 UTC ou le bulletin du jour n'etait pas encore publie. Le cron est
+passe a 18:00 le 04/09 (ADR-052 amdt 2) mais la fenetre est restee inchangee :
+le bulletin du jour n'etait donc **jamais** ingere le jour meme, d'ou un retard
+permanent d'une seance de `boc_market_stats` sur `boc_cote`.
+
+C'est ce qui laissait le 04/09 sans ligne ACTIONS. Le 05 et le 06 etant un
+week-end et le cron valant `1-5`, le rattrapage n'a pas eu lieu avant le 07.
+
+Correctif : `FIN=$(date -u +%Y-%m-%d)`, commentaire reecrit. Fenetre de
+rattrapage de 8 jours inchangee. Commit `d903437`, cherry-pick sur `main` en
+`123b1a6` — le workflow planifie tourne sur `main`.
+
+**Point ouvert :** l'etape cumule `continue-on-error: true` et `|| echo`. Tout
+echec y est invisible dans le statut du workflow. C'est probablement ce qui a
+laisse l'echec du 15/07 non detecte pendant deux mois, malgre une fenetre de
+rattrapage qui aurait du le reprendre. A traiter separement — retirer le filet
+merite sa propre decision.
