@@ -567,3 +567,16 @@ Un defaut latent confirme : `calculate_target_price.py`, `fetch_prix_actuels()`
 lit 115 347 lignes sans pagination. Le tri `trade_date.desc` rend le resultat
 correct aujourd'hui, mais un ticker absent des ~106 dernieres seances
 disparaitrait silencieusement. Correctif classe B, non execute.
+
+## 07/09/2026 — Test de restauration du backup (prealable a la bascule)
+
+`tools/test_restauration.py`. Export du 07/09 reinjecte dans une table jetable
+`historical_data_restore_test` creee par `CREATE TABLE (LIKE historical_data
+INCLUDING ALL)` — types, contraintes, index et sequences identiques.
+`historical_data` n'a jamais ete visee.
+
+- 7 746 lignes reinserees, 16 lots, tous en 201
+- ids identiques a l'export, aucun conflit de sequence
+- comparaison champ par champ sur les 10 colonnes : identique
+
+**Le backup est rejouable a l'identique.** Table de test supprimee.
