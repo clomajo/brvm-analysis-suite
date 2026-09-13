@@ -2735,3 +2735,39 @@ jamais ete rouvert ; toute modification de V1 doit l'etre explicitement.
 
 Remplace la decision de l'amendement 5. La section 6 de l'amendement 3 reste
 ecartee : la periode n'est pas abandonnee.
+
+## ADR-054 — Bug d'accent sur la règle EVITER dans la vérification des signaux
+
+**Date** : 2026-09-13
+**Statut** : appliqué
+
+**Problème.** `verify_decisions.py:137` et `tools/reverify_decisions.py:119`
+testaient `signal in ("SELL", "VENTE", "VENDRE", "ÉVITER")` — avec É accentué.
+La base ne contient que `EVITER` sans accent (755 lignes dans `brvm_decisions`).
+La comparaison échouait toujours ; tous les EVITER tombaient dans la branche
+`else`, c'est-à-dire la règle SURVEILLER `abs(var) < 5` au lieu de `var < 0`.
+
+**Portée.** Le booléen `signal_correct` uniquement. `variation_pct`,
+`prix_signal`, `prix_verification` et `alpha` sont calculés avant le test et
+n'ont jamais été affectés. Le kill-switch lit `alpha`, donc n'est pas touché.
+La génération des signaux est en amont, donc intacte.
+
+**Correction.** Ajout de la variante sans accent dans les deux listes.
+Reprise des verdicts existants par `tools/fix_eviter_verdicts.py` (PATCH ciblé
+sur `signal_correct`, aucun autre champ modifié) : 198 lignes dans
+`brvm_decisions_results`, 199 dans `brvm_decisions_results_v2`.
+Backups CSV préalables dans `backups/`.
+
+**Hit rate EVITER avant → après** : 216/457 (47,3 %) → 162/457 (35,4 %) ;
+v2 : 214/455 (47,0 %) → 159/455 (34,9 %). ACHAT (63,0 %) et SURVEILLER
+(~51 %) inchangés, vérifiés comme critère d'acceptation.
+
+**Conséquence analytique.** EVITER réussit dans ~35 % des cas : les titres
+évités montent deux fois sur trois. Deux hypothèses non tranchées — défaut du
+modèle, ou effet d'un marché haussier (Composite +41,87 % en variation
+annuelle). À trancher par l'alpha sectoriel.
+
+**Leçon.** Le bug est resté invisible parce que le hit rate global agrège
+trois critères de succès différents. Toute métrique de performance doit être
+ventilée par signal ; `correct_global` (`verify_decisions.py:193`) ne doit pas
+être utilisé comme indicateur unique.

@@ -134,7 +134,7 @@ def verify_decisions():
         # 5. Signal correct ?
         if signal in ("BUY", "ACHAT", "ACHETER"):
             signal_correct = variation_pct > 0
-        elif signal in ("SELL", "VENTE", "VENDRE", "ÉVITER"):
+        elif signal in ("SELL", "VENTE", "VENDRE", "EVITER", "ÉVITER"):
             signal_correct = variation_pct < 0
         else:  # HOLD / CONSERVER / NEUTRE
             signal_correct = abs(variation_pct) < 5

@@ -116,7 +116,7 @@ def main():
         s = d["signal"]
         if s in ("BUY", "ACHAT", "ACHETER"):
             ok = var > 0
-        elif s in ("SELL", "VENTE", "VENDRE", "ÉVITER"):
+        elif s in ("SELL", "VENTE", "VENDRE", "EVITER", "ÉVITER"):
             ok = var < 0
         else:
             ok = abs(var) < 5
