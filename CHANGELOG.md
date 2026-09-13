@@ -7,6 +7,35 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-09-13
+
+### BUG — Règle EVITER jamais appliquée : liste de test accentuée (ADR-054)
+- **Repo:** brvm-analysis-suite / Supabase
+- **Commit:** `065ef00`
+- **Description:** `verify_decisions.py:137` et `tools/reverify_decisions.py:119`
+  testaient `signal in ("SELL", "VENTE", "VENDRE", "ÉVITER")` avec É accentué,
+  alors que la base ne contient que `EVITER` (755 lignes dans `brvm_decisions`).
+  La branche n'était jamais atteinte : tous les EVITER étaient évalués avec la
+  règle SURVEILLER `abs(var) < 5` au lieu de `var < 0`. Un EVITER sur un titre
+  chutant de 8 % était enregistré comme un échec ; un EVITER sur un titre montant
+  de 2 % comme une réussite.
+- **Portée:** `signal_correct` uniquement. `variation_pct`, `prix_signal`,
+  `prix_verification` et `alpha` sont calculés avant le test — jamais affectés.
+  Kill-switch (lit `alpha`) et génération des signaux (en amont) non touchés.
+- **Fix:** variante sans accent ajoutée dans les deux listes ; reprise des
+  verdicts via `tools/fix_eviter_verdicts.py` (PATCH ciblé, dry-run par défaut) —
+  198 lignes dans `brvm_decisions_results`, 199 dans `brvm_decisions_results_v2`.
+  Backups CSV préalables dans `backups/`.
+- **Mesures:** hit rate EVITER 216/457 (47,3 %) → 162/457 (35,4 %) ; v2
+  214/455 (47,0 %) → 159/455 (34,9 %). ACHAT 63,0 % et SURVEILLER ~51 %
+  inchangés — critère d'acceptation fixé avant recalcul.
+- **Leçon:** le bug était masqué par un hit rate global agrégeant trois critères
+  de succès distincts. Toute métrique de performance doit être ventilée par
+  signal ; `correct_global` (`verify_decisions.py:193`) ne doit pas servir
+  d'indicateur unique.
+
+---
+
 ## 2026-06-28
 
 ### FIX — Analyse fondamentale bloquée sur Q3 2025 : contrainte SQL parasite (ADR-019)

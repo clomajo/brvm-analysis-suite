@@ -12,6 +12,43 @@
 
 ---
 
+## 🔴 ACTIFS — ouverts le 2026-09-13 (session ADR-054)
+
+### Kill-switch V1 ne filtre pas sur `signal` — PRIORITÉ HAUTE
+`tools/killswitch_check.py` évalue l'alpha des 100 dernières lignes tous
+signaux confondus (~60 % SURVEILLER, ~12 % EVITER) alors qu'il est censé
+protéger les achats V1. Un EVITER réussi produit un alpha négatif et pousse
+vers le déclenchement. Correctif : `.eq("signal", "ACHAT")` — modifie le seuil
+calibré le 28/07/2026, donc nouvel ADR requis.
+
+### `tools/reverify_decisions.py` non rejouable
+POST avec `Prefer: return=minimal` sans `resolution=merge-duplicates` : échoue
+en 409 sur les `decision_id` existants (constaté 13/09). Corriger avant toute
+réexécution.
+
+### Divergence de benchmark entre les deux scripts de vérification
+`verify_decisions.py` calcule un benchmark unique par lot du jour ;
+`reverify_decisions.py` un benchmark par date de signal (plus correct). Les
+deux tables ne sont pas comparables ligne à ligne. Décision à prendre — elle
+modifie `alpha`, donc la métrique du kill-switch.
+
+### `data_completeness` décoratif
+'High' sur les 6 854 lignes de `brvm_decisions` : valeur DEFAULT jamais écrite
+par le pipeline. Devait qualifier les tickers ajoutés par `dd29674`.
+
+### `verify_decisions.py:193` sans pagination
+`select("signal_correct")` sur une table de 3 854 lignes — sous le plafond
+PostgREST de 5 000 aujourd'hui, cassera silencieusement en grandissant
+(cf. ADR-053).
+
+### Lire ADR-051 avant la session sectorielle
+Travail V1 par secteur déjà existant (écart structurel Industriels,
+dégradation temporelle). Vérifier ce qui est déjà couvert. Voir aussi
+`tools/experiments/V1_SECTEURS/hit_rate_par_secteur.py` et
+`tools/diagnostic_concentration_sectorielle.py`.
+
+---
+
 ## 🟢 COMPLÉTÉS — 2026-06-25
 
 ### ✅ ADR-017 — Doublon Fair Value FinancialAnalysis.jsx corrigé
