@@ -693,3 +693,61 @@ Rien sur la regle de sortie. L'horizon est ici une **fenetre de mesure**, pas un
 recommandation de duree de detention. Determiner quand sortir d'une position
 (seuil, trailing stop, duree maximale, differenciation par tier de liquidite)
 est un sujet distinct, et probablement le plus manquant du produit aujourd'hui.
+
+## PRE-ENREGISTREMENT — E4.1 : volet sectoriel d'E4.0 avec mapping complet
+
+**Redige et commite AVANT tout calcul. 13/09/2026.**
+
+**Contexte.** E4.0 (07/09) a mesure V1 par horizon, liquidite et secteur. Son
+volet sectoriel est declare non concluant : `SECTOR_MAP` ne couvrait que
+FINANCE et AGRO (20 tickers), tout le reste tombant dans OTHER. E4.1 rejoue ce
+seul volet avec `SECTEUR_OFFICIEL` de `calculate_target_price.py` — 47 tickers,
+7 secteurs, couverture verifiee complete (seuls BRVM30 et BRVMC sont hors
+mapping, ce sont des indices).
+
+**Classe A** : lecture seule. Le gel ADR-001 n'est pas rouvert.
+
+### Ce qui change par rapport a E4.0
+
+Le mapping sectoriel, uniquement. Metrique, horizons, seuil d'effectif, double
+benchmark et methode de bornage aux seances BOC sont repris a l'identique pour
+que les resultats soient directement comparables.
+
+### Ce qui est mesure
+
+Hit rate, variation, alpha cohorte et alpha BRVMC par signal
+(ACHAT / SURVEILLER / EVITER), croises avec les 7 secteurs, a J+20.
+Croisement supplementaire secteur x `liquidity_tier` sur ACHAT uniquement —
+E4.0 ayant etabli que la liquidite separe deux populations de signe oppose
+(+2,68 liquid contre -1,58 prestige), un effet sectoriel apparent pourrait
+n'etre qu'un effet de composition en tiers de liquidite.
+
+### Criteres, fixes avant lecture
+
+**Effectif minimal : 100 observations par cellule.** En dessous : affiche,
+non interpretable, ne fonde aucune conclusion. Seuil identique a E4.0.
+
+**DIVERGENT** : l'IC95 de Wilson du secteur ne recoupe pas celui du global,
+sur le meme signal. Critere repris d'ADR-051.
+
+**Decision si aucun secteur ne diverge** : la question des sous-modeles
+sectoriels est close pour V1. Les ecarts d'ADR-051 seraient alors attribuables
+au mapping grossier ou au bruit.
+
+**Decision si un ou plusieurs secteurs divergent** : verifier d'abord si la
+divergence survit au controle de liquidite. Si elle disparait une fois le tier
+tenu constant, c'est un effet de composition, pas un effet sectoriel — et la
+conclusion est la meme que precedemment.
+
+**Attendu explicite** : SERVICES_PUBLICS (2 tickers) et TELECOMMUNICATIONS
+(3 tickers) tomberont vraisemblablement sous le seuil d'effectif. Ecrit
+d'avance pour qu'un resultat spectaculaire sur ces cellules ne soit pas
+interprete apres coup.
+
+**Un seul run.** Resultat pris tel quel.
+
+### Ce qui n'est PAS l'objet
+
+Aucune modification de V1. La question du filtre prestige, identifiee par E4.0
+comme le resultat actionnable, est un chantier distinct qui exige de rouvrir
+ADR-001 par un ADR explicite.
