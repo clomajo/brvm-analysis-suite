@@ -751,3 +751,90 @@ interprete apres coup.
 Aucune modification de V1. La question du filtre prestige, identifiee par E4.0
 comme le resultat actionnable, est un chantier distinct qui exige de rouvrir
 ADR-001 par un ADR explicite.
+
+## RESULTATS E4.1 — 13/09/2026
+
+Un seul run, conformement au pre-enregistrement (`d8df413`). Resultats pris tels
+quels. `tools/experiments/E4_1/run_e4_1.py`, sortie JSON dans le meme dossier.
+
+**Controle de coherence avec E4.0.** ACHAT global a J+20 : n=1014, hit 62,1 %,
+alpha cohorte +1,11 — contre n=985, 63,0 %, +1,14 dans E4.0. Ecart mineur,
+attribuable au bornage supplementaire sur la disponibilite du BRVMC (47 lignes
+ecartees en plus). Les deux runs sont comparables.
+
+Perimetre : 3 845 observations sur 82 dates. Ecartes : 2 539 lignes hors
+seances `boc_cote`, 423 prix manquants, 47 BRVMC manquants.
+
+### ACHAT — global n=1014, hit 62,1 %, IC95 [59,1 ; 65,1], alpha +1,11
+
+| Secteur | n | Hit | IC95 | a_coh | a_brvmc | Div |
+|---|---|---|---|---|---|---|
+| CONSOMMATION_DE_BASE | 156 | 66,7 % | [58,9 ; 73,6] | +0,27 | -0,17 | non |
+| ENERGIE | 113 | 54,0 % | [44,8 ; 62,9] | -2,59 | -3,18 | non |
+| SERVICES_FINANCIERS | 456 | 68,4 % | [64,0 ; 72,5] | +4,12 | +3,64 | non |
+| CONSO_DISCRETIONNAIRE | 80 | 58,8 % | [47,8 ; 68,9] | -1,75 | -2,46 | n<100 |
+| INDUSTRIELS | 86 | 34,9 % | [25,7 ; 45,4] | -5,49 | -6,37 | n<100 |
+| SERVICES_PUBLICS | 42 | 61,9 % | [46,8 ; 75,0] | +3,13 | +2,73 | n<100 |
+| TELECOMMUNICATIONS | 81 | 61,7 % | [50,8 ; 71,6] | -0,35 | -0,75 | n<100 |
+
+**Aucune divergence interpretable sur ACHAT.** Trois cellules seulement
+franchissent n>=100, et leurs IC95 recoupent tous celui du global.
+
+### Test de composition — ACHAT, secteur x liquidity_tier
+
+SERVICES_FINANCIERS, seul secteur ou les deux tiers sont peuples :
+liquid n=358, hit 73,2 %, alpha **+6,03** ; prestige n=98, hit 51,0 %,
+alpha **-2,83**.
+
+**Le +4,12 sectoriel est un effet de composition.** Il est porte par le tier
+liquide, non par l'appartenance au secteur. Conformement a la regle
+pre-enregistree, la conclusion est celle de l'absence d'effet sectoriel.
+INDUSTRIELS est integralement `liquid` (86/86) : son deficit n'est pas
+imputable a la liquidite, mais reste sous le seuil d'effectif.
+
+### SURVEILLER et EVITER
+
+SURVEILLER (n=2 363, hit 61,8 %, alpha -0,38) : quatre divergences
+interpretables — CONSO_DISCRETIONNAIRE (n=411, -1,81), INDUSTRIELS (n=270,
+-4,41), SERVICES_FINANCIERS (n=754, +1,37), SERVICES_PUBLICS (n=114, +7,68).
+EVITER (n=468, hit 63,0 %, alpha -0,50) : INDUSTRIELS diverge (n=133, -4,87),
+toutes les autres cellules sont sous le seuil.
+
+### Reserve 1 — le seuil d'effectif compte des lignes, pas des titres
+
+SERVICES_PUBLICS en SURVEILLER atteint n=114 et sort DIVERGENT a +7,68.
+Formellement interpretable selon la regle pre-enregistree. **Ce resultat ne
+doit pas etre utilise.** Ces 114 lignes proviennent de 2 tickers (CIEC, SDCC)
+suivis jour apres jour : deux series fortement correlees, pas 114 observations
+independantes. Limite du critere lui-meme, heritee d'E4.0. Les experiences
+futures devraient ajouter un seuil sur le nombre de tickers distincts.
+
+### Reserve 2 — trou de 5 seances dans `boc_cote`
+
+`boc_cote` s'arrete au 04/09/2026 alors que la BRVM a cote les 7, 8, 9, 10 et
+11 septembre (verifie sur source externe). Cause : panne du parseur BOC/BOA
+depuis le 08/09. Les scripts qualifient ces dates de "fictives", terme
+trompeur : ce sont des seances reelles absentes du referentiel local.
+
+Impact mesure : 5 dates de signal perdues et les verifications du 18 au 22 aout
+privees de prix de sortie, soit ~6 % du perimetre. Insuffisant pour faire
+franchir a INDUSTRIELS le seuil de 100 (il manque 14 observations). **Aucune
+conclusion du run n'est renversee** — pas de second run.
+
+Les 2 539 lignes ecartees ne sont donc pas majoritairement des artefacts
+recents : l'essentiel est anterieur au 26/03/2026 (debut de la collecte
+`boc_cote`) ou correspond aux week-ends d'avril-mai issus du bug de datation
+d'ADR-052.
+
+### Conclusion
+
+**La question des sous-modeles sectoriels pour V1 est close.** Le mapping
+grossier d'E4.0 n'etait pas la cause de son resultat non concluant : avec les
+7 secteurs officiels et les 47 tickers, il n'y a pas d'effet sectoriel
+demontrable sur ACHAT. Le seul effet apparent se dissout au controle de
+liquidite.
+
+Le levier demontre reste celui d'E4.0 : le tier de liquidite.
+
+INDUSTRIELS demeure la seule piste ouverte — 38,6 % dans ADR-051, 34,9 % ici,
+constat coherent mais sous le seuil d'effectif dans les deux mesures.
