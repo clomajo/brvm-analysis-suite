@@ -12,6 +12,48 @@
 
 ---
 
+## 🔴 ACTIFS — ouverts le 2026-10-14 (session BBGC)
+
+### ⏰ RAPPEL ~3 décembre 2026 : BBGC — ne pas se fier au signal ni au risque avant ~50 séances
+Recommandation : ne pas se fier au signal ni au risque de BBGC avant environ
+50 séances, soit début décembre 2026 (50e séance ≈ 2 décembre, jours fériés BRVM
+à vérifier). L'Overview affiche aujourd'hui SELL / RSI 93 / risque 71,5 calculés
+dans le navigateur sur 15 séances : bruit, pas information. Le pipeline V1
+(`generate_decisions.py`) l'ignore déjà jusqu'à 30 lignes minimum, et la SMA50
+impose de fait ~50 séances. À la date du rappel : vérifier que BBGC apparaît
+dans `brvm_decisions` et relire le signal avec prudence.
+
+### Badge « historique insuffisant » (Overview + Opportunities)
+Frontend, via patch Python (ADR-002). Masquer ou étiqueter signal, RSI, score de
+risque, « 52W high/low » et volume vs moyenne tant qu'un ticker a moins de ~50
+séances. Concerne toute future cotation.
+
+### `brvm_classifier.py` : classer BBGC (BRVM 30 / Prestige / liquide)
+Non fait : BBGC est traitée comme illiquide par défaut. À revoir à la prochaine
+recomposition trimestrielle des indices.
+
+### Vérifier l'unité du ROE de BBGC dans `company_fundamentals`
+Saisi à 25,87 (pourcentage). Comparer avec BOAC ; si les autres tickers sont en
+fraction, corriger à 0,2587.
+
+### Collecte quotidienne : confirmer le symbole BBGC
+Après le cron du 14/10 (18h UTC), vérifier une ligne `historical_data` pour le
+15/10. Sinon chercher « Symbol … not in database » dans le log de l'ÉTAPE 1.
+
+### Décompte 47 composants (INDEX_META BRVMC, `SECTOR_TICKERS`)
+`components: 47` codé en dur dans `App.jsx` ; BBGC porte le nombre de cotées à 48.
+À confirmer avec le décompte officiel BRVM avant de modifier.
+
+### Frontend : `dist/`, `node_modules/.vite/` et `.DS_Store` suivis par git
+Ajouter à `.gitignore` et `git rm --cached` — `npm run build` les modifie à chaque
+exécution et expose à des commits parasites (`git add .`).
+
+### Séquences d'id : auditer les autres tables
+L'erreur `companies_pkey` montre une séquence désynchronisée sur `companies`.
+Vérifier `historical_data` et `company_fundamentals` avant le prochain import massif.
+
+---
+
 ## 🔴 ACTIFS — ouverts le 2026-09-13 (session ADR-054)
 
 ### Kill-switch V1 ne filtre pas sur `signal` — PRIORITÉ HAUTE

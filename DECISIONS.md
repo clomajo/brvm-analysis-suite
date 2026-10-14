@@ -2771,3 +2771,39 @@ annuelle). À trancher par l'alpha sectoriel.
 trois critères de succès différents. Toute métrique de performance doit être
 ventilée par signal ; `correct_global` (`verify_decisions.py:193`) ne doit pas
 être utilisé comme indicateur unique.
+
+---
+
+## ADR-055 — Ajout d'une nouvelle cotation : BBGC (Bridge Bank Group CI)
+
+**Date** : 2026-10-14
+**Statut** : appliqué
+
+**Contexte.** BBGC est cotée depuis le 24/09/2026 (OPV 10 M d'actions à 6 750 FCFA,
+sursouscrite). Le collecteur ignore tout symbole absent de `companies`
+(`data_collector_simple.py`) ; la liste « All tickers » du frontend est codée en
+dur. Aucune des deux ne se met à jour seule.
+
+**Décisions.**
+1. Prix : 15 séances du 24/09 au 14/10 chargées depuis `cotations_BBGC.ci.csv`
+   (recoupé RichBourse et SikaFinance). La ligne du 23/09 (6 750, volume 1) est
+   exclue : prix de l'OPV, pas une cotation.
+2. Fondamentaux : FY2025 limité à EPS (27 197 M / 50 M titres = 543,94), ROE
+   (27 197 / 105 139 = 25,87 %, fonds propres de clôture) et nombre de titres.
+   Les ratios de la lettre BOA (0,0x) ne sont pas repris. Source : états
+   financiers Deloitte/Eritedge au 30/06/2026 (bilan comparatif 31/12/2025).
+3. Signal et risque : aucune confiance accordée avant ~50 séances (début
+   décembre 2026). Aucune modification de `generate_decisions.py` (ADR-001) :
+   la garde existante (30 lignes) et la SMA50 suffisent côté pipeline.
+4. Frontend : patch Python de `App.jsx` (ADR-002), trois structures.
+5. Base : SQL Editor uniquement (ADR-026), bloc transactionnel avec ASSERT et
+   resynchronisation préalable des séquences d'id.
+
+**Conséquence.** Procédure à reproduire pour toute future cotation : (a) SQL
+`companies` + `historical_data` + `company_fundamentals`, (b) `TICKER_COUNTRY`
+et `SECTOR_MAP`, mapping sectoriel de `calculate_target_price.py`, liste de
+`scrape_market_cap.py`, (c) `TICKER_TO_SYMBOL`, `TICKER_SECTORS`, `SECTOR_TICKERS`
+dans `App.jsx`, (d) vérifier la collecte du lendemain.
+
+**Leçon.** `ON CONFLICT (symbol) DO NOTHING` ne protège pas d'une séquence d'id
+en retard : le conflit survient sur la clé primaire, pas sur `symbol`.

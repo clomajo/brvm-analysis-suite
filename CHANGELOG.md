@@ -7,6 +7,31 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-10-14
+
+### DATA/FEAT — Ajout de BBGC (Bridge Bank Group Côte d'Ivoire), 48e valeur cotée (ADR-055)
+- **Repos:** brvm-analysis-suite / brvm-analytics / Supabase
+- **Commits:** `fa794bb` (branche remediation-2026-07), `aa4920f` (main) ; frontend `1da454b`
+- **Description:** première cotation le 24/09/2026 à 7 255 FCFA (OPV de 10 M d'actions
+  à 6 750 FCFA, sursouscrite en juillet). Base : ligne `companies` + 15 séances dans
+  `historical_data` (24/09 → 14/10) + `company_fundamentals` FY2025 (EPS 543,94 ;
+  ROE 25,87 ; 50 M de titres). SQL exécuté dans le SQL Editor (ADR-026), idempotent,
+  bloc transactionnel avec ASSERT.
+- **Pipeline:** BBGC ajoutée à `TICKER_COUNTRY` et `SECTOR_MAP` (`generate_decisions.py`),
+  au mapping sectoriel de `calculate_target_price.py` (SERVICES_FINANCIERS) et à la liste
+  de `scrape_market_cap.py`. `brvm_classifier.py` non modifié (traitée comme illiquide).
+- **Frontend:** `TICKER_TO_SYMBOL`, `TICKER_SECTORS` (Finance) et `SECTOR_TICKERS`
+  (Services Financiers) dans `App.jsx`. La liste « All tickers » est codée en dur :
+  toute nouvelle cotation exige ce patch.
+- **Piège rencontré:** `companies_pkey` dupliquée (id 48) — la séquence d'id de
+  `companies` était en retard sur `max(id)`. Le SQL resynchronise désormais les
+  séquences avant l'insertion et fixe l'id explicitement.
+- **Donnée exclue:** séance du 23/09 (6 750, volume 1) = prix de l'OPV, pas une cotation.
+- **Limite connue:** avec 15 séances, les indicateurs calculés dans l'Overview
+  (signal, RSI, score de risque, « 52W ») ne sont pas fiables. Voir BACKLOG.
+
+---
+
 ## 2026-09-13
 
 ### BUG — Règle EVITER jamais appliquée : liste de test accentuée (ADR-054)
