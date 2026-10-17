@@ -267,6 +267,16 @@ suspended_decisions = []
 # et sans variation de cours au-dela duquel un titre est traite comme suspendu.
 AUTO_SUSPENSION_SESSIONS = 6
 
+# Historique minimum avant de produire un signal, en seances depuis le premier
+# echange (volume > 0). Regle generale, sans liste de tickers: toute nouvelle
+# introduction est ecartee automatiquement jusqu'a ce seuil. 50 = fenetre de la
+# SMA50; en dessous, le score remplace silencieusement la SMA50 par la SMA20.
+MIN_SESSIONS_SIGNAL = 50
+
+def sessions_since_first_trade(group):
+    traded = (group['volume'].fillna(0) > 0).to_numpy()
+    return int(len(traded) - traded.argmax()) if traded.any() else 0
+
 def has_traded_before(group, cutoff=None):
     """Vrai si le titre a eu au moins une seance avec volume > 0 avant cutoff
     (Timestamp exclu; None = toutes les lignes fournies). Un titre jamais
@@ -333,8 +343,10 @@ for symbol, group in df.groupby('symbol'):
         continue
 
     g = group.copy().reset_index(drop=True)
-    if len(g) < 30:
-        print(f"  Skipping {symbol} — insufficient data ({len(g)} rows)")
+    n_sessions = sessions_since_first_trade(g)
+    if n_sessions < MIN_SESSIONS_SIGNAL:
+        print(f"  Skipping {symbol} — historique insuffisant ({n_sessions} seances "
+              f"depuis le premier echange, minimum {MIN_SESSIONS_SIGNAL})")
         continue
 
     g['rsi'] = calc_rsi(g['price'])
