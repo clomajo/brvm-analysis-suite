@@ -78,6 +78,14 @@ Ordre réel d'exécution dans `brvm-analysis.yml`.
 | V2b | `scrape_market_cap.py` | 1er lundi du mois | `company_fundamentals` |
 | — | `health_check.py` | quotidien | — |
 
+**Gardes et visibilité (17/10/2026, ADR-058) :** `generate_decisions.py` ne produit
+rien si la dernière séance de `historical_data` n'est pas celle du jour
+(`FORCER_DECISIONS=1` pour passer outre). L'étape 1d (ingestion BOC) apparaît en
+rouge en cas d'échec sans arrêter le pipeline; les étapes 6 et 7 sont non
+bloquantes mais signalées; l'étape « Résumé du run » écrit annotations et
+`$GITHUB_STEP_SUMMARY`. Non traité: l'étape 3b écrit « Decisions generated »
+quel que soit le résultat.
+
 **Workflows séparés :** `parse_boa_letter.yml` (bulletins BOA, cron 18:00 UTC),
 `tests.yml`.
 
@@ -133,6 +141,13 @@ différentes. `boc_indices` est la seule alimentée depuis la source officielle
 
 ### V1 — signal composite prix/volume
 `RSI×0.20 + tendance×0.40 + volume×0.25 + volatilité×0.15` → ACHAT / SURVEILLER / ÉVITER.
+
+**Statuts (ADR-056/057) :** `generate_decisions.py` émet aussi `SUSPENDU`
+(table `trading_suspensions` + détection automatique: 6 séances sans volume et
+prix inchangé) et `DONNEES_INSUFFISANTES` (moins de 50 séances depuis le premier
+échange). Score 0, aucun objectif de cours, insérés par un upsert séparé. Ils ne
+sont **pas** vérifiés à J+20 (`verify_decisions.py`, `tools/reverify_decisions.py`).
+Le frontend les affiche en gris (`SignalTable`, `DecisionCardView`).
 
 **Seul modèle empiriquement validé** : n=843, 65.6 % à J+20 → 81.8 % à J+90
 (commit `8ef56ad`). Vérification quotidienne à J+20 (ADR-019 ; ADR-038 documente
@@ -226,6 +241,10 @@ levier extrême.
 | `report_generator.py` ordonne par `id`, pas par date | Variations fausses après tout backfill | ADR-048, à corriger **avant** backfill |
 | `requirements.txt` ne déclare pas `pdfminer.six` | `parse_boa_letter.py` ne devrait pas tourner en CI | Piste sur son arrêt du 30/04/2026 |
 | Exclusion SNTS documentée dans SKILL.md | Jamais implémentée en code | Backlog |
+| Plafond PostgREST de 5 000 lignes (silencieux) | Toute lecture non paginée peut être tronquée | DATA-31 clos pour `calculate_target_price.py`; règle ADR-053 §7 |
+| `main` du pipeline en retard sur `remediation-2026-07` | Cherry-picks parfois en conflit | À rapprocher |
+| `boa_recommendations` sans contrainte d'unicité, arrêtée au bulletin du 03/08/2026 | Doublon TTLS (corrigé), comparaisons limitées | Backlog |
+| Dépôt frontend: `dist/` et `node_modules/.vite` suivis par git | Bruit, risque de commit accidentel | Backlog |
 
 ---
 

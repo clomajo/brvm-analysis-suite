@@ -57,6 +57,14 @@ description: >
 - **`calculate_target_price.py` n'est PAS couvert par le gel ADR-001** — c'est un script V2 indépendant
   de `generate_decisions.py` (V1), modifiable librement avant le 01/07/2026 (calibration normale
   avant mise en prod, pas une rupture du gel — cf. ADR-009/010/011)
+- **Statuts de signal (ADR-056/057/058, 17/10/2026)** — `generate_decisions.py` émet aussi `SUSPENDU` (table
+  `trading_suspensions` + détection automatique: 6 séances sans volume et prix inchangé, levée automatique à la
+  reprise) et `DONNEES_INSUFFISANTES` (moins de 50 séances depuis le premier échange). Règles générales, jamais
+  par ticker. Ces lignes ont score 0 et ne sont **pas des signaux de marché** : `verify_decisions.py` et
+  `tools/reverify_decisions.py` les ignorent. Tout nouveau consommateur de `brvm_decisions` doit les traiter
+  (un `else` « neutre » les compterait comme corrects). Garde de séance: pas de décision si la dernière séance
+  collectée n'est pas celle du jour (`FORCER_DECISIONS=1` pour passer outre). Lectures PostgREST: paginer ou
+  interroger société par société (DATA-31, plafond de 5 000 lignes).
 - **PER sectoriels non hardcodés** — lus dynamiquement depuis `sector_per_history`, jamais en dur
   dans le code (cf. ADR-010). Alimentation manuelle **mensuelle** via `update_sector_per.py`.
 - **Pas de liste d'exclusion statique pour le V2** — un filtre dynamique (`evaluer_qualite_eps()`
@@ -121,7 +129,8 @@ BOA vs BRVM · Risque · Législatif · Direction · Macro · Matières 1ères �
 |---|---|---|
 | `companies` | 47 tickers — colonne `symbol` (pas `ticker`) | lecture publique |
 | `historical_data` | 110,594+ lignes — company_id, trade_date, price, volume | lecture publique |
-| `brvm_decisions` | Signaux — colonnes : ticker, date, score, signal, market_regime, liquidity_tier, confidence | lecture publique |
+| `brvm_decisions` | Signaux — colonnes : ticker, date, score, signal, market_regime, liquidity_tier, confidence. Signaux : ACHAT / SURVEILLER / EVITER, plus les **statuts** `SUSPENDU` et `DONNEES_INSUFFISANTES` (score 0, ADR-056/057) | lecture publique |
+| `trading_suspensions` | **NOUVEAU (17/10/2026, ADR-056)** — suspensions de cotation: symbol, motif, avis_ref, date_debut, date_fin (NULL = en cours) | lecture publique (RLS) |
 | `target_prices` | Cours cible V2 quotidien — ticker, cours_cible, decote_pct, signal_v2, calcul_date, **per_source** (ajouté 21/06/2026) | lecture publique |
 | `sector_per_history` | **NOUVEAU (21/06/2026)** — P/E sectoriel par secteur officiel BRVM, alimentation mensuelle manuelle (secteur, per_2024, date_releve, source) | lecture publique |
 | `fundamental_analysis` | Analyses Mistral FY2025 — 45 lignes, UNIQUE company_id | lecture publique |
@@ -258,6 +267,28 @@ Logique actuelle (`evaluer_qualite_eps()` dans `calculate_target_price.py`) :
 Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de silence.
 
 ---
+
+## Session 17/10/2026 — Résumé des changements
+
+### Pipeline (brvm-analysis-suite)
+- Signal `SUSPENDU` + table `trading_suspensions` + détection automatique à 6 séances (ADR-056)
+- Statut `DONNEES_INSUFFISANTES`, minimum 50 séances (ADR-057)
+- Garde de séance du jour dans `generate_decisions.py` (ADR-058)
+- CI-01 clos: échecs de l'étape 1d visibles, étapes 6/7 non bloquantes mais signalées, étape « Résumé du run »
+- DATA-31 clos: `calculate_target_price.py` pagine les fondamentaux et lit les prix société par société
+- `verify_decisions.py` (main et remediation) et `tools/reverify_decisions.py` ignorent les deux statuts
+- Doublon TTLS supprimé de `boa_recommendations` (SQL Editor); analyse exploratoire BOA × V1 (EXPERIMENTS_LOG, E5.0)
+
+### Frontend (brvm-analytics)
+- `patch_statuts_signaux.py` (ADR-002): `SignalTable` et `DecisionCardView` affichent les deux statuts en gris.
+  Sans lui, `SignalTable` les montrait comme EVITER (branche par défaut). Commit `2b80c03` sur `main`.
+  À vérifier à l'écran après le run du 19/10/2026 (SEMC, SICC, BBGC).
+- Non fait: badge « historique insuffisant » sur la fiche ticker (Overview calcule dans le navigateur, BACKLOG).
+
+### Pièges
+- La branche `main` du pipeline est en retard sur `remediation-2026-07` (pas de `tools/reverify_decisions.py`, pas
+  du correctif d'accent ADR-054): un commit écrit sur remediation peut ne pas se cherry-picker sur `main`.
+- Le dépôt frontend suit `dist/`, `node_modules/.vite` et `.DS_Store` par erreur: ne jamais faire `git add -A`.
 
 ## Session 28/06/2026 — Résumé des changements
 
@@ -445,6 +476,9 @@ Chaque exclusion est loggée avec sa raison exacte à chaque run — jamais de s
 | ADR-019 | Analyse fondamentale bloquée sur Q3 2025 — contrainte SQL parasite UNIQUE(company_id) + extraction titre depuis `<strong>` — corrigé 28/06 |
 | ADR-020 | Prompts Mistral sans valorisation chiffrée (P/E 10x retiré, cours cible = modèle V2 uniquement) — corrigé 28/06 |
 | ADR-021 | Sobriété quota Mistral — retrait UPSERT + étapes 5/6 bi-hebdomadaires (1er et 15) — corrigé 28/06 |
+| ADR-056 | Suspensions de cotation: signal `SUSPENDU`, table `trading_suspensions`, détection automatique à 6 séances |
+| ADR-057 | Minimum 50 séances avant tout signal, statut `DONNEES_INSUFFISANTES`, statuts ignorés par la vérification J+20 (amende ADR-055 §3; scoring V1 intact) |
+| ADR-058 | Garde de séance du jour, clôture CI-01 (échecs visibles) et DATA-31 (lectures paginées; écart avec ADR-053 §6) |
 
 ---
 
