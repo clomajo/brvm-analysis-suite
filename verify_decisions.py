@@ -19,6 +19,9 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 VERIFICATION_WINDOW = 20  # jours (ADR-019 — J+20 optimal, signal BOA peak)
 
+# Lignes de statut: jamais verifiees ni dans le benchmark (cours fige = faux "neutre correct").
+SIGNAUX_NON_EVALUABLES = ("SUSPENDU", "DONNEES_INSUFFISANTES")
+
 
 def get_price_at_date(company_id: int, target_date: date):
     """
@@ -102,6 +105,8 @@ def verify_decisions():
     for d in decisions:
         ticker      = d["ticker"]
         signal      = d["signal"]
+        if signal in SIGNAUX_NON_EVALUABLES:
+            continue
         signal_date = date.fromisoformat(d["date"])
         decision_id = d["id"]
 
