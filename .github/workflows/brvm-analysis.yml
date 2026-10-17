@@ -120,6 +120,9 @@ jobs:
           fi
 
       - name: 📘 ÉTAPE 1d - Ingestion BOC page 1 (indices, agrégats, PER sectoriels)
+        id: etape1d
+        # Non bloquant par choix, mais l'echec doit etre VISIBLE: l'etape passe en
+        # rouge et le Resume final le signale (CI-01). Ne pas rajouter de "|| echo".
         continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -135,8 +138,7 @@ jobs:
           FIN=$(date -u +%Y-%m-%d)
           DEBUT=$(date -u -d "8 days ago" +%Y-%m-%d 2>/dev/null || date -u -v-8d +%Y-%m-%d)
           echo "📘 Ingestion BOC du $DEBUT au $FIN"
-          python tools/ingest_boc.py --from "$DEBUT" --to "$FIN" || \
-            echo "⚠️ Ingestion BOC en anomalie — pipeline poursuivi (cf. logs)"
+          python tools/ingest_boc.py --from "$DEBUT" --to "$FIN"
 
       - name: 🎯 ÉTAPE 1f - Cours Cibles V2 (target_prices)
         env:
@@ -148,6 +150,7 @@ jobs:
           echo "✅ Cours cibles mis à jour"
 
       - name: 🧪 ÉTAPE 1g - Fair Value V3 (target_prices_v3 — expérimental)
+        id: etape1g
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -260,6 +263,8 @@ jobs:
           fi
       
       - name: 📝 ÉTAPE 6 - Génération Rapports (Mistral AI — bi-hebdomadaire)
+        id: etape6
+        continue-on-error: true
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -281,16 +286,15 @@ jobs:
               echo "🔓 Declenchement manuel force (force_ia=true)"
             fi
             echo "🚀 Génération rapports avec Mistral AI..."
-            if python report_generator.py; then
-              echo "✅ Rapports générés"
-            else
-              echo "⚠️ Échec génération rapports — non bloquant"
-            fi
+            python report_generator.py
+            echo "✅ Rapports générés"
           else
             echo "⏭️ Skipped — génération rapports bi-hebdomadaire (1er et 15 du mois)"
           fi
       
       - name: 📰 ÉTAPE 7 - Collecte News & Scoring IA
+        id: etape7
+        continue-on-error: true
         env:
           DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
@@ -300,11 +304,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           echo "📰 Collecte des news BRVM..."
-          if python news_collector.py; then
-            echo "✅ News collectées"
-          else
-            echo "⚠️ Échec collecte news — non bloquant"
-          fi
+          python news_collector.py
+          echo "✅ News collectées"
   
 
       - name: 📡 ÉTAPE V2 - Signaux Actifs J-10 (hebdomadaire)
@@ -345,14 +346,42 @@ jobs:
       
       - name: 📊 Résumé
         if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          OUTCOME_1D: ${{ steps.etape1d.outcome }}
+          OUTCOME_1G: ${{ steps.etape1g.outcome }}
+          OUTCOME_6: ${{ steps.etape6.outcome }}
+          OUTCOME_7: ${{ steps.etape7.outcome }}
         run: |
+          # Etapes volontairement non bloquantes (continue-on-error): leur echec ne
+          # fait pas echouer le job, mais il est signale ici (CI-01).
+          ECHECS=0
+          signaler() {
+            if [ "$2" = "failure" ]; then
+              echo "::warning title=Etape non bloquante en echec::$1"
+              echo "- ⚠️ $1" >> "$GITHUB_STEP_SUMMARY"
+              ECHECS=$((ECHECS + 1))
+            fi
+          }
+          echo "### Résumé du run ${{ github.run_number }}" >> "$GITHUB_STEP_SUMMARY"
+          signaler "ÉTAPE 1d - Ingestion BOC" "$OUTCOME_1D"
+          signaler "ÉTAPE 1g - Fair Value V3" "$OUTCOME_1G"
+          signaler "ÉTAPE 6 - Génération rapports" "$OUTCOME_6"
+          signaler "ÉTAPE 7 - Collecte news" "$OUTCOME_7"
+
           echo "═══════════════════════════════════════════════════════════"
           echo "📈 BRVM ANALYSIS SUITE V25.0 (Mistral AI)"
           echo "═══════════════════════════════════════════════════════════"
           echo "Date: $(date '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Run: ${{ github.run_number }}"
           echo ""
-          echo "✅ Pipeline terminé"
+          if [ "$JOB_STATUS" != "success" ]; then
+            echo "❌ Pipeline en échec (statut: $JOB_STATUS)"
+          elif [ "$ECHECS" -gt 0 ]; then
+            echo "⚠️ Pipeline terminé avec $ECHECS étape(s) non bloquante(s) en échec"
+          else
+            echo "✅ Pipeline terminé"
+          fi
           echo "═══════════════════════════════════════════════════════════"
 
       - name: 🏥 Health Check — Bilan quotidien pipeline (T1)

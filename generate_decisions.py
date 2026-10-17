@@ -82,6 +82,10 @@ if derniere != date_jour:
         log.warning("Aucune seance du %s dans historical_data (derniere seance: %s): "
                     "jour ferie, week-end ou collecte absente. Aucune decision generee. "
                     "FORCER_DECISIONS=1 pour passer outre.", date_jour, derniere)
+        # Annotation GitHub Actions: visible dans le resume du run, malgre le
+        # message "Decisions generated" de l'etape 3b du workflow.
+        print(f"::warning title=generate_decisions::Aucune seance du {date_jour} "
+              f"(derniere: {derniere}) - aucune decision generee")
         raise SystemExit(0)
 
 # ── Calcul du regime de marche (BULL/BEAR) ────────────────────────────────────
