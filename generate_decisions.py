@@ -261,7 +261,24 @@ def calc_score_v2(symbol, tech_score):
 
 print("Generating decisions...")
 decisions = []
-suspended_decisions = []
+statut_decisions = []   # lignes sans score (SUSPENDU, DONNEES_INSUFFISANTES), inserees a part
+
+def decision_sans_score(symbol, signal, label):
+    """Ligne de brvm_decisions pour un titre qui ne recoit pas de score.
+    Les champs numeriques sont a 0 plutot que NULL par prudence: le schema de
+    brvm_decisions n'est pas versionne dans le depot."""
+    return {
+        'ticker': symbol,
+        'date': date_jour,
+        'score': 0,
+        'signal': signal,
+        'signal_combine': signal,
+        'liquidity_tier': classifier.get_tier(symbol, date_jour),
+        'confidence': 0,
+        'confidence_label': label,
+        'classification_version': CLASSIFICATION_VERSION,
+        'market_regime': market_regime,
+    }
 
 # Detection automatique: nombre de seances consecutives sans echange (volume 0)
 # et sans variation de cours au-dela duquel un titre est traite comme suspendu.
@@ -328,25 +345,16 @@ for symbol, group in df.groupby('symbol'):
             log.warning("  %s: volume 0 et cours inchange depuis %d seances, absent de "
                         "trading_suspensions - SUSPENDU (detection automatique), a documenter",
                         symbol, AUTO_SUSPENSION_SESSIONS)
-        suspended_decisions.append({
-            'ticker': symbol,
-            'date': date_jour,
-            'score': 0,
-            'signal': 'SUSPENDU',
-            'signal_combine': 'SUSPENDU',
-            'liquidity_tier': classifier.get_tier(symbol, date_jour),
-            'confidence': 0,
-            'confidence_label': 'Suspendu',
-            'classification_version': CLASSIFICATION_VERSION,
-            'market_regime': market_regime,
-        })
+        statut_decisions.append(decision_sans_score(symbol, 'SUSPENDU', 'Suspendu'))
         continue
 
     g = group.copy().reset_index(drop=True)
     n_sessions = sessions_since_first_trade(g)
     if n_sessions < MIN_SESSIONS_SIGNAL:
-        print(f"  Skipping {symbol} — historique insuffisant ({n_sessions} seances "
-              f"depuis le premier echange, minimum {MIN_SESSIONS_SIGNAL})")
+        log.info("  %s: historique insuffisant (%d seances depuis le premier echange, "
+                 "minimum %d) - signal DONNEES_INSUFFISANTES", symbol, n_sessions, MIN_SESSIONS_SIGNAL)
+        statut_decisions.append(decision_sans_score(
+            symbol, 'DONNEES_INSUFFISANTES', 'Pas assez de données pour donner un signal'))
         continue
 
     g['rsi'] = calc_rsi(g['price'])
@@ -517,9 +525,10 @@ else:
 
 # Insertion separee: si brvm_decisions refuse une ligne SUSPENDU (contrainte
 # inconnue), les decisions normales deja inserees ne sont pas touchees.
-if suspended_decisions:
+if statut_decisions:
     try:
-        supabase.table('brvm_decisions').upsert(suspended_decisions, on_conflict='ticker,date').execute()
-        log.info("%d decision(s) SUSPENDU inserees pour %s", len(suspended_decisions), date_jour)
+        supabase.table('brvm_decisions').upsert(statut_decisions, on_conflict='ticker,date').execute()
+        par_signal = pd.Series([d['signal'] for d in statut_decisions]).value_counts().to_dict()
+        log.info("Lignes sans score inserees pour %s: %s", date_jour, par_signal)
     except Exception as e:
-        log.error("Echec insertion des decisions SUSPENDU: %s", e)
+        log.error("Echec insertion des decisions sans score (SUSPENDU / DONNEES_INSUFFISANTES): %s", e)
