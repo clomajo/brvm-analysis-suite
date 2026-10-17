@@ -267,9 +267,21 @@ suspended_decisions = []
 # et sans variation de cours au-dela duquel un titre est traite comme suspendu.
 AUTO_SUSPENSION_SESSIONS = 6
 
+def has_traded_before(group, cutoff=None):
+    """Vrai si le titre a eu au moins une seance avec volume > 0 avant cutoff
+    (Timestamp exclu; None = toutes les lignes fournies). Un titre jamais
+    echange n'est pas suspendu: il n'est pas encore cote (nouvelle introduction,
+    lignes de remplissage a volume 0 avant la premiere cotation)."""
+    rows = group if cutoff is None else group[group['trade_date'] < cutoff]
+    return bool((rows['volume'].fillna(0) > 0).any())
+
 def is_frozen(group, n=AUTO_SUSPENSION_SESSIONS):
     last = group.tail(n)
-    return len(last) == n and bool((last['volume'].fillna(0) == 0).all()) and last['price'].nunique() == 1
+    if len(last) < n or not bool((last['volume'].fillna(0) == 0).all()) or last['price'].nunique() != 1:
+        return False
+    # Gel observe sur la fenetre: suspension seulement si le titre a deja ete
+    # echange avant cette fenetre.
+    return has_traded_before(group.iloc[:-n])
 
 EXCLUDE = {'BRVM30', 'BRVMC', 'BRVM_CI'}
 for symbol, group in df.groupby('symbol'):
@@ -292,6 +304,10 @@ for symbol, group in df.groupby('symbol'):
         log.warning("  %s: volume %s le %s alors que la suspension est ouverte dans "
                     "trading_suspensions - reprise probable, renseigner date_fin",
                     symbol, int(last_row['volume']), last_row['trade_date'].date())
+        manual = None
+    if manual and not has_traded_before(group, pd.Timestamp(manual['date_debut'])):
+        log.warning("  %s: aucun echange avant le %s dans historical_data - suspension "
+                    "ignoree (titre pas encore cote ?)", symbol, manual['date_debut'])
         manual = None
     auto_frozen = is_frozen(group)
     if manual or auto_frozen:
