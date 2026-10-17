@@ -16,6 +16,14 @@
 
 ## 🔴 ACTIFS — ouverts le 2026-10-17 (session suspensions / gardes)
 
+### Dépôt frontend: retirer `dist/`, `node_modules/.vite` et `.DS_Store` du suivi git
+Ces fichiers sont suivis par erreur: chaque build les modifie et un `git add -A` les commiterait.
+Ajouter au `.gitignore` puis `git rm -r --cached` (à faire par la propriétaire, hors Claude).
+
+### Rapprocher `main` et `remediation-2026-07` (pipeline)
+`main` n'a pas `tools/reverify_decisions.py` ni le correctif d'accent ADR-054; la documentation n'y est
+pas à jour. Les cherry-picks de code entrent parfois en conflit (vu le 17/10/2026 avec `677c677`).
+
 ### Contrainte d'unicité sur `boa_recommendations (ticker, date_start)`
 Un doublon TTLS (27/04/2026) a été trouvé et supprimé le 17/10/2026 : l'import a écrit
 deux fois la même ligne. Ajouter une contrainte unique (SQL Editor, ADR-026) après avoir
@@ -44,11 +52,10 @@ confidence_label from brvm_decisions where signal in ('SUSPENDU',
 Confirmer qu'aucune ligne `SUSPENDU` / `DONNEES_INSUFFISANTES` n'apparaît dans
 `brvm_decisions_results` ni dans le benchmark (correctif ADR-057 §4).
 
-### Frontend : afficher `SUSPENDU` et `DONNEES_INSUFFISANTES`
-Badge et libellé pour les deux signaux (Overview, Opportunities, Scorecard).
-Patch Python d'`App.jsx` (ADR-002) ; dépôt `brvm-analytics` à rattacher à la session.
-Complète « Badge historique insuffisant » ci-dessous. Vérifier aussi que le
-Scorecard ne traite pas ces signaux comme HOLD.
+### ✅ Frontend : afficher `SUSPENDU` et `DONNEES_INSUFFISANTES` — fait le 17/10/2026, à vérifier
+Déployé (`2b80c03`, `patch_statuts_signaux.py`). **À vérifier à l'écran après le run du 19/10/2026 :** page
+d'accueil et « Décisions du Jour », SEMC/SICC en gris SUSPENDU, BBGC en gris DONNEES INSUFFISANTES.
+Reste: confirmer que le Scorecard ne lit aucune de ces lignes (il lit `brvm_decisions_results`).
 
 ### Schéma `brvm_decisions` : nullabilité de `score`
 Les lignes de statut utilisent 0 faute d'avoir vérifié le schéma. Si `score` accepte

@@ -44,6 +44,17 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
   (SEMC/SICC `SUSPENDU`, BBGC `DONNEES_INSUFFISANTES`).
 
 
+### FEAT — Frontend: affichage de `SUSPENDU` et `DONNEES_INSUFFISANTES`
+- **Repo:** brvm-analytics
+- **Commit:** `2b80c03` (main), patch `patch_statuts_signaux.py` (ADR-002)
+- **Description:** `SignalTable` (page d'accueil) montrait ces statuts comme EVITER (branche par
+  défaut) et `DecisionCardView` un badge vide avec « +0% ». Corrigé: libellés FR/EN, couleur grise,
+  score et hausse remplacés par « — », tri en dernier, carte simplifiée avec le message du statut,
+  compteurs et filtres affichés seulement quand il y a des lignes.
+- **Contrôle:** compilation du fichier et `npm run build` réussis (835 modules). Affichage réel à
+  vérifier après le run du 19/10/2026 (SEMC, SICC en SUSPENDU; BBGC en DONNEES_INSUFFISANTES).
+- **Documentation:** `SKILL.md` et `ARCHITECTURE.md` mis à jour (statuts, gardes, pièges).
+
 ### DATA/ANALYSE — Doublon TTLS dans `boa_recommendations` ; comparaison BOA × V1 (E5.0)
 - **Repo:** Supabase / brvm-analysis-suite
 - **DATA:** `boa_recommendations` contenait deux lignes identiques pour TTLS, semaine
