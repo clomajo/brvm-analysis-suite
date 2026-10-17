@@ -838,3 +838,67 @@ Le levier demontre reste celui d'E4.0 : le tier de liquidite.
 
 INDUSTRIELS demeure la seule piste ouverte — 38,6 % dans ADR-051, 34,9 % ici,
 constat coherent mais sous le seuil d'effectif dans les deux mesures.
+
+
+---
+
+## EXPLORATOIRE — E5.0 : recommandations BOA contre signaux V1 (17/10/2026)
+
+**Statut : exploratoire, NON pre-enregistre.** Aucun seuil ni critere n'a ete fixe
+avant la lecture des resultats. Les chiffres ci-dessous decrivent, ils ne
+demontrent rien. Toute conclusion exige un protocole pre-enregistre (voir MODEL-10).
+
+**Question.** Les signaux V1 (`brvm_decisions.signal`) concordent-ils avec les
+recommandations de BOA Capital (`boa_recommendations.action`), et lequel des deux
+a eu raison a J+20 ?
+
+**Methode.** SQL Editor, lecture seule. Pour chaque recommandation BOA datee du
+03/04/2026 au 03/08/2026, signal V1 le plus recent a la date ou avant ; rendement
+a J+20 (premier cours entre J+20 et J+27) ; ecart a la moyenne simple de tous les
+titres sur la meme fenetre (benchmark de l'experience, pas l'indice BRVMC).
+Recouvrement des sources : BOA 01/12/2025 – 03/08/2026, V1 03/04/2026 – 13/10/2026.
+574 recommandations au total, **85 dans la periode commune (84 distinctes** apres
+retrait d'un doublon, voir DATA ci-dessous).
+
+**Croisement.** Signal V1 : SURVEILLER 65 sur 85 (76 %). Accord franc
+(BUY-ACHAT, SELL ou REDUCE-EVITER) : 11 sur 85 ; 12 sur 84 apres le detail par titre.
+Contradictions nettes : 6 (BICB 27/04 et 03/08, CBIBF 13/04, SNTS 13/04, STBC 03/08,
+UNXC 13/04).
+
+**Ecart au marche a J+20 (points).**
+
+| Groupe | n | Ecart moyen |
+|---|---|---|
+| BOA BUY | 6 | −1,29 |
+| BOA HOLD | 6 | +0,30 |
+| BOA REDUCE | 11 | +2,06 |
+| BOA SELL | 62 | −0,43 |
+| V1 ACHAT | 7 | +1,72 |
+| V1 EVITER | 13 | −0,21 |
+| V1 SURVEILLER | 65 | −0,29 |
+
+**Constats.**
+1. Sur les 6 contradictions, V1 a eu raison 5 fois (BICB 03/08, CBIBF, SNTS, STBC,
+   UNXC), BOA 1 fois (BICB 27/04). Un tirage a pile ou face donne 5 sur 6 ou mieux
+   environ une fois sur neuf : non concluant.
+2. Quand les deux sont d'accord (12 cas), le signal commun a ete juste 6 fois : pas
+   mieux que le hasard.
+3. BOA REDUCE a surperforme et BOA BUY a sous-performe : sens inverse, sur 11 et 6 cas.
+4. Les moyennes de BOA SELL sont tirees par quelques titres tres volatils : CIEC
+   (3 SELL, +2,9 / +9,5 / +32,3 points), ORAC (3 SELL, jusqu'a +17,6), SDCC (2 SELL,
+   +33,3 / +45,2). A l'inverse CABC, CFAC, PRSC et ABJC ont bien sous-performe apres SELL.
+5. Les recommandations sont hebdomadaires et repetees sur les memes titres, avec des
+   fenetres de 20 jours qui se chevauchent : les cas ne sont pas independants.
+
+**Limites.** Echantillon de 84 cas sur 4 mois, marche haussier, benchmark maison,
+aucun test de significativite, BUY et HOLD trop rares (6 chacun). BOA ne couvre plus
+la base apres le bulletin du 03/08/2026.
+
+**Verifications faites.** LNBB et SLBC presentent des rendements identiques aux deux
+premieres dates (+0,5 / −0,3) : coincidence confirmee par les prix de mai (+0,52 % et
++0,54 % ; −0,26 % chacun), pas une erreur de donnees. Doublon TTLS 27/04 : voir
+DATA dans le CHANGELOG.
+
+**Suite.** Charger les bulletins BOA posterieurs au 03/08/2026, laisser s'accumuler
+les verifications J+20 de V1, puis refaire la comparaison avec un protocole
+pre-enregistre (critere de reussite et benchmark BRVMC ecrits avant calcul).

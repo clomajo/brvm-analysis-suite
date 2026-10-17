@@ -28,6 +28,12 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
   signalées ; étape « Résumé du run ».
 - **FIX — DATA-31.** `calculate_target_price.py` : fondamentaux paginés et vérifiés,
   prix actuels par société (`limit=1`).
+- **Hash après cherry-pick :** `remediation-2026-07` : `8ee332a` (vérification J+20,
+  `verify_decisions.py` et `tools/reverify_decisions.py`), `f55e248` (documentation).
+  `main` : `98193a8` (vérification J+20, `verify_decisions.py` seul). `main` n'a pas
+  `tools/reverify_decisions.py` ni le correctif d'accent de l'ADR-054 : le commit
+  `677c677` ne s'y appliquait pas (conflit), d'où un commit propre à `main`
+  (`8cbb6b3` sur la branche `verify-main`).
 - **Tests:** scripts locaux (non versionnés) sur la détection, les titres neufs, la
   garde de séance, la pagination et la vérification J+20 ; lecture de `test_pipeline.py`
   (T5–T11b) : l'exécution du lundi 19/10 n'est pas bloquée.
@@ -36,6 +42,21 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
   `select ticker, date, signal from brvm_decisions where signal in
   ('SUSPENDU','DONNEES_INSUFFISANTES') order by date desc, ticker;`
   (SEMC/SICC `SUSPENDU`, BBGC `DONNEES_INSUFFISANTES`).
+
+
+### DATA/ANALYSE — Doublon TTLS dans `boa_recommendations` ; comparaison BOA × V1 (E5.0)
+- **Repo:** Supabase / brvm-analysis-suite
+- **DATA:** `boa_recommendations` contenait deux lignes identiques pour TTLS, semaine
+  2026-W18 (27/04/2026, SELL, ids 526 et 538, même `created_at` à la microseconde :
+  import écrit deux fois). La ligne 538 a été supprimée dans le SQL Editor (ADR-026) ;
+  il reste l'id 526 (vérifié). Aucune contrainte d'unicité sur `(ticker, date_start)` :
+  voir BACKLOG.
+- **ANALYSE:** comparaison exploratoire des recommandations BOA et des signaux V1 à J+20
+  sur 84 cas (avril – août 2026), lecture seule. Résultats et limites dans
+  `EXPERIMENTS_LOG.md` (E5.0). Non pré-enregistrée, non concluante : V1 a raison dans 5
+  des 6 contradictions, mais l'échantillon est trop petit.
+- **Vérification de données :** LNBB et SLBC, rendements identiques à deux dates :
+  coïncidence, pas une erreur.
 
 ---
 

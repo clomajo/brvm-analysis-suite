@@ -16,6 +16,23 @@
 
 ## 🔴 ACTIFS — ouverts le 2026-10-17 (session suspensions / gardes)
 
+### Contrainte d'unicité sur `boa_recommendations (ticker, date_start)`
+Un doublon TTLS (27/04/2026) a été trouvé et supprimé le 17/10/2026 : l'import a écrit
+deux fois la même ligne. Ajouter une contrainte unique (SQL Editor, ADR-026) après avoir
+vérifié qu'il n'existe pas d'autre doublon :
+`select ticker, date_start, action, count(*) from boa_recommendations group by 1,2,3
+having count(*) > 1;` (à relancer avant la contrainte). Utiliser un upsert côté import.
+
+### Charger les bulletins BOA postérieurs au 03/08/2026
+`boa_recommendations` s'arrête au bulletin du 03/08/2026 (574 lignes). La comparaison
+BOA × V1 (EXPERIMENTS_LOG, E5.0) est limitée à 84 cas en grande partie pour cette raison.
+À reprendre avec LOT B3 de `PLAN_BOA_2026-08.md` (classe B, gate humain).
+
+### Comparaison BOA × V1 : refaire avec protocole pré-enregistré
+E5.0 est exploratoire. Quand assez de bulletins et de vérifications J+20 sont
+accumulés : écrire d'abord le critère de réussite et le benchmark BRVMC (ADR dédié),
+puis calculer. Examiner à la main les contradictions (6 cas à ce jour). Voir MODEL-10.
+
 ### Contrôle du premier run (lundi 19/10/2026, après 18 h UTC)
 Actions → « Résumé du run » ; étape 1f rouge ou non ; journal « Suspensions de
 cotation en cours: [SEMC, SICC] » ; requête : `select ticker, date, signal,
