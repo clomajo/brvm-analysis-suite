@@ -66,6 +66,24 @@ df = df.dropna(subset=['price', 'symbol'])
 df = df.sort_values(['symbol', 'trade_date']).reset_index(drop=True)
 print(f"Loaded {len(df)} rows for {df['symbol'].nunique()} tickers")
 
+# ── Garde: pas de decision sans seance du jour ───────────────────────────────
+# Jour ferie BRVM, week-end ou collecte absente: historical_data ne contient
+# alors aucune ligne datee d'aujourd'hui. Sans calendrier a maintenir, la base
+# est la source de verite. FORCER_DECISIONS=1 passe outre (rejeu manuel).
+def derniere_seance(df):
+    return df['trade_date'].max().date().isoformat()
+
+derniere = derniere_seance(df)
+if derniere != date_jour:
+    if os.getenv('FORCER_DECISIONS') == '1':
+        log.warning("Aucune seance du %s (derniere: %s) - FORCER_DECISIONS=1, "
+                    "decisions generees quand meme", date_jour, derniere)
+    else:
+        log.warning("Aucune seance du %s dans historical_data (derniere seance: %s): "
+                    "jour ferie, week-end ou collecte absente. Aucune decision generee. "
+                    "FORCER_DECISIONS=1 pour passer outre.", date_jour, derniere)
+        raise SystemExit(0)
+
 # ── Calcul du regime de marche (BULL/BEAR) ────────────────────────────────────
 def compute_market_regime(df, brvmc_id):
     brvmc = df[df['company_id'] == brvmc_id].copy().sort_values('trade_date').reset_index(drop=True)
