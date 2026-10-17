@@ -35,6 +35,46 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
+# Taille de page des lectures PostgREST. Le serveur tronque SILENCIEUSEMENT toute
+# reponse au-dela de son max-rows (5 000 sur ce projet, cf. DATA-31 / ADR-052):
+# aucune erreur, juste moins de lignes. On pagine donc par Range et on verifie
+# le total annonce par le serveur (Content-Range) avant de faire confiance au resultat.
+PAGE_SIZE = 1000
+
+
+def fetch_all(chemin, libelle):
+    """Lit TOUTES les lignes d'une requete PostgREST (pagination par Range).
+
+    chemin  : partie apres /rest/v1/, filtres et tri inclus. Le tri doit etre
+              deterministe pour que les pages ne se chevauchent pas.
+    Leve RuntimeError sur une erreur HTTP ou si le nombre de lignes lues differe
+    du total annonce: une troncature ne doit jamais passer inapercue.
+    """
+    lignes, total, debut = [], None, 0
+    while True:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/{chemin}",
+            headers={**HEADERS, "Range-Unit": "items",
+                     "Range": f"{debut}-{debut + PAGE_SIZE - 1}",
+                     "Prefer": "count=exact"},
+        )
+        if r.status_code == 416:      # debut au-dela du total: fin des donnees
+            break
+        if r.status_code not in (200, 206):
+            raise RuntimeError(f"{libelle}: HTTP {r.status_code} {r.text[:200]}")
+        page = r.json()
+        lignes.extend(page)
+        annonce = r.headers.get("Content-Range", "").split("/")[-1]
+        if annonce.isdigit():
+            total = int(annonce)
+        if len(page) < PAGE_SIZE:
+            break
+        debut += PAGE_SIZE
+    if total is not None and len(lignes) != total:
+        raise RuntimeError(f"{libelle}: {len(lignes)} lignes lues sur {total} annoncees "
+                           f"(troncature ou lecture incoherente)")
+    return lignes
+
 # Mapping ticker -> secteur officiel BRVM (7 catégories, nomenclature 02/01/2025+)
 # Source : richbourse.com/common/variation/index (20/06/2026), 47/47 tickers confirmés.
 SECTEUR_OFFICIEL = {
@@ -210,13 +250,12 @@ def fetch_fundamentals():
     d'exclusion (jamais de silence — cf. discussion du 20/06/2026 sur les
     fallbacks tracés).
     """
-    r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/company_fundamentals"
-        f"?select=ticker,fiscal_year,eps,dividend_per_share,pe_ratio"
-        f"&eps=not.is.null&order=ticker.asc,fiscal_year.desc",
-        headers={**HEADERS, "Range": "0-2999"}
+    data = fetch_all(
+        "company_fundamentals"
+        "?select=ticker,fiscal_year,eps,dividend_per_share,pe_ratio"
+        "&eps=not.is.null&order=ticker.asc,fiscal_year.desc",
+        "company_fundamentals",
     )
-    data = r.json()
 
     # Grouper par ticker — on garde TOUTES les années disponibles ici (pas de limite à 3)
     # pour pouvoir vérifier correctement la consécutivité avant de tronquer.
@@ -257,24 +296,35 @@ def fetch_fundamentals():
 
 
 def fetch_prix_actuels():
-    """Récupère le dernier prix connu par ticker."""
-    r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/historical_data"
-        f"?select=company_id,trade_date,price&order=trade_date.desc",
-        headers=HEADERS
-    )
-    rows = r.json()
-    rc = requests.get(
-        f"{SUPABASE_URL}/rest/v1/companies?select=id,symbol",
-        headers=HEADERS
-    )
-    companies = {c["id"]: c["symbol"] for c in rc.json()}
+    """Récupère le dernier prix connu par ticker.
 
-    prix = {}
-    for row in rows:
-        symbol = companies.get(row["company_id"])
-        if symbol and symbol not in prix:
-            prix[symbol] = row["price"]
+    DATA-31: l'ancienne version lisait TOUTE la table historical_data (>100 000
+    lignes) triee par date decroissante; le serveur n'en renvoyait que 5 000, sans
+    erreur, et un ticker sans ligne recente disparaissait du resultat. On demande
+    maintenant, pour chaque societe, sa derniere ligne (limit=1): independant de
+    toute limite de lignes.
+    """
+    companies = fetch_all("companies?select=id,symbol&order=id.asc", "companies")
+
+    prix, sans_ligne = {}, []
+    for c in companies:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/historical_data"
+            f"?select=trade_date,price&company_id=eq.{c['id']}"
+            f"&order=trade_date.desc&limit=1",
+            headers=HEADERS,
+        )
+        if r.status_code != 200:
+            raise RuntimeError(f"historical_data {c['symbol']}: HTTP {r.status_code} {r.text[:200]}")
+        rows = r.json()
+        if not rows:
+            sans_ligne.append(c["symbol"])
+            continue
+        prix[c["symbol"]] = rows[0]["price"]
+
+    if sans_ligne:
+        print(f"  ⚠️  {len(sans_ligne)} société(s) sans aucune ligne dans historical_data : "
+              f"{', '.join(sorted(sans_ligne))}")
     return prix
 
 
