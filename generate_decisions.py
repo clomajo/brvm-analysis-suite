@@ -1,4 +1,5 @@
 import os
+import logging
 import pandas as pd
 import numpy as np
 from supabase import create_client
@@ -7,6 +8,8 @@ from datetime import date
 from brvm_classifier import BRVMClassifier
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
+log = logging.getLogger('generate_decisions')
 supabase = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_SERVICE_ROLE_KEY'])
 # ── Chargement signaux fondamentaux Mistral ───────────────────────────────────
 print("Loading fundamental signals...")
@@ -27,6 +30,24 @@ CLASSIFICATION_VERSION = 'v1_officielle_20260401'
 
 res = supabase.table('companies').select('id, symbol').execute()
 companies = {row['id']: row['symbol'] for row in res.data}
+
+# ── Suspensions de cotation en cours ──────────────────────────────────────────
+# Table trading_suspensions (voir tools/ddl_trading_suspensions_20261017.sql).
+# date_fin = derniere seance suspendue (inclusive) ; NULL = suspension en cours.
+# Un echec de lecture ne doit pas bloquer le pipeline, mais il est signale en
+# WARNING : sans cette table, les titres suspendus retombent dans le scoring.
+suspended = {}
+try:
+    susp_res = supabase.table('trading_suspensions') \
+        .select('symbol, motif, avis_ref, date_debut, date_fin') \
+        .lte('date_debut', date_jour).execute()
+    for row in susp_res.data:
+        if row['date_fin'] is None or row['date_fin'] >= date_jour:
+            suspended[row['symbol']] = row
+    log.info("Suspensions de cotation en cours: %s", sorted(suspended) or 'aucune')
+except Exception as e:
+    log.warning("Table trading_suspensions illisible (%s) - les titres suspendus "
+                "ne seront PAS exclus du scoring", e)
 
 print("Loading recent historical data (200 rows per ticker)...")
 all_rows = []
@@ -240,15 +261,43 @@ def calc_score_v2(symbol, tech_score):
 
 print("Generating decisions...")
 decisions = []
+suspended_decisions = []
 
 EXCLUDE = {'BRVM30', 'BRVMC', 'BRVM_CI'}
 for symbol, group in df.groupby('symbol'):
     if symbol in EXCLUDE:
         continue
+
+    # Titre suspendu: pas de scoring (cours fige, volume 0), signal SUSPENDU.
+    # Les champs numeriques sont a 0 plutot que NULL par prudence: le schema de
+    # brvm_decisions n'est pas versionne dans le depot.
+    if symbol in suspended:
+        log.info("  %s suspendu depuis le %s - signal SUSPENDU", symbol, suspended[symbol]['date_debut'])
+        suspended_decisions.append({
+            'ticker': symbol,
+            'date': date_jour,
+            'score': 0,
+            'signal': 'SUSPENDU',
+            'signal_combine': 'SUSPENDU',
+            'liquidity_tier': classifier.get_tier(symbol, date_jour),
+            'confidence': 0,
+            'confidence_label': 'Suspendu',
+            'classification_version': CLASSIFICATION_VERSION,
+            'market_regime': market_regime,
+        })
+        continue
+
     g = group.copy().reset_index(drop=True)
     if len(g) < 30:
         print(f"  Skipping {symbol} — insufficient data ({len(g)} rows)")
         continue
+
+    # Alerte (non bloquante): 5 seances a volume 0 et cours inchange pour un
+    # titre absent de trading_suspensions = suspension probablement non declaree.
+    last5 = g.tail(5)
+    if len(last5) == 5 and (last5['volume'].fillna(0) == 0).all() and last5['price'].nunique() == 1:
+        log.warning("  %s: volume 0 et cours inchange depuis 5 seances, absent de "
+                    "trading_suspensions - suspension non declaree ?", symbol)
 
     g['rsi'] = calc_rsi(g['price'])
     g['sma20'] = g['price'].rolling(20).mean()
@@ -415,3 +464,12 @@ if len(decisions) > 0:
     print(f"✅ {len(decisions)} decisions inserted for {date_jour} (version: {CLASSIFICATION_VERSION})")
 else:
     print("⚠️ No decisions generated")
+
+# Insertion separee: si brvm_decisions refuse une ligne SUSPENDU (contrainte
+# inconnue), les decisions normales deja inserees ne sont pas touchees.
+if suspended_decisions:
+    try:
+        supabase.table('brvm_decisions').upsert(suspended_decisions, on_conflict='ticker,date').execute()
+        log.info("%d decision(s) SUSPENDU inserees pour %s", len(suspended_decisions), date_jour)
+    except Exception as e:
+        log.error("Echec insertion des decisions SUSPENDU: %s", e)
