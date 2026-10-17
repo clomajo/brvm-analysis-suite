@@ -89,10 +89,15 @@ def main():
                 best, ecart = v, abs(delta)
         return best
 
+    # Lignes de statut: jamais verifiees (ADR-056)
+    NON_EVALUABLES = ("SUSPENDU", "DONNEES_INSUFFISANTES")
     par_date = {}
-    ignores = {"date_fictive": 0, "company": 0, "prix_signal": 0, "prix_verif": 0}
+    ignores = {"statut": 0, "date_fictive": 0, "company": 0, "prix_signal": 0, "prix_verif": 0}
 
     for d in decisions:
+        if d["signal"] in NON_EVALUABLES:
+            ignores["statut"] += 1
+            continue
         if d["date"] in fictives:
             ignores["date_fictive"] += 1
             continue

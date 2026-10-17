@@ -19,6 +19,11 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 VERIFICATION_WINDOW = 20  # jours (ADR-019 — J+20 optimal, signal BOA peak)
 
+# Lignes de statut (pas des signaux de marche): jamais verifiees, jamais dans
+# le benchmark. Un titre suspendu a un cours fige (variation 0) et serait compte
+# a tort comme signal neutre correct. Voir ADR-056.
+SIGNAUX_NON_EVALUABLES = ("SUSPENDU", "DONNEES_INSUFFISANTES")
+
 
 def get_price_at_date(company_id: int, target_date: date):
     """
@@ -99,9 +104,13 @@ def verify_decisions():
     company_cache = {}
     results = []
 
+    nb_statuts = 0
     for d in decisions:
         ticker      = d["ticker"]
         signal      = d["signal"]
+        if signal in SIGNAUX_NON_EVALUABLES:
+            nb_statuts += 1
+            continue
         signal_date = date.fromisoformat(d["date"])
         decision_id = d["id"]
 
@@ -155,6 +164,9 @@ def verify_decisions():
         status = "✅" if signal_correct else "❌"
         print(f"  {status} {ticker:<8} | {signal:<10} | {variation_pct:+6.1f}% "
               f"| {prix_signal:.0f} → {prix_verification:.0f} FCFA")
+
+    if nb_statuts:
+        print(f"\n  ℹ️  {nb_statuts} lignes de statut ignorees (SUSPENDU / DONNEES_INSUFFISANTES)")
 
     # 5b. Calcul du benchmark et de l'alpha (T16)
     # benchmark_return = moyenne simple des variation_pct de TOUS les tickers
