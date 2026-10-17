@@ -265,7 +265,7 @@ suspended_decisions = []
 
 # Detection automatique: nombre de seances consecutives sans echange (volume 0)
 # et sans variation de cours au-dela duquel un titre est traite comme suspendu.
-AUTO_SUSPENSION_SESSIONS = 5
+AUTO_SUSPENSION_SESSIONS = 6
 
 def is_frozen(group, n=AUTO_SUSPENSION_SESSIONS):
     last = group.tail(n)
