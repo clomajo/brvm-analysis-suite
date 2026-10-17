@@ -861,7 +861,8 @@ Recouvrement des sources : BOA 01/12/2025 – 03/08/2026, V1 03/04/2026 – 13/1
 retrait d'un doublon, voir DATA ci-dessous).
 
 **Croisement.** Signal V1 : SURVEILLER 65 sur 85 (76 %). Accord franc
-(BUY-ACHAT, SELL ou REDUCE-EVITER) : 11 sur 85 ; 12 sur 84 apres le detail par titre.
+(BUY-ACHAT, SELL ou REDUCE avec EVITER) : 12 cas. Les chiffres de la
+matrice avant detail par titre comptaient 11 (REDUCE-EVITER omis).
 Contradictions nettes : 6 (BICB 27/04 et 03/08, CBIBF 13/04, SNTS 13/04, STBC 03/08,
 UNXC 13/04).
 
