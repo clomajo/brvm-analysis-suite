@@ -2807,3 +2807,120 @@ dans `App.jsx`, (d) vérifier la collecte du lendemain.
 
 **Leçon.** `ON CONFLICT (symbol) DO NOTHING` ne protège pas d'une séquence d'id
 en retard : le conflit survient sur la clé primaire, pas sur `symbol`.
+
+
+---
+
+## ADR-056 — Titres suspendus de cotation : signal `SUSPENDU`, table `trading_suspensions`, détection automatique
+
+**Date** : 2026-10-17
+**Statut** : appliqué (branche suspensions-2026-10 ; cherry-pick remediation-2026-07 puis main)
+
+**Contexte.** Les avis BRVM 268/269/270-2026 du 16/09/2026 suspendent SICC, SEMC et
+SCRC (SCRC reprend le 22/09). Le collecteur reporte alors le dernier cours avec un
+volume nul : le pipeline voyait un titre « stable » et lui attribuait un signal.
+SEMC avait déjà connu un gel du 02/01/2024 au 31/12/2025 (avis 003-2024/BRVM/DG).
+
+**Décisions.**
+1. Table `trading_suspensions(symbol, motif, avis_ref, date_debut, date_fin)`.
+   `date_fin` = dernière séance suspendue ; NULL = en cours. RLS lecture seule
+   anon/authenticated. DDL exécuté dans le SQL Editor (ADR-026) :
+   `tools/ddl_trading_suspensions_20261017.sql`. Contenu initial : SICC, SEMC et
+   SCRC (16/09/2026) plus l'historique SEMC 2024-2025.
+2. Signal `SUSPENDU` dans `generate_decisions.py` : score 0, confiance 0, libellé
+   explicite, aucun objectif de cours.
+3. Détection automatique, sans règle propre à un ticker : un titre dont les
+   `AUTO_SUSPENSION_SESSIONS = 6` dernières séances ont volume nul et prix inchangé
+   est marqué `SUSPENDU`. Recalculée à chaque exécution (sans état) : la reprise
+   des échanges lève le statut seule.
+4. Garde « a déjà été échangé » (`has_traded_before`) : un titre jamais échangé avant
+   la fenêtre n'est pas suspendu (nouvelles cotations, dont BBGC). Une suspension
+   manuelle est ignorée si volume > 0 après `date_debut` ou sans échange antérieur.
+5. Seuil de 6 séances (et non 5) : un titre illiquide peut rester 5 séances sans
+   volume sans être suspendu. Choix de la propriétaire, à recalibrer sur les faux
+   positifs observés.
+
+**Alternatives écartées.** Règle codée pour SEMC/SICC/SCRC (rejetée : à refaire à
+chaque suspension) ; table seule sans détection (dépend d'une saisie manuelle).
+
+**Conséquence aval (découverte à la rédaction).** `verify_decisions.py` traitait tout
+signal inconnu comme neutre, « correct » si |variation| < 5 %. Un titre suspendu a
+une variation de 0 : il aurait été compté correct et aurait gonflé le hit rate et le
+benchmark dès les vérifications du ~9 novembre. Corrigé dans le même lot (voir
+ADR-057, point 4).
+
+**Limite.** La détection a un retard de 6 séances sur le début réel de la suspension ;
+la table manuelle reste la voie rapide.
+
+
+---
+
+## ADR-057 — Historique minimum de 50 séances et statut `DONNEES_INSUFFISANTES`
+
+**Date** : 2026-10-17
+**Statut** : appliqué
+
+**Contexte.** `generate_decisions.py` ignorait en silence les titres de moins de 30
+lignes, puis, entre 30 et 49 séances, retombait de la SMA50 à la SMA20 sans le dire.
+Les nouvelles cotations (BBGC, 15 séances) disparaissaient ou recevaient un signal
+non fiable. Autres introductions concernées : ORAC (2022), NSBC (2017), CBIBF (2016).
+
+**Décisions.**
+1. Règle générale `MIN_SESSIONS_SIGNAL = 50` séances depuis le premier échange. Aucun
+   traitement propre à un ticker : une future cotation est couverte sans modification.
+2. Sous le seuil : ligne `DONNEES_INSUFFISANTES`, libellé « Pas assez de données pour
+   donner un signal », score 0, confiance 0, au lieu d'un silence.
+3. Ces lignes sont insérées par un upsert séparé (`statut_decisions`) avec gestion
+   d'erreur : si le schéma de `brvm_decisions` refusait une ligne de statut, les
+   décisions normales ne seraient pas perdues. Champs numériques à 0 et non NULL par
+   prudence (nullabilité de `brvm_decisions.score` non vérifiée, voir BACKLOG).
+4. `verify_decisions.py` et `tools/reverify_decisions.py` ignorent `SUSPENDU` et
+   `DONNEES_INSUFFISANTES` (constante `SIGNAUX_NON_EVALUABLES`) : ni vérification,
+   ni écriture dans `brvm_decisions_results`, ni entrée dans le benchmark.
+
+**Rapport à l'ADR-001 et à l'ADR-055.** Le gel du modèle visait la logique de scoring.
+Celle-ci est inchangée : formules, poids, seuils ACHAT/SURVEILLER/EVITER intacts.
+Changent l'éligibilité (30 → 50 séances, impact : seulement les titres de moins de
+50 séances) et l'ajout de lignes de statut. L'ADR-055 point 3 (« aucune modification
+de `generate_decisions.py` ») est donc **amendé** : il a été levé sciemment pour
+remplacer l'échec silencieux par un statut explicite. Le gel n'est pas rouvert pour
+la refonte du modèle (MODEL-10) : cela exige toujours un ADR dédié.
+
+**Conséquences.** Le frontend ne connaît pas ces deux signaux : affichage à
+prévoir (BACKLOG). Les consommateurs `killswitch_check.py` et `backfill_alpha.py`
+lisent `brvm_decisions_results`, qui n'en contient plus.
+
+
+---
+
+## ADR-058 — Gardes opérationnelles : séance du jour, échecs visibles (CI-01), lectures paginées (DATA-31)
+
+**Date** : 2026-10-17
+**Statut** : appliqué
+
+**1. Garde de séance du jour.** Les jours fériés et week-ends, `generate_decisions.py`
+produisait des décisions datées sur des données périmées. Garde pilotée par les
+données, sans calendrier statique : si la dernière `trade_date` de `historical_data`
+n'est pas la date du jour, le script journalise, émet un `::warning` GitHub et sort
+avec le code 0. Dérogation : `FORCER_DECISIONS=1`. Les listes `JOURS_FERIES` de
+`prediction_analyzer*.py` restent statiques (non modifiées).
+
+**2. CI-01 — clôture.** Étape 1d : suppression du `|| echo` (étape rouge en cas
+d'échec, pipeline poursuivi grâce à `continue-on-error`). Étapes 6 et 7 : commandes
+simples sous `continue-on-error`. Nouvelle étape « Résumé » : lit `job.status` et les
+`outcome` des étapes (`etape1d`, `etape1g`, `etape6`, `etape7`) et écrit annotations
+et `$GITHUB_STEP_SUMMARY`. Non traité : l'étape 3b écrit « Decisions generated »
+quel que soit le résultat, et les étapes GRU 3e/4 gardent `if…else echo` (à retirer
+avec l'onglet Prévisions).
+
+**3. DATA-31 — clôture, écart avec l'ADR-053 §6.** L'ADR-053 retenait une fenêtre
+temporelle explicite. Retenu à la place : (a) `fetch_all()` paginée (Range / `Prefer:
+count=exact`, gestion du 416, vérification du total) pour les fondamentaux ;
+(b) `fetch_prix_actuels()` en une requête `limit=1` par société. Raison : une fenêtre
+fixe réintroduit exactement le défaut décrit (un titre absent de la fenêtre sort du
+dictionnaire) ; la requête par société est correcte quelle que soit l'illiquidité et
+reste petite (~48 appels). Une société sans aucune ligne est signalée par un
+avertissement. Respecte la règle de l'ADR-053 §7.
+
+**Leçon.** Un garde-fou qui masque l'échec (`|| echo`, `continue-on-error` seul) vaut
+moins que pas de garde-fou : il retire le signal d'alerte sans retirer le risque.

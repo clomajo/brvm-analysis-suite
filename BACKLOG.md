@@ -14,6 +14,47 @@
 
 ## 🔴 ACTIFS — ouverts le 2026-10-14 (session BBGC)
 
+## 🔴 ACTIFS — ouverts le 2026-10-17 (session suspensions / gardes)
+
+### Contrôle du premier run (lundi 19/10/2026, après 18 h UTC)
+Actions → « Résumé du run » ; étape 1f rouge ou non ; journal « Suspensions de
+cotation en cours: [SEMC, SICC] » ; requête : `select ticker, date, signal,
+confidence_label from brvm_decisions where signal in ('SUSPENDU',
+'DONNEES_INSUFFISANTES') order by date desc, ticker;` (attendu : SEMC/SICC
+`SUSPENDU`, BBGC `DONNEES_INSUFFISANTES`).
+
+### Contrôle de la première vérification J+20 (~9 novembre 2026)
+Confirmer qu'aucune ligne `SUSPENDU` / `DONNEES_INSUFFISANTES` n'apparaît dans
+`brvm_decisions_results` ni dans le benchmark (correctif ADR-057 §4).
+
+### Frontend : afficher `SUSPENDU` et `DONNEES_INSUFFISANTES`
+Badge et libellé pour les deux signaux (Overview, Opportunities, Scorecard).
+Patch Python d'`App.jsx` (ADR-002) ; dépôt `brvm-analytics` à rattacher à la session.
+Complète « Badge historique insuffisant » ci-dessous. Vérifier aussi que le
+Scorecard ne traite pas ces signaux comme HOLD.
+
+### Schéma `brvm_decisions` : nullabilité de `score`
+Les lignes de statut utilisent 0 faute d'avoir vérifié le schéma. Si `score` accepte
+NULL (`information_schema.columns`), préférer NULL pour éviter toute moyenne faussée.
+
+### Seuils à recalibrer
+`AUTO_SUSPENSION_SESSIONS = 6` et `MIN_SESSIONS_SIGNAL = 50`: relever les faux
+positifs de suspension (titres illiquides) après quelques semaines de production.
+
+### Vérifier `.env.save` (suivi par git)
+Contrôler s'il contient de vraies clés Supabase ; si oui, les régénérer et le retirer
+de l'index.
+
+### CHORE-05 — mis à jour
+Environ 55 fichiers non suivis à la racine (`.bak_*`, scripts ponctuels).
+Proposition à valider : classer, ajouter des motifs au `.gitignore`, supprimer le reste.
+
+### Mise à jour du rappel BBGC (ci-dessous)
+Le pipeline renvoie désormais `DONNEES_INSUFFISANTES` pour BBGC jusqu'à 50 séances
+(seuil 50 et non plus 30). Au rappel du 3/12, vérifier le passage à un vrai signal.
+
+---
+
 ### ⏰ RAPPEL ~3 décembre 2026 : BBGC — ne pas se fier au signal ni au risque avant ~50 séances
 Recommandation : ne pas se fier au signal ni au risque de BBGC avant environ
 50 séances, soit début décembre 2026 (50e séance ≈ 2 décembre, jours fériés BRVM
@@ -930,7 +971,9 @@ aux utilisateurs sur la majorité des tickers couverts.
 
 ## 🔴 OUVERTS AU 07/09/2026 — suite du chantier ADR-052
 
-### CI-01 — Echecs silencieux de l'etape 1d (priorite haute)
+### ✅ CI-01 — CLOS le 17/10/2026 (ADR-058) — Echecs silencieux de l'etape 1d
+
+> Clos: `|| echo` retire de 1d, etapes 6/7 sous `continue-on-error` signalees, etape « Resume du run ». Reste: etape 3b (« Decisions generated » inconditionnel) et etapes GRU 3e/4 (`if…else echo`), a retirer avec l'onglet Previsions.
 
 L'etape d'ingestion BOC cumule `continue-on-error: true` et `|| echo`. Tout
 echec y est invisible : le workflow s'affiche en vert quoi qu'il arrive. C'est
@@ -962,7 +1005,9 @@ seuils doivent etre **pre-enregistres avant** toute lecture des resultats par
 horizon : les chiffres a J+20 sont desormais connus, c'est exactement la
 situation ou l'ajustement a posteriori guette.
 
-### DATA-31 — `calculate_target_price.py`, defaut de pagination latent
+### ✅ DATA-31 — CLOS le 17/10/2026 (ADR-058) — `calculate_target_price.py`, defaut de pagination latent
+
+> Clos: fondamentaux pagines et verifies, prix actuels par societe (`limit=1`). Ecart avec ADR-053 §6 (fenetre temporelle) explique dans l'ADR-058.
 
 `fetch_prix_actuels()` lit 115 347 lignes sans pagination. Correct aujourd'hui
 grace au tri `trade_date.desc` (les 5 000 lignes recues sont les plus recentes),

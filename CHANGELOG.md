@@ -7,6 +7,38 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-10-17
+
+### FEAT/FIX/INFRA — Suspensions, historique minimum, gardes opérationnelles (ADR-056, ADR-057, ADR-058)
+- **Repos:** brvm-analysis-suite / Supabase
+- **Commits (hash d'origine, branches de travail avant cherry-pick) :**
+  `71fc77a`, `9732a28`, `68f0a48` (suspensions) ; `8e6d204`, `f5597f1`, `bd40648`
+  (historique minimum, `DONNEES_INSUFFISANTES`) ; `2eecc8a` (garde de séance) ;
+  `9003544` (CI-01) ; `f467635` (DATA-31) ; `677c677` (vérification J+20)
+- **FEAT — signal `SUSPENDU`.** Table `trading_suspensions` (SQL Editor, 4 lignes :
+  SICC, SEMC, SCRC du 16/09/2026 ; SEMC 2024-2025) et détection automatique après 6
+  séances sans échange, levée automatique à la reprise. Aucune règle par ticker.
+- **FEAT — `DONNEES_INSUFFISANTES`.** Minimum de 50 séances depuis le premier échange
+  pour tout signal (avant : 30 lignes, repli silencieux SMA50 → SMA20).
+- **FIX — garde de séance.** Aucune décision générée si la dernière séance collectée
+  n'est pas celle du jour (fériés, week-ends, collecte absente).
+- **FIX — vérification J+20.** `verify_decisions.py` et `tools/reverify_decisions.py`
+  ignorent `SUSPENDU` et `DONNEES_INSUFFISANTES` (sinon comptés comme neutres corrects).
+- **INFRA — CI-01.** Échecs de l'étape 1d visibles ; étapes 6 et 7 non bloquantes mais
+  signalées ; étape « Résumé du run ».
+- **FIX — DATA-31.** `calculate_target_price.py` : fondamentaux paginés et vérifiés,
+  prix actuels par société (`limit=1`).
+- **Tests:** scripts locaux (non versionnés) sur la détection, les titres neufs, la
+  garde de séance, la pagination et la vérification J+20 ; lecture de `test_pipeline.py`
+  (T5–T11b) : l'exécution du lundi 19/10 n'est pas bloquée.
+- **À vérifier le 19/10 après l'exécution de 18 h UTC :** ligne de journal
+  « Suspensions de cotation en cours » (SEMC, SICC attendus) et
+  `select ticker, date, signal from brvm_decisions where signal in
+  ('SUSPENDU','DONNEES_INSUFFISANTES') order by date desc, ticker;`
+  (SEMC/SICC `SUSPENDU`, BBGC `DONNEES_INSUFFISANTES`).
+
+---
+
 ## 2026-10-14
 
 ### DATA/FEAT — Ajout de BBGC (Bridge Bank Group Côte d'Ivoire), 48e valeur cotée (ADR-055)
