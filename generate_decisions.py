@@ -263,16 +263,45 @@ print("Generating decisions...")
 decisions = []
 suspended_decisions = []
 
+# Detection automatique: nombre de seances consecutives sans echange (volume 0)
+# et sans variation de cours au-dela duquel un titre est traite comme suspendu.
+AUTO_SUSPENSION_SESSIONS = 5
+
+def is_frozen(group, n=AUTO_SUSPENSION_SESSIONS):
+    last = group.tail(n)
+    return len(last) == n and bool((last['volume'].fillna(0) == 0).all()) and last['price'].nunique() == 1
+
 EXCLUDE = {'BRVM30', 'BRVMC', 'BRVM_CI'}
 for symbol, group in df.groupby('symbol'):
     if symbol in EXCLUDE:
         continue
 
     # Titre suspendu: pas de scoring (cours fige, volume 0), signal SUSPENDU.
+    # Deux sources, recalculees a chaque execution (aucun etat a synchroniser):
+    #  - manuelle: ligne active de trading_suspensions, ignoree des que la
+    #    derniere seance montre des echanges posterieurs a date_debut (reprise
+    #    non encore enregistree dans la table);
+    #  - automatique: AUTO_SUSPENSION_SESSIONS seances consecutives a volume 0
+    #    et cours inchange. La reprise du volume leve le signal d'elle-meme.
     # Les champs numeriques sont a 0 plutot que NULL par prudence: le schema de
     # brvm_decisions n'est pas versionne dans le depot.
-    if symbol in suspended:
-        log.info("  %s suspendu depuis le %s - signal SUSPENDU", symbol, suspended[symbol]['date_debut'])
+    manual = suspended.get(symbol)
+    last_row = group.iloc[-1]
+    if manual and last_row['volume'] > 0 \
+            and last_row['trade_date'].date().isoformat() > manual['date_debut']:
+        log.warning("  %s: volume %s le %s alors que la suspension est ouverte dans "
+                    "trading_suspensions - reprise probable, renseigner date_fin",
+                    symbol, int(last_row['volume']), last_row['trade_date'].date())
+        manual = None
+    auto_frozen = is_frozen(group)
+    if manual or auto_frozen:
+        if manual:
+            log.info("  %s suspendu depuis le %s (trading_suspensions) - signal SUSPENDU",
+                     symbol, manual['date_debut'])
+        else:
+            log.warning("  %s: volume 0 et cours inchange depuis %d seances, absent de "
+                        "trading_suspensions - SUSPENDU (detection automatique), a documenter",
+                        symbol, AUTO_SUSPENSION_SESSIONS)
         suspended_decisions.append({
             'ticker': symbol,
             'date': date_jour,
@@ -291,13 +320,6 @@ for symbol, group in df.groupby('symbol'):
     if len(g) < 30:
         print(f"  Skipping {symbol} — insufficient data ({len(g)} rows)")
         continue
-
-    # Alerte (non bloquante): 5 seances a volume 0 et cours inchange pour un
-    # titre absent de trading_suspensions = suspension probablement non declaree.
-    last5 = g.tail(5)
-    if len(last5) == 5 and (last5['volume'].fillna(0) == 0).all() and last5['price'].nunique() == 1:
-        log.warning("  %s: volume 0 et cours inchange depuis 5 seances, absent de "
-                    "trading_suspensions - suspension non declaree ?", symbol)
 
     g['rsi'] = calc_rsi(g['price'])
     g['sma20'] = g['price'].rolling(20).mean()
