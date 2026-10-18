@@ -3107,3 +3107,29 @@ Le reste de la relecture n'a pas été revérifié sur les rapports. Verdict inc
 6. **Volumes** (agro) absents des états financiers : source extérieure ou rapport d'activités.
 
 **Source externe.** stockanalysis.com (liste « Ivory Coast Stock Exchange », 48 titres : capitalisation, cours, CA) est signalé par la propriétaire comme bonne source. Seule la page de liste a pu être lue ; ses conditions d'utilisation (collecte automatisée) n'ont **pas** pu être consultées et une valeur (SAFC) paraît douteuse : usage de contrôle croisé, pas de source unique, tant que les conditions ne sont pas lues.
+
+
+### ADR-060 — Second essai du 18/10/2026 (Sonatel, BOAN, SODECI) : trois façons dont un PDF devient illisible
+
+Même méthode et même réserve que le premier essai (lecture indicative, à confirmer sur le PDF).
+
+| Société | Document | Ce qui est lisible | Ce qui ne l'est pas |
+|---|---|---|---|
+| Sonatel (télécoms) | États consolidés + attestation CAC | CA 1 923 122 / 1 776 443 MFCFA ; EBITDAaL 921,2 Mds (47,9 %) ; résultat d'exploitation ; résultat net part du groupe 341 963 ; flux et capex ; dette et trésorerie ; clients mobiles et fixe ; dividende 1 933 FCFA brut | « Chiffre d'affaires1 923 1221 776 443 » (appel de note collé aux montants, séparation ambiguë) ; signes négatifs ambigus ; nombre d'actions non publié (≈ 100 M déduit du BNPA) ; OpCF des diapositives (632,6) ≠ flux du tableau (681,6) ; dividende total non réconcilié |
+| BOAN (banque) | **Rapport du conseil d'administration**, pas des états complets | PNB 21 125 / 21 380 ; résultat net 409 / 5 002 ; coût du risque -4 520 ; fonds propres 36 065 ; solvabilité 14,06 % ; dépôts, crédits ; 20 800 000 actions ; aucun dividende (report à nouveau déficitaire) | Taux de créances douteuses de la banque et couverture absents (seul le taux du secteur) ; bilan et compte de résultat absents ; plusieurs sommes internes qui ne se recoupent pas ; non audité ou non confirmé |
+| SODECI (distribution d'eau) | États individuels + communiqué | **Communiqué seul** : CA 189,4 Mds (+10 %), EBE 21,8, résultat d'exploitation 9,1, résultat net 4,663 (+31 %), dividende 525 FCFA (4,725 Mds) | **Tableaux des états illisibles : les libellés sont codés en symboles** (la couche de texte du PDF est inutilisable) ; unités et référentiel (SYSCOHADA ou IFRS) contradictoires dans le document ; stocks, créances, dette, trésorerie, flux : non lisibles |
+
+**Trois modes d'échec de la lecture de texte, à traiter séparément.**
+1. **Colonnes mélangées et appels de note collés aux chiffres** (SICABLE, SAPH, Sonatel) : erreurs de signe et d'unité. Traitement : extraction de tableaux par position, pas par flux de texte.
+2. **Couche de texte codée en symboles** (SODECI) : aucun outil de texte ne peut lire ; il faut une **OCR** (image de la page). Détection simple : proportion de caractères non alphabétiques dans le texte extrait.
+3. **Document d'un autre type que celui attendu** (BOAN : rapport du conseil au lieu d'états financiers ; attestations des commissaires aux comptes sans chiffres) : classer le document avant d'extraire.
+
+**Autres enseignements.**
+- **Le communiqué de presse et les diapositives de résultats** inclus dans le dépôt sont la partie la plus lisible ; les chiffres clés y sont (SODECI, Sonatel). Ils servent de contrôle des tableaux, jamais l'inverse sans vérification.
+- **Périmètre** : consolidé (Sonatel) ou individuel (les autres) : champ à extraire.
+- **Statut** : audité, attesté seulement, provisoire ou inconnu (3 sur 3 non établi avec certitude) : champ à extraire.
+- **Contrôles de cohérence automatisables** : résultat consolidé = part du groupe + minoritaires (Sonatel : 341 963 + 71 625 = 413 588) ; capitaux propres du bilan = tableau d'affectation (BOAN) ; dividende × nombre d'actions ≈ taux de distribution × résultat (SGBC). Un contrôle qui échoue **signale** le chiffre, il ne le corrige pas.
+- **Nombre d'actions** : explicite pour 2 sociétés sur 6 essayées (SGBC, BOAN) ; sinon déduit. Source de marché à privilégier.
+- **Rattrapage de la relecture** : le signal enregistré pour SODECI (S1 2025, CA -1,8 %) contredit l'exercice 2025 (CA +10 %, résultat net +31 %). Il est périmé, ce qui confirme la cause « texte le plus long, pas le plus récent ».
+
+**Pipeline d'extraction proposé (à spécifier dans un ADR-061, non appliqué).** (1) classer le document ; (2) tester la couche de texte, OCR si elle est codée ; (3) extraire les tableaux par position ; (4) extraire les champs de la famille de secteur, avec unité, phrase ou ligne source, périmètre et statut ; (5) contrôles de cohérence ; (6) signal par règle déterministe écrite d'avance ; (7) revue manuelle des rapports qui échouent aux contrôles.
