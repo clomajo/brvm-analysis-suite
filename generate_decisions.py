@@ -70,8 +70,21 @@ print(f"Loaded {len(df)} rows for {df['symbol'].nunique()} tickers")
 # Jour ferie BRVM, week-end ou collecte absente: historical_data ne contient
 # alors aucune ligne datee d'aujourd'hui. Sans calendrier a maintenir, la base
 # est la source de verite. FORCER_DECISIONS=1 passe outre (rejeu manuel).
+# Une vraie seance = au moins MIN_TITRES_SEANCE titres (hors indices) avec volume > 0.
+# Pourquoi pas simplement max(trade_date): scrape_indices.py ecrit BRVMC et BRVM30
+# (volume 0) a la date d'execution, meme un dimanche ou un jour ferie. Ces lignes
+# suffisaient a faire croire a une seance (run manuel du 18/10/2026: 45 decisions
+# generees un dimanche).
+INDICES = {'BRVM30', 'BRVMC', 'BRVM_CI'}
+MIN_TITRES_SEANCE = 10
+
 def derniere_seance(df):
-    return df['trade_date'].max().date().isoformat()
+    titres = df[~df['symbol'].isin(INDICES) & (df['volume'] > 0)]
+    par_jour = titres.groupby('trade_date')['company_id'].nunique()
+    jours = par_jour[par_jour >= MIN_TITRES_SEANCE]
+    if jours.empty:
+        return titres['trade_date'].max().date().isoformat() if len(titres) else '1970-01-01'
+    return jours.index.max().date().isoformat()
 
 derniere = derniere_seance(df)
 if derniere != date_jour:
