@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS fundamental_signals (
     report_url        TEXT        NOT NULL,
     report_title      TEXT,
     report_date       DATE,
+    source_lecture    TEXT,
     signal            TEXT        NOT NULL,
     croissance_ca_pct NUMERIC,
     tendance          TEXT,
@@ -40,9 +41,15 @@ CREATE TABLE IF NOT EXISTS fundamental_signals (
     CONSTRAINT fundamental_signals_type_chk
         CHECK (type_rapport IS NULL OR type_rapport IN
                ('ACTIVITES','EXAMEN_LIMITE','CAC','ETATS_FIN','COMMENTAIRE')),
+    CONSTRAINT fundamental_signals_source_chk
+        CHECK (source_lecture IS NULL OR source_lecture IN ('titre','url','manuel')),
     CONSTRAINT fundamental_signals_ticker_chk
         CHECK (length(btrim(ticker)) > 0)
 );
+
+-- Si la table a deja ete creee sans cette colonne (version du 18/10 13h39) :
+ALTER TABLE fundamental_signals ADD COLUMN IF NOT EXISTS source_lecture TEXT;
+-- (la contrainte source_chk n'est ajoutee qu'a la creation ; sans importance a ce stade)
 
 -- Un rapport ne produit qu'une ligne (cle d'idempotence du remplissage).
 CREATE UNIQUE INDEX IF NOT EXISTS fundamental_signals_report_uk

@@ -3010,3 +3010,22 @@ reçoivent avant le déploiement.
 **Vérification demandée avant le remplissage.** La liste des titres réels :
 `select report_title, report_date from fundamental_analysis order by report_date desc;`
 (à confronter à `lire_titre()` : combien de titres sortent `None` ?).
+
+
+### ADR-060 — Amendement du 18/10/2026 : l'adresse du fichier remplace le titre manquant
+
+**Constat sur les données réelles** (export de `fundamental_analysis`, 100 lignes sur 186 ; 42 lignes sur 186 avec le titre générique « Télécharger », qui est le défaut de l'ADR-019 resté dans les anciennes lignes) :
+1. `report_date` n'est pas fiable : « 1er semestre 2026 » est daté du 31/12/2026, la date de repli du code.
+2. L'adresse du fichier BRVM suit un modèle stable : `AAAAMMJJ_-_<type>_-_<période>_-_<société>.pdf`. Elle donne la **date de publication réelle** et l'exercice et la période.
+
+**Décision.** `fundamental_periode.lire_rapport(titre, url)` lit le titre ; si le titre est absent, générique ou illisible, il lit l'adresse. Il garde la source (`titre` ou `url`) dans `source_lecture` et la date de publication dans `report_date`. Un titre lisible l'emporte sur l'adresse. Aucune lecture possible, ou plusieurs années (ex. « exercices 2018 à 2023 ») : `None`, revue manuelle.
+
+**Résultat sur les données** : sur les 100 titres de l'export, 63 sont lus par le titre ; sur les 42 adresses des rapports à titre générique, 41 le sont. Reste en revue manuelle : « Etats financiers exercices 2018 à 2023 » (Tractafric) ; deux titres sans année (CIE SODE, NEI CEDA). 33 tests.
+
+**Règles à retenir pour le remplissage.**
+- **T2 et S1 désignent la même coupure (30 juin).** `period_end` est la clé de comparaison ; le libellé (T2 ou S1) est une information. Cas vu : BIIC BN, fichier « 2ème trimestre 2025 », texte « 1er semestre 2025 ».
+- **« Annule et remplace le précédent »** (BOA NG, Tractafric, SUCRIVOIRE, SITAB) : deux rapports pour une même période, le plus récent remplace l'ancien. Le remplissage garde les deux lignes et marque l'ancienne comme remplacée (colonne à ajouter au moment du script).
+- **Dépôts tardifs.** SAFCA : fichier publié le 03/07/2026 pour le 4e trimestre 2024. La date de publication et la période sont deux informations distinctes ; ne jamais déduire l'une de l'autre.
+- Les rapports d'avant 2024 (SEMC 1T 2023, UNILEVER 2022, SICOR 2023) sont lus correctement ; l'historique existe donc au moins pour quelques sociétés.
+
+**Toujours non fait.** Remplissage, workflow, lecture par le modèle, mesure des PDF illisibles. Prochaine étape : récupérer les 86 lignes manquantes de l'export (Export CSV complet) et lancer le lecteur sur les 186 en simulation.
