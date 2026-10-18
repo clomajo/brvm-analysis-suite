@@ -3029,3 +3029,39 @@ reçoivent avant le déploiement.
 - Les rapports d'avant 2024 (SEMC 1T 2023, UNILEVER 2022, SICOR 2023) sont lus correctement ; l'historique existe donc au moins pour quelques sociétés.
 
 **Toujours non fait.** Remplissage, workflow, lecture par le modèle, mesure des PDF illisibles. Prochaine étape : récupérer les 86 lignes manquantes de l'export (Export CSV complet) et lancer le lecteur sur les 186 en simulation.
+
+
+### ADR-060 — Relecture du 18/10/2026 : les signaux fondamentaux existants ne sont pas fiables
+
+**Protocole (fixé avant la lecture).** 12 sociétés tirées par `order by md5(symbol)` (aucun choix manuel), parmi les 47 signaux de `company_fundamentals` (FY2025). Pour chacune : texte d'analyse que le script d'extraction retient (le plus long, tronqué à 3000 caractères), signal, croissance et résumé enregistrés. Trois critères : (a) bonne société et bon rapport ; (b) la croissance enregistrée correspond aux chiffres du texte ; (c) le signal est défendable à la lecture du texte. Seuil écrit d'avance : **au moins 9 sociétés sur 12** passent (a), (b) et (c).
+
+**Résultat : 3 sur 12 (4 à 5 avec une lecture indulgente). Seuil non atteint.**
+
+| Société | Texte relu | Signal | Constat |
+|---|---|---|---|
+| BOAN | FY2025 | négatif | conforme (PNB -1,2 %) |
+| ONTBF | FY2025 | neutre | conforme (CA +14,1 %, résultat net -26 %) |
+| SICC | FY2023 | négatif | conforme au texte, mais exercice 2023 : le dernier texte disponible d'une société aujourd'hui suspendue |
+| TTLC | attestation CAC S1 2025 | neutre | le texte dit « N/D » partout ; -5,2 % et EBIT +18 % n'y figurent pas |
+| SDSC | CAC FY2024 | positif | texte : évolution « non précisée », recommandation « CONSERVER » ; +6,2 % absent ; FY2025 existe |
+| NTLC | S1 2025 | neutre | texte : CA +0,00 %, résultat net -23,5 % ; +1,36 % et -21,3 % absents ; FY2025 existe |
+| SGBC | FY2025 | positif | texte : PNB +4,9 % (enregistré : +1,3 %) ; frais +7,3 %, coût du risque +29 % contredisent « baisse des coûts » |
+| ORAC | T3 2025 | positif | texte : +9,9 % ; enregistré : +9,0 % et « CA estimé en 2024 » : autre texte |
+| SNTS | T3 2025 | positif | texte : +8,6 % ; enregistré : +9,4 % ; sens correct |
+| SDCC | S1 2025 | neutre | texte : CA -0,4 % ; -1,8 % et +18,9 % absents |
+| NEIC | T1 2025 | positif | texte : CA -54 %, perte doublée, risque élevé ; résumé « +10 %, expansion immobilière » : contredit, hors sujet |
+| CABC | FY2025 | positif | CA +11,2 % exact, mais perte nette +39 %, flux opérationnel négatif, dividende suspendu : positif indéfendable |
+
+**Causes constatées.**
+1. **Signal ancré sur le chiffre d'affaires.** Le prompt ne définit pas « positif/neutre/négatif » ; le modèle suit la croissance du CA et ignore pertes, flux de trésorerie, dividende (CABC, SGBC).
+2. **3000 premiers caractères seulement** : seule la première section (CA) est lue ; rentabilité, trésorerie et risques sont coupés.
+3. **Des chiffres absents du texte** dans 7 cas sur 12 (TTLC, SDSC, NTLC, SGBC, SDCC, ORAC, SNTS) : nombres inventés ou issus d'un autre texte. Une partie vient peut-être d'un texte plus ancien (les analyses de 10 des 12 sociétés sont postérieures au 30/04) : **le signal n'est pas relié à son rapport source, donc inauditable**.
+4. **Documents sans chiffres** (attestations des commissaires aux comptes) traités comme des rapports d'activité ; les textes d'analyse eux-mêmes supposent des tendances (« croissance de 5-8 % plausible »).
+5. **L'analyse retenue est la plus longue, pas la plus récente** : SICC reste sur FY2023, SDSC sur FY2024, NTLC sur S1 2025.
+6. Erreur d'unité dans un texte (CABC : « milliards » pour des millions).
+
+**Conséquence sur le modèle en production.** `generate_decisions.py` construit le « signal combiné » (CONVICTION FORTE, PRUDENCE, ÉVITER FORT…) à partir de ces signaux. Il repose donc sur des données dont la fiabilité est de 3 sur 12 à l'échantillon. À arbitrer (décision de la propriétaire, ADR distinct) : cesser de s'en servir ou de l'afficher. Affichage dans le frontend non vérifié ici.
+
+**Décision 6 (proposée, non appliquée) : séparer l'extraction du jugement.** Un nouvel extracteur ne demande à Mistral que des **chiffres cités** (CA, résultat net, flux opérationnel, dividende, chacun avec la phrase source, `N/D` si absent, jamais d'estimation). Le signal est ensuite calculé par **règle déterministe écrite avant tout calcul**, sur l'ensemble du rapport (pas 3000 caractères), par rapport à la même période de l'exercice précédent. Un chiffre sans phrase source est rejeté. Les documents sans chiffres (attestations) ne produisent pas de signal.
+
+**Seuil non respecté : la table `fundamental_signals` ne sera pas remplie** avec les signaux actuels. Elle reste vide.
