@@ -2980,3 +2980,33 @@ exclure les sources qui écrivent hors séance. (3) Une insertion qui échoue sa
 échouer le run est un échec invisible : l'ajouter à l'annotation. (4) Une valeur
 d'énumération nouvelle impose de relire les `CHECK` de toutes les tables qui la
 reçoivent avant le déploiement.
+
+
+## ADR-060 — Historique des signaux fondamentaux : une ligne par rapport, par exercice et par période
+
+**Date** : 2026-10-18
+**Statut** : spécification — **rien n'est branché**. La table et le lecteur de titres sont livrés ; ni le remplissage, ni le workflow, ni `generate_decisions.py` ne changent.
+
+**Constat (diagnostic du 18/10/2026).**
+1. `extract_fundamental_signals.py` n'est dans aucun workflow (T8, ADR-052 §6) et n'a tourné qu'à la main le 30/04.
+2. Il écrit `fiscal_year = "FY2025"` et `signal_date = "2026-04-30"` en dur pour toutes les sociétés, et ne retient qu'**une** analyse par société (la plus longue, sans égard à la date).
+3. Résultat en base : 47 signaux sur 269 lignes de `company_fundamentals`, tous sur FY2025 ; FY2026 n'en a aucun. Les analyses du pipeline (`fundamental_analysis`, 186 lignes, 8 ajoutées le 18/10) n'alimentent donc jamais le signal lu par `generate_decisions.py`.
+4. L'extraction des PDF fonctionne au moins en partie (analyses écrites le 18/10). La proportion de rapports illisibles reste à mesurer (journal de l'étape 5, mots « vide » et « Erreur »).
+
+**Décision 1 — table d'historique `fundamental_signals`.** Une ligne par rapport analysé, jamais d'écrasement (DDL : `tools/ddl_fundamental_signals_20261018.sql`, à exécuter dans le SQL Editor par la propriétaire, ADR-026). Raison : un rapport trimestriel ou semestriel n'a de sens que par rapport aux précédents ; la continuité de la série est la donnée utile, et la seule base d'une validation future. `company_fundamentals` ne peut pas la porter : sa clé `(company_id, fiscal_year)` n'admet qu'une analyse par exercice.
+
+**Décision 2 — clé : `report_url` unique, pas `(société, exercice, période)`.** Une même période compte plusieurs rapports (ex. BOA CI, 1er semestre 2026 : le rapport d'activités **et** le rapport d'examen limité). Une clé par période en perdrait un. La période est une colonne, pas une clé. `company_id` et `ticker` sont obligatoires (ADR-059).
+
+**Décision 3 — exercice et période lus dans le titre, jamais devinés.** `fundamental_periode.lire_titre()` (fonction pure, 18 cas de test, `tests/test_fundamental_periode.py`) renvoie exercice, période (`T1 T2 T3 T4 S1 S2 FY`), date de clôture et type de rapport. Règles : les mots trimestre/semestre l'emportent sur « états financiers » (un état intermédiaire n'est pas un exercice) ; `annuel` ou `exercice` donne `FY` ; aucune année, plusieurs années (« 2024-2025 ») ou période introuvable donne `None` et le rapport part en **revue manuelle**. Un exercice incertain est un défaut, pas une valeur par défaut.
+
+**Décision 4 — lecture par le modèle : décision séparée, pas ici.** Quand elle sera prise : un seul signal par société, celui de la période la plus récente (`period_end` puis `report_date`), l'historique restant dans la table. Toute modification de `generate_decisions.py` ou du « signal combiné » exige un ADR propre, l'accord explicite de la propriétaire et une période d'observation (même cadre que le V2).
+
+**Décision 5 — comparaison à période égale.** Le prompt d'extraction devra demander la croissance par rapport à **la même période de l'exercice précédent** (S1 contre S1), jamais contre un exercice complet.
+
+**Conditions avant tout branchement.** (a) Relecture manuelle d'un échantillon d'une dizaine d'analyses pour juger la fiabilité du signal (le prompt actuel ne transmet que les 3000 premiers caractères du texte) ; (b) mesure de la part de PDF illisibles ; (c) règle de tendance sur plusieurs périodes écrite avant tout calcul ; (d) pré-enregistrement du critère de réussite à J+20 avant d'utiliser ces signaux dans un V3-TF.
+
+**Ce qui n'est pas fait.** Remplissage initial des 186 analyses existantes (script à écrire, à valider en mode simulation avant écriture), raccordement au workflow, passage de `extract_fundamental_signals.py` aux valeurs lues, affichage.
+
+**Vérification demandée avant le remplissage.** La liste des titres réels :
+`select report_title, report_date from fundamental_analysis order by report_date desc;`
+(à confronter à `lire_titre()` : combien de titres sortent `None` ?).
