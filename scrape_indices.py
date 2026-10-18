@@ -39,9 +39,24 @@ def save_price(company_id, date, price, exists):
         )
     return r.status_code in [200, 201, 204]
 
+def get_bulletin(tentatives=3, pause=(5, 15)):
+    """Telecharge le bulletin avec reprises: brvm.org depasse parfois le delai de
+    lecture (run du 18/10/2026 en echec sur ReadTimeout). Leve l'erreur apres la
+    derniere tentative: l'appelant decide si c'est bloquant."""
+    import time
+    for n in range(1, tentatives + 1):
+        try:
+            return requests.get(BULLETIN_URL, timeout=30, verify=False)
+        except requests.exceptions.RequestException as e:
+            logging.warning(f"Bulletin BRVM: tentative {n}/{tentatives} echouee ({type(e).__name__})")
+            if n == tentatives:
+                raise
+            time.sleep(pause[min(n - 1, len(pause) - 1)])
+
+
 def scrape_indices():
     today = datetime.now().date().isoformat()
-    r = requests.get(BULLETIN_URL, timeout=30, verify=False)
+    r = get_bulletin()
     soup = BeautifulSoup(r.text, 'html.parser')
     
     mapping = {'BRVM-C': 'BRVMC', 'BRVM-30': 'BRVM30'}
