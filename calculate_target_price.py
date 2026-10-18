@@ -257,6 +257,24 @@ def fetch_fundamentals():
         "company_fundamentals",
     )
 
+    # Lignes sans ticker (colonne NULL): ignorees et signalees, jamais silencieuses.
+    # Une seule ligne de ce type faisait planter le tri plus bas (None contre str) et
+    # arretait tout le pipeline (runs rouges du 14 au 16/10/2026, BBGC).
+    sans_ticker = [r for r in data if not r.get("ticker")]
+    if sans_ticker:
+        print(f"  ⚠️  {len(sans_ticker)} ligne(s) de company_fundamentals sans ticker ignoree(s) "
+              f"(fiscal_year: {sorted({str(r.get('fiscal_year')) for r in sans_ticker})}) — a corriger en base")
+        data = [r for r in data if r.get("ticker")]
+
+    # Lignes sans ticker (colonne NULL): ignorees et signalees, jamais silencieuses.
+    # Une seule ligne de ce type faisait planter le tri plus bas (None contre str) et
+    # arretait tout le pipeline (runs rouges du 14 au 16/10/2026, BBGC).
+    sans_ticker = [r for r in data if not r.get("ticker")]
+    if sans_ticker:
+        print(f"  ⚠️  {len(sans_ticker)} ligne(s) de company_fundamentals sans ticker ignoree(s) "
+              f"(fiscal_year: {sorted({str(r.get('fiscal_year')) for r in sans_ticker})}) — a corriger en base")
+        data = [r for r in data if r.get("ticker")]
+
     # Grouper par ticker — on garde TOUTES les années disponibles ici (pas de limite à 3)
     # pour pouvoir vérifier correctement la consécutivité avant de tronquer.
     grouped = {}
