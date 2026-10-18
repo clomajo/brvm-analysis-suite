@@ -16,6 +16,25 @@
 
 ## 🔴 ACTIFS — ouverts le 2026-10-17 (session suspensions / gardes)
 
+### Étape 3b : « Decisions generated » écrit quoi qu'il arrive (issu d'ADR-059)
+Le message est inconditionnel. Faire échouer l'étape (ou la signaler) si le script sort
+en erreur ou n'insère aucune ligne un jour de séance.
+
+### Étape 1f bloquante alors que V1 en dépend (issu d'ADR-059)
+Un défaut de données sur un seul ticker a coupé tout le pipeline trois jours. Trancher :
+garder bloquant (visible) ou isoler le ticker fautif. Décision à prendre avec la propriétaire.
+
+### BBGC : cours cible V2 sur une seule année d'EPS (issu d'ADR-059)
+`evaluer_qualite_eps` accepte un ticker à année unique sans contrôle. Décider d'exclure
+BBGC de V2 jusqu'à plus d'historique, ou d'ajouter un badge. Jusque-là, signal V1 :
+`DONNEES_INSUFFISANTES` (~3 décembre 2026 pour un vrai signal).
+
+### Épingler `parse_boa_letter.yml` sur une version d'Ubuntu (issu d'ADR-059)
+Reste sur `ubuntu-latest` (migration vers Ubuntu 26 en cours depuis le 19/10/2026).
+
+### Vérifier le ~9 novembre 2026
+`brvm_decisions_results` ne doit contenir aucune ligne `SUSPENDU` / `DONNEES_INSUFFISANTES`.
+
 ### Dépôt frontend: retirer `dist/`, `node_modules/.vite` et `.DS_Store` du suivi git
 Ces fichiers sont suivis par erreur: chaque build les modifie et un `git add -A` les commiterait.
 Ajouter au `.gitignore` puis `git rm -r --cached` (à faire par la propriétaire, hors Claude).

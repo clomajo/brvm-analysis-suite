@@ -7,6 +7,24 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-10-18
+
+### FIX/INFRA/DATA — Pipeline réparé après trois runs rouges et une garde contournée (ADR-059)
+- **Repos:** brvm-analysis-suite / Supabase
+- **Commits (hash d'origine) :** `7f10c64` (ticker NULL), `96de4be` (reprises indices),
+  `2a81df0` (ubuntu-24.04), `639ba83` (garde sans indices), `1433eb6` (annotation).
+  Après cherry-pick, `remediation-2026-07` : `2250717`, `b637c46`, `e61cfe6`, `ce35564` ;
+  `main` : `bad01ce`, `840bffc`, `825a0ca`, `9e5f89b`.
+- **DATA — SQL.** `company_fundamentals` : ticker BBGC renseigné (id 4864). Suppression
+  des 45 décisions et des 2 lignes d'indices datées du 18/10 (dimanche). Contrainte
+  `brvm_decisions_signal_check` étendue à `SUSPENDU` et `DONNEES_INSUFFISANTES`.
+- **FIX.** Lignes sans ticker ignorées avec avertissement (1f) ; garde de séance
+  redéfinie (≥ 10 titres hors indices avec volume > 0).
+- **INFRA.** Étape 1 : 3 tentatives, puis avertissement non bloquant ; workflow figé sur
+  `ubuntu-24.04` ; annotation quand les lignes de statut ne s'insèrent pas.
+- **Conséquence connue :** pas de décisions pour les 14, 15, 16/10 (volontaire).
+- **À vérifier le 19/10 :** voir l'item « Contrôle du premier run » du BACKLOG.
+
 ## 2026-10-17
 
 ### FEAT/FIX/INFRA — Suspensions, historique minimum, gardes opérationnelles (ADR-056, ADR-057, ADR-058)
