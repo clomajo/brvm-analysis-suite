@@ -468,44 +468,14 @@ for symbol, group in df.groupby('symbol'):
     risk_reward = round(upside_pct / downside_pct, 2) if downside_pct > 0 else None
 
 
-    # ── Signal fondamental Mistral ─────────────────────────────────────────
-    fund = fund_signals.get(symbol, {})
-    signal_fond = fund.get('signal_fondamental')
-    croissance = fund.get('croissance_ca_pct')
-    resume = fund.get('resume_fondamental')
+    # ADR-060 / decision du 18/10/2026 : pas de signal combine.
+    # Le signal fondamental Mistral n'est pas fiable (relecture ADR-060 : 3/12)
+    # et n'est donc ni lu ni affiche. Les colonnes restent a NULL / egales au signal.
+    signal_fond = None
+    croissance = None
+    resume = None
+    signal_combine = signal
 
-    # Signal combiné
-    if signal == 'ACHAT' and signal_fond == 'positif':
-        signal_combine = 'CONVICTION FORTE'
-    elif signal == 'ACHAT' and signal_fond == 'négatif':
-        signal_combine = 'PRUDENCE'
-    elif signal == 'ACHAT' and signal_fond == 'neutre':
-        signal_combine = 'ACHAT MODÉRÉ'
-    elif signal == 'SURVEILLER' and signal_fond == 'positif':
-        signal_combine = 'À SURVEILLER +'
-    elif signal == 'EVITER' and signal_fond == 'négatif':
-        signal_combine = 'ÉVITER FORT'
-    else:
-        signal_combine = signal
-
-    # ── Signal fondamental Mistral ─────────────────────────────────────────
-    fund = fund_signals.get(symbol, {})
-    signal_fond = fund.get('signal_fondamental')
-    croissance = fund.get('croissance_ca_pct')
-    resume = fund.get('resume_fondamental')
-
-    if signal == 'ACHAT' and signal_fond == 'positif':
-        signal_combine = 'CONVICTION FORTE'
-    elif signal == 'ACHAT' and signal_fond in ['negatif', 'négatif']:
-        signal_combine = 'PRUDENCE'
-    elif signal == 'ACHAT' and signal_fond == 'neutre':
-        signal_combine = 'ACHAT MODERE'
-    elif signal == 'SURVEILLER' and signal_fond == 'positif':
-        signal_combine = 'A SURVEILLER +'
-    elif signal == 'EVITER' and signal_fond in ['negatif', 'négatif']:
-        signal_combine = 'EVITER FORT'
-    else:
-        signal_combine = signal
     decisions.append({
         'ticker': symbol,
         'date': date_jour,
