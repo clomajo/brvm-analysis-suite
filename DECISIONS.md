@@ -2924,3 +2924,59 @@ avertissement. Respecte la règle de l'ADR-053 §7.
 
 **Leçon.** Un garde-fou qui masque l'échec (`|| echo`, `continue-on-error` seul) vaut
 moins que pas de garde-fou : il retire le signal d'alerte sans retirer le risque.
+
+
+## ADR-059 — Incidents des 14-18/10/2026 : clé `ticker`, brvm.org injoignable, garde de séance contournée, contrainte `signal`
+
+**Date** : 2026-10-18
+**Statut** : appliqué (SQL exécuté en base ; code sur `main` et `remediation-2026-07`)
+
+Quatre défauts enchaînés ont fait échouer ou fausser le pipeline entre le 14 et le
+18/10/2026. Aucun n'est dans la logique de scoring (ADR-001 intacte).
+
+**1. `company_fundamentals` sans `ticker` (runs rouges #265 à #267, 14-16/10).**
+La ligne BBGC (id 4864) avait été insérée avec `company_id` mais sans `ticker`
+(omission du SQL de l'ADR-055). L'étape 1f (`calculate_target_price.py`) utilise
+`ticker` comme clé : `TypeError` à la ligne 321 (tri/clé `None`). L'étape 1f est
+bloquante et V1 en dépend : pas de V2 du 14 au 17, donc pas de décisions du 14 au 16.
+Corrections : `update company_fundamentals set ticker='BBGC' where id=4864` ; garde dans
+`fetch_fundamentals()` (lignes sans ticker ignorées avec avertissement chiffré).
+Règle : une ligne de `company_fundamentals` exige `company_id` ET `ticker`.
+
+**2. brvm.org injoignable (run #268).** `ReadTimeout` à l'étape 1 (`scrape_indices.py`),
+qui arrêtait tout le pipeline pour une donnée secondaire (indices BRVMC/BRVM30).
+Corrections : 3 tentatives (pause 5-15 s) dans `get_bulletin()` ; dans le workflow,
+l'étape 1 est non bloquante avec `::warning title=scrape_indices`.
+
+**3. Garde de séance contournée (dimanche 18/10).** `scrape_indices.py` écrit des lignes
+d'indices datées du jour, volume 0, même hors séance : la dernière `trade_date` valait
+donc « aujourd'hui » et la garde de l'ADR-058 §1 laissait passer. 45 décisions
+dominicales ont été produites puis supprimées (SQL) avec les 2 lignes d'indices du
+18/10. **Amendement de l'ADR-058 §1** : une séance est une date avec au moins 10 titres
+hors indices (`BRVMC`, `BRVM30`, `BRVM_CI`) ayant volume > 0 (`MIN_TITRES_SEANCE`).
+Repli si aucune date n'atteint 10 titres : dernière date avec un titre échangé.
+
+**4. Contrainte `brvm_decisions_signal_check`.** Elle n'admettait que `ACHAT`,
+`SURVEILLER`, `EVITER` : l'insertion des lignes `SUSPENDU` / `DONNEES_INSUFFISANTES`
+(ADR-056, ADR-057) était rejetée, le run restant vert (erreur seulement journalisée).
+SQL : contrainte recréée avec les 5 valeurs (vérifié par `unnest`). Code : annotation
+`::warning title=generate_decisions` si l'insertion des lignes de statut échoue.
+
+**Décisions annexes.** (a) Les décisions des 14, 15 et 16/10 ne sont pas reconstituées :
+une date erronée fausserait la vérification J+20 ; elles manquent, la vérification les
+ignore. (b) `runs-on` du workflow principal figé sur `ubuntu-24.04` (migration de
+`ubuntu-latest` vers Ubuntu 26 à partir du 19/10/2026) ; `parse_boa_letter.yml` reste sur
+`ubuntu-latest`. (c) Les 25 lignes `target_prices` du 18/10 sont conservées (premier V2
+depuis le 13/10, BBGC inclus).
+
+**Points ouverts.** L'étape 3b écrit « Decisions generated » quoi qu'il arrive ; 1f
+reste bloquante alors que V1 en dépend (conception à trancher) ; BBGC a un cours cible V2
+calculé sur une seule année d'EPS sans contrôle de qualité (ADR-055 §3, filtre
+`evaluer_qualite_eps` qui accepte un ticker à année unique) : décider de l'exclure ou non.
+
+**Leçons.** (1) Tout `insert` manuel dans une table à clé double doit renseigner les deux
+clés, puis être relu par `select`. (2) Une garde fondée sur « la dernière date » doit
+exclure les sources qui écrivent hors séance. (3) Une insertion qui échoue sans faire
+échouer le run est un échec invisible : l'ajouter à l'annotation. (4) Une valeur
+d'énumération nouvelle impose de relire les `CHECK` de toutes les tables qui la
+reçoivent avant le déploiement.
