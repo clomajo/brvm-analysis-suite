@@ -3065,3 +3065,45 @@ reçoivent avant le déploiement.
 **Décision 6 (proposée, non appliquée) : séparer l'extraction du jugement.** Un nouvel extracteur ne demande à Mistral que des **chiffres cités** (CA, résultat net, flux opérationnel, dividende, chacun avec la phrase source, `N/D` si absent, jamais d'estimation). Le signal est ensuite calculé par **règle déterministe écrite avant tout calcul**, sur l'ensemble du rapport (pas 3000 caractères), par rapport à la même période de l'exercice précédent. Un chiffre sans phrase source est rejeté. Les documents sans chiffres (attestations) ne produisent pas de signal.
 
 **Seuil non respecté : la table `fundamental_signals` ne sera pas remplie** avec les signaux actuels. Elle reste vide.
+
+
+### ADR-060 — Essai du 18/10/2026 sur trois états financiers annuels 2025 ; correction de la relecture
+
+**Méthode.** Lecture directe des PDF de la BRVM (SGBC, banque ; SICABLE, industrie ; SAPH, agro-industrie) par un outil de lecture de pages web, qui résume lui-même le document : valeurs **indicatives, à confirmer sur le PDF** avant tout usage. Aucune écriture en base.
+
+**Correction de la relecture (même jour).** La relecture comparait le signal au **texte d'analyse de Mistral**, pas au rapport. L'essai montre que ce texte peut lui-même être faux :
+- **CABC (Sicable)** : l'analyse parlait de « résultat net négatif -1 704 milliards, perte +39 %, aucun dividende en 2025 ». Le rapport montre un **résultat net positif** (1 704 451 144 FCFA en 2025, 1 224 827 540 en 2024), un EBE en hausse (2,17 contre 1,97 milliard), des dividendes **versés** (758 352 000 en 2025, 523 446 400 en 2024) et un flux opérationnel négatif (-804 410 373). Montants en **francs entiers**, pas en « milliards » : erreur d'unité ×1000 et **signe lu à l'envers** (les colonnes du tableau sont mélangées à l'extraction du texte). Signal « positif » : donc défendable face au rapport (le classement « indéfendable » de la relecture est retiré pour CABC), mais l'analyse source est fausse.
+- **SGBC** : l'analyse est exacte (PNB 263 207 → 276 048 millions, soit +4,9 %) ; c'est le signal enregistré (+1,3 %) qui est faux.
+Le reste de la relecture n'a pas été revérifié sur les rapports. Verdict inchangé : le seuil de 9 sur 12 n'est pas atteint (3 sur 12 face aux textes ; 4 face aux rapports pour CABC), et la chaîne texte → signal cumule deux sources d'erreur.
+
+**Cause confirmée du problème de lecture.** Les PDF sont lisibles, mais **les tableaux sortent mélangés** (colonnes entrelacées, libellés séparés de leurs valeurs, « 0 » parasites, ligne de trésorerie vide). C'est là que se produisent les erreurs de signe et d'unité. Piste : extraction de tableaux (pdfplumber / pymupdf, déjà installés) ou OCR structuré, avant tout appel à un modèle.
+
+**Inventaire des champs (✓ présent, ✗ absent).**
+
+| Champ | Banque (SGBC) | Industrie (SICABLE) | Agro (SAPH) |
+|---|---|---|---|
+| CA / produit net bancaire | ✓ | ✓ | ✓ |
+| Résultat net, N et N-1 | ✓ | ✓ | ✓ |
+| EBE / résultat d'exploitation | frais généraux ✓ | ✓ | ✓ |
+| Coefficient d'exploitation | ✓ (2025 seul, dans le commentaire) | — | — |
+| Coût du risque ; créances douteuses (taux) et couverture | ✓ (montant des douteuses ✗) | — | — |
+| Ratio de solvabilité | ✗ | — | — |
+| Dépôts, crédits | ✓ | — | — |
+| Stocks | — | ✓ | ✓ |
+| Créances clients | — | ✗ (agrégat seulement) | agrégat |
+| Dette financière | — | ✓ | ✓ |
+| Trésorerie | — | ✓ | ✓ (actif et passif séparés) |
+| Flux de trésorerie opérationnel, investissements | — | ✓ | ✓ |
+| Dividende **proposé** | ✓ (2 606 FCFA brut) | ✗ (versé seulement) | ✓ (montant total) |
+| **Nombre d'actions** | ✓ (31 111 110) | ✗ (capital seul) | ✗ (capital seul) |
+| Volumes produits | — | — | ✗ |
+
+**Enseignements.**
+1. Le **nombre d'actions** manque dans 2 états sur 3 : il doit venir d'une source de marché, pas du rapport.
+2. Le **dividende proposé** n'est pas toujours dans les états financiers ; il se trouve aussi dans les avis de convocation des assemblées générales.
+3. **Unités** variables (millions pour les banques, francs entiers pour les autres) : normaliser à l'extraction.
+4. **États provisoires** : l'état de SICABLE se déclare non approuvé en assemblée et non vérifié par les commissaires aux comptes ; le champ « statut du rapport » doit être extrait.
+5. Cohérence vérifiable : SGBC, 2 606 FCFA × 31 111 110 actions = 81,08 milliards = 80 % du résultat net (101,35 milliards). Un tel contrôle croisé fait partie des tests de l'extracteur.
+6. **Volumes** (agro) absents des états financiers : source extérieure ou rapport d'activités.
+
+**Source externe.** stockanalysis.com (liste « Ivory Coast Stock Exchange », 48 titres : capitalisation, cours, CA) est signalé par la propriétaire comme bonne source. Seule la page de liste a pu être lue ; ses conditions d'utilisation (collecte automatisée) n'ont **pas** pu être consultées et une valeur (SAFC) paraît douteuse : usage de contrôle croisé, pas de source unique, tant que les conditions ne sont pas lues.
