@@ -2926,19 +2926,19 @@ avertissement. Respecte la règle de l'ADR-053 §7.
 moins que pas de garde-fou : il retire le signal d'alerte sans retirer le risque.
 
 
-## ADR-061 — Suppression du signal combiné
+## ADR-061 — Signal combiné désactivé (pas supprimé)
 
 **Date** : 2026-10-18
 **Statut** : appliqué sur la branche `fix-sans-signal-combine` (à cherry-picker sur `remediation-2026-07` puis `main`)
 
-**Décision.** La propriétaire a décidé : pas de signal combiné. `generate_decisions.py` ne lit plus `company_fundamentals.signal_fondamental` (signal Mistral) et écrit `signal_combine = signal`. Les colonnes `signal_fondamental`, `croissance_ca_pct`, `resume_fondamental` sont écrites à NULL.
+**Décision.** La propriétaire a décidé : pas de signal combiné. Le code est conservé et désactivé par le drapeau `SIGNAL_COMBINE_ACTIF = False` en tête de `generate_decisions.py`. Avec le drapeau à `False`, `signal_combine` vaut le signal V1, et `signal_fondamental`, `croissance_ca_pct`, `resume_fondamental` sont écrits à NULL.
 
-**Raison.** La relecture de l'ADR-060 (3 signaux sur 12 jugés défendables) et l'essai sur trois états financiers montrent que le signal fondamental ne peut pas servir de jugement. Le cumuler avec le signal technique rendrait le libellé (CONVICTION FORTE, PRUDENCE, ÉVITER FORT) plus fort que ce que les données permettent.
+**Raison.** La relecture de l'ADR-060 (3 signaux sur 12 jugés défendables) et l'essai sur trois états financiers montrent que le signal fondamental ne peut pas servir de jugement. Le cumuler avec le signal technique rendrait des libellés (CONVICTION FORTE, PRUDENCE, ÉVITER FORT) plus forts que ce que les données permettent.
 
-**Ce qui ne change pas.** Le signal V1 (ACHAT / SURVEILLER / EVITER), le score, les seuils, le score V2 (ratios de `company_fundamentals`) : inchangés. ADR-001 respecté.
+**Ce qui ne change pas.** Le signal V1, le score, les seuils, le score V2 (ratios de `company_fundamentals`) : inchangés. ADR-001 respecté.
 
-**Effet attendu.** Dès le prochain run, `brvm_decisions.signal_combine` = `signal` pour toutes les lignes. Le badge « signal_combine » du frontend (BACKLOG UI-01) affichera le signal simple ; à vérifier dans l'interface après le déploiement.
+**Réversibilité.** Repasser `SIGNAL_COMBINE_ACTIF` à `True` rétablit le comportement précédent. Aucune donnée n'est effacée.
 
-**Réversibilité.** Rétablir le bloc supprimé suffit ; aucune donnée n'est effacée, les anciennes lignes gardent leurs valeurs.
+**Effet attendu.** Au prochain run, `brvm_decisions.signal_combine` = `signal`. Le badge « signal_combine » du frontend (BACKLOG UI-01) affichera le signal simple ; à vérifier après déploiement.
 
-**Suite.** L'ADR-060 reste ouvert : aucun signal Mistral n'est lu tant qu'un nouvel extracteur n'a pas été validé. Les contrôles de lundi ne sont pas affectés.
+**Suite.** L'ADR-060 reste ouvert : aucun signal Mistral n'est utilisé tant qu'un nouvel extracteur n'est pas validé.
