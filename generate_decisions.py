@@ -567,3 +567,7 @@ if statut_decisions:
         log.info("Lignes sans score inserees pour %s: %s", date_jour, par_signal)
     except Exception as e:
         log.error("Echec insertion des decisions sans score (SUSPENDU / DONNEES_INSUFFISANTES): %s", e)
+        # Annotation visible dans le resume du run: l'etape reste verte (les decisions
+        # normales sont inserees), mais l'echec ne doit pas passer inapercu.
+        print("::warning title=generate_decisions::Lignes SUSPENDU / DONNEES_INSUFFISANTES "
+              "non inserees dans brvm_decisions (voir le journal de l'etape 3b)")
