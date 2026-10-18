@@ -84,7 +84,9 @@ jobs:
           echo "📄 Bulletin Officiel de la Cote - PER/Dividende/Rdt.Net..."
           python scrape_boc_pdf.py
           echo "📈 Mise à jour indices BRVMC + BRVM30..."
-          python scrape_indices.py
+          # Non bloquant mais visible (annotation jaune): un delai de brvm.org ne doit pas
+          # arreter les decisions. Les indices restent a leur derniere valeur.
+          python scrape_indices.py || echo "::warning title=scrape_indices::Indices BRVMC/BRVM30 non mis a jour (brvm.org injoignable apres 3 tentatives). Le pipeline continue."
           echo "📦 Mise à jour commodités..."
           python scrape_commodities.py
           echo "✅ Collecte terminée"
