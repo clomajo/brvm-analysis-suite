@@ -7,6 +7,25 @@ Types : `BUG` `FEAT` `FIX` `PERF` `DATA` `TEST` `INFRA`
 
 ---
 
+## 2026-10-19
+
+### INFRA/SEC/DATA — Contrôles du premier run après la réparation (ADR-059), clé de service rotée, lecture des fondamentaux (ADR-060, ADR-061)
+- **Repos:** brvm-analysis-suite / brvm-analytics (frontend) / Supabase
+- **Run vérifié:** #271 (schedule 18 h UTC), vert, commit `7ad6288` (main). Contrôles 1 à 6 du BACKLOG, faits un par un :
+  - étapes 1d et 1f vertes ; 1f exclut 7 tickers par le filtre qualité (ADR-011) ;
+  - étape 3b : « Suspensions de cotation en cours : ['SEMC', 'SICC'] », aucun avertissement de garde de séance ;
+  - `brvm_decisions` du 19/10 : **48 lignes** ; SEMC et SICC `SUSPENDU`, BBGC `DONNEES_INSUFFISANTES` ;
+  - frontend (Cmd+Shift+R) : libellés gris SUSPENDED / INSUFFICIENT DATA ; aucun faux EVITER ; déploiement `2b80c03` en ligne.
+- **SEC — clé de service.** Le fichier `.env.save` (clé `service_role`) était suivi par git depuis `aa4920f` (14/10) malgré `.gitignore`. Actions : nouvelle clé secrète dédiée au pipeline (`pipeline_github`), secret GitHub `SUPABASE_SERVICE_ROLE_KEY` remplacé, `.env` local mis à jour, `.env.save` retiré du suivi (`e8b59bc` sur `untrack-env-save`, cherry-pické sur `main` en `7ad6288`). **Clé `service_role` héritée à désactiver** une fois le run de lundi confirmé (fait après ce run vert, voir ci-dessous). L'historique de `main` n'a pas été réécrit : la révocation est la mesure de protection.
+- **FIX — signal combiné désactivé (ADR-061).** Le signal fondamental Mistral n'est plus utilisé : drapeau `SIGNAL_COMBINE_ACTIF = False` dans `generate_decisions.py` (branche `fix-sans-signal-combine`, commit `dd1cb5e`, à cherry-picker). Signal V1, score et score V2 inchangés.
+- **DATA/ANALYSE — fondamentaux (ADR-060, pas de code en production).**
+  - Table `fundamental_signals` (DDL `tools/ddl_fundamental_signals_20261018.sql`) : **non exécutée**, aucune donnée.
+  - Lecteur d'exercice et de période `fundamental_periode.py` (titre, puis adresse du fichier) : 33 tests ; sur les 186 lignes de `fundamental_analysis`, 183 classées, 3 en revue manuelle.
+  - Relecture de 12 signaux `company_fundamentals` (FY2025) : **3 défendables, seuil 9/12 non atteint**.
+  - Essais sur 6 états financiers 2025 (SGBC, SICABLE, SAPH, Sonatel, BOAN, SODECI) : trois modes d'échec de lecture (tableaux entrelacés, couche de texte codée en symboles, mauvais type de document). Inventaire des champs par famille et pipeline proposé (ADR-060) ; ADR-061 à rédiger avant tout code d'extraction.
+  - Constat : le signal Mistral ne venait que du fichier FY2025 écrit en dur par `extract_fundamental_signals.py`, hors de tout workflow (T8).
+- **À faire (non fait ici) :** cherry-pick de `dd1cb5e` sur `remediation-2026-07` et `main` ; désactivation de la clé `service_role` héritée dans Supabase ; exécution du DDL `fundamental_signals` si on poursuit ADR-060.
+
 ## 2026-10-18
 
 ### FIX/INFRA/DATA — Pipeline réparé après trois runs rouges et une garde contournée (ADR-059)

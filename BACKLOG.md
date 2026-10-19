@@ -60,12 +60,18 @@ E5.0 est exploratoire. Quand assez de bulletins et de vérifications J+20 sont
 accumulés : écrire d'abord le critère de réussite et le benchmark BRVMC (ADR dédié),
 puis calculer. Examiner à la main les contradictions (6 cas à ce jour). Voir MODEL-10.
 
-### Contrôle du premier run (lundi 19/10/2026, après 18 h UTC)
-Actions → « Résumé du run » ; étape 1f rouge ou non ; journal « Suspensions de
-cotation en cours: [SEMC, SICC] » ; requête : `select ticker, date, signal,
-confidence_label from brvm_decisions where signal in ('SUSPENDU',
-'DONNEES_INSUFFISANTES') order by date desc, ticker;` (attendu : SEMC/SICC
-`SUSPENDU`, BBGC `DONNEES_INSUFFISANTES`).
+### ✅ Contrôle du premier run — fait le 19/10/2026
+Run #271 vert (commit `7ad6288`). Étapes 1d, 1f, 3b vertes ; « Suspensions » SEMC/SICC ; 48 décisions du 19/10 ; SEMC/SICC `SUSPENDU`, BBGC `DONNEES_INSUFFISANTES` ; frontend conforme. Détail dans CHANGELOG 2026-10-19.
+
+### Désactiver la clé `service_role` héritée (Supabase, onglet Legacy)
+Nouvelle clé `pipeline_github` en service depuis le 18/10. Désactiver l'ancienne après contrôle. Ne pas réécrire l'historique de `main`.
+
+### Cherry-picks en attente
+`dd1cb5e` (signal combiné désactivé, ADR-061) sur `remediation-2026-07` puis `main` ; `1433eb6` (annotation statuts) si pas déjà fait.
+
+### Rappels à long terme
+- Vers le **9 novembre 2026** : `select signal, count(*) from brvm_decisions_results where signal in ('SUSPENDU','DONNEES_INSUFFISANTES') group by 1;` (attendu : aucune ligne).
+- Vers le **3 décembre 2026** : BBGC doit recevoir un vrai signal.
 
 ### Contrôle de la première vérification J+20 (~9 novembre 2026)
 Confirmer qu'aucune ligne `SUSPENDU` / `DONNEES_INSUFFISANTES` n'apparaît dans
