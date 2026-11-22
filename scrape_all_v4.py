@@ -462,6 +462,28 @@ def get_company_ids():
     )
     return {c['symbol']: c['id'] for c in r.json()} if r.status_code == 200 else {}
 
+# ── Splits connus : protection des valeurs par action déjà corrigées en base ──
+# Les sources externes ne s'ajustent pas toutes au même rythme après un split.
+# Pour ces tickers, les exercices publiés AVANT le split ne réécrivent plus
+# eps, dividend_per_share ni shares_outstanding : la base (corrigée à la main,
+# nouvelle base) fait foi. Le jour où la source est ajustée et vérifiée, retirer
+# la ligne du ticker. Les exercices postérieurs restent scrapés normalement.
+#   ticker -> dernier exercice publié en ancienne base (SNTS : split 10 pour 1 du 26/10/2026)
+SPLITS_CONNUS = {
+    "SNTS": "FY2025",
+}
+CHAMPS_PAR_ACTION_PROTEGES = ("eps", "dividend_per_share", "shares_outstanding")
+
+def proteger_split(ticker, fy, row):
+    """Retire des valeurs par action d'avant split avant l'upsert (sans effet sinon)."""
+    dernier_fy = SPLITS_CONNUS.get(ticker)
+    if not dernier_fy or not isinstance(fy, str) or fy > dernier_fy:
+        return row
+    retires = [c for c in CHAMPS_PAR_ACTION_PROTEGES if row.pop(c, None) is not None]
+    if retires:
+        print(f"  🛡️  {ticker} {fy} : split connu, {', '.join(retires)} non réécrits (base corrigée conservée)")
+    return row
+
 def insert_fundamental(record):
     clean = {k: v for k, v in record.items() if k in FUNDAMENTALS_ALLOWED and v is not None}
     # stockanalysis.com publie le dividende BRUT (avant IRVM).
@@ -565,6 +587,7 @@ if __name__ == '__main__':
                 eps_warnings.append(eps_warning)
                 print(f"  ⚠️  INCOHÉRENCE EPS : {eps_warning}")
 
+            row = proteger_split(ticker, fy, row)
             status = insert_fundamental(row)
             if status in [200, 201]:
                 ticker_rows += 1
