@@ -12,6 +12,7 @@ import urllib3
 from bs4 import BeautifulSoup
 from datetime import datetime
 from dotenv import load_dotenv
+from session_date import date_seance, seance_en_cours
 
 # Disable SSL warnings for BRVM (they have certificate issues)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -53,8 +54,7 @@ def get_company_mapping():
 
 def scrape_all_data():
     all_data = []
-    from datetime import datetime as _dt
-    session_date = _dt.now().date().isoformat()
+    session_date = date_seance().isoformat()
     
     for url in BULLETIN_URLS:
         logger.info(f"Fetching data from {url}")
@@ -107,7 +107,7 @@ def scrape_all_data():
                     })
     
     if not session_date:
-        session_date = __import__('datetime').datetime.now().date().isoformat()
+        session_date = date_seance().isoformat()
     
     logger.info(f"Scraped {len(all_data)} symbols across all sectors")
     return all_data, session_date
@@ -161,28 +161,27 @@ def main():
     logger.info("BRVM Data Collector - Simple HTTP Version (SSL disabled)")
     logger.info("=" * 60)
     
-    # ── Gardes de datation (ADR-052) ────────────────────────────────────
-    # Ce script date les lignes avec now(), pas avec la date de seance lue
-    # sur la page. Sa sortie depend donc entierement de l'heure d'execution :
-    #   - avant l'ouverture BRVM : la page affiche la cloture de la veille
-    #     -> lignes decalees de +1 jour
-    #   - pendant la seance       : volumes partiels
-    #   - apres la cloture        : correct
-    # Ces gardes refusent d'ecrire hors de la fenetre sure. Correctif de fond
-    # (parsing de la vraie date de seance) a faire, cf. BACKLOG.
+    # ── Gardes de datation (ADR-052, révisées) ──────────────────────────
+    # La date des lignes vient de session_date.date_seance() : dernière séance
+    # close. Un run tardif (cron GitHub retardé, après minuit UTC) est donc
+    # daté correctement : jusqu'à 09h UTC la page affiche encore la clôture
+    # de la veille. Restent refusés : la séance en cours (volumes partiels)
+    # et le week-end (sauf le samedi avant 09h UTC, queue d'un run du vendredi).
     maintenant = datetime.utcnow()
-    if maintenant.weekday() >= 5:
+    queue_du_vendredi = maintenant.weekday() == 5 and maintenant.hour < 9
+    if maintenant.weekday() >= 5 and not queue_du_vendredi:
         logger.warning(
             "Samedi/dimanche (%s) : pas de seance BRVM, aucune ecriture.",
             maintenant.date())
         sys.exit(0)
-    if maintenant.hour < 16 and os.getenv("FORCER_COLLECTE") != "1":
+    if seance_en_cours() and os.getenv("FORCER_COLLECTE") != "1":
         logger.warning(
-            "%02dh%02d UTC : la seance BRVM n'est pas close, les volumes "
-            "seraient partiels et la date fausse. Aucune ecriture. "
+            "%02dh%02d UTC : la seance BRVM est en cours, les volumes "
+            "seraient partiels. Aucune ecriture. "
             "Utiliser FORCER_COLLECTE=1 pour passer outre.",
             maintenant.hour, maintenant.minute)
         sys.exit(0)
+    logger.info("Date de seance retenue : %s", date_seance())
 
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("SUPABASE_URL or SUPABASE_KEY not set in environment")

@@ -3,6 +3,7 @@ import os, re, sys, json, logging, requests
 from io import BytesIO
 from datetime import date
 from supabase import create_client, Client
+from session_date import date_seance
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBox
 
@@ -196,7 +197,7 @@ def validate_and_log(d, p1, rows):
         log.info(f"Quality: {ok} OK | {ec} ECARTS | {mn} MANQUANTS")
 
 def main():
-    target_date = date.fromisoformat(sys.argv[1]) if len(sys.argv)>1 else date.today()
+    target_date = date.fromisoformat(sys.argv[1]) if len(sys.argv)>1 else date_seance()
     log.info(f"=== {target_date} ===")
     pdf_url = build_url(target_date)
     try: pdf_bytes = download_pdf(pdf_url)

@@ -5,6 +5,7 @@ scrape_indices.py — Scrape BRVMC et BRVM30 depuis bulletin officiel BRVM
 import os, requests, logging, re
 from bs4 import BeautifulSoup
 from datetime import datetime
+from session_date import date_seance, seance_en_cours
 import urllib3
 urllib3.disable_warnings()
 
@@ -55,7 +56,10 @@ def get_bulletin(tentatives=3, pause=(5, 15)):
 
 
 def scrape_indices():
-    today = datetime.now().date().isoformat()
+    if seance_en_cours() and os.getenv('FORCER_COLLECTE') != '1':
+        logging.warning('Seance en cours : indices intraday non ecrits (FORCER_COLLECTE=1 pour passer outre).')
+        return
+    today = date_seance().isoformat()
     r = get_bulletin()
     soup = BeautifulSoup(r.text, 'html.parser')
     

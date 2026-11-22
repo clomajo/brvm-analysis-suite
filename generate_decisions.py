@@ -6,6 +6,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from datetime import date
 from brvm_classifier import BRVMClassifier
+from session_date import date_seance
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
@@ -25,7 +26,7 @@ print(f"  {len(fund_signals)} fundamental signals loaded")
 
 
 classifier = BRVMClassifier()
-date_jour = date.today().isoformat()
+date_jour = date_seance().isoformat()
 CLASSIFICATION_VERSION = 'v1_officielle_20260401'
 
 res = supabase.table('companies').select('id, symbol').execute()

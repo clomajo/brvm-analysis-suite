@@ -4,6 +4,7 @@ import requests
 from datetime import date, datetime, timedelta
 from collections import Counter
 from dotenv import load_dotenv
+from session_date import date_seance
 
 load_dotenv()
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -38,7 +39,7 @@ def is_trading_day(d):
 
 def last_trading_day():
     """Retourne le dernier jour ouvré (aujourd'hui si ouvré, sinon vendredi)."""
-    d = date.today()
+    d = date_seance()
     while not is_trading_day(d):
         d -= timedelta(days=1)
     return d
