@@ -2,12 +2,19 @@ import os, re, requests, urllib3, json
 from bs4 import BeautifulSoup
 from datetime import date
 from dotenv import load_dotenv
+from session_date import date_seance, seance_en_cours
 
 urllib3.disable_warnings()
 load_dotenv()
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+
+# Séance en cours (09h-16h UTC) : la page affiche des valeurs intraday, qui seraient
+# datées de la veille avec date_seance(). Rien n'est écrit, sauf FORCER_COLLECTE=1.
+if seance_en_cours() and os.getenv('FORCER_COLLECTE') != '1':
+    print('⏸️  Séance en cours : indices intraday non écrits (FORCER_COLLECTE=1 pour passer outre).')
+    raise SystemExit(0)
 
 def supabase_upsert(table, data):
     r = requests.post(
@@ -54,7 +61,7 @@ brvm30_val = extract(text, r'BRVM-30(\d{3,4},\d{2})')
 print(f"  BRVMC:  {brvmc_val}")
 print(f"  BRVM30: {brvm30_val}")
 
-today = date.today().isoformat()
+today = date_seance().isoformat()
 
 r = requests.get(
     f"{SUPABASE_URL}/rest/v1/companies?symbol=in.(BRVMC,BRVM30)&select=id,symbol",
